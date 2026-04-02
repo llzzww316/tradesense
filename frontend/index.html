@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeSense - K线回放训练</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            padding: 12px 20px;
+            background: #16213e;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1px solid #0f3460;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e94560;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        select, button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        select:hover, button:hover {
+            background: #1a4f8a;
+        }
+        button.primary {
+            background: #e94560;
+        }
+        button.primary:hover {
+            background: #ff6b6b;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .chart-container {
+            flex: 1;
+            position: relative;
+        }
+        #chart {
+            width: 100%;
+            height: 100%;
+        }
+        .replay-bar {
+            padding: 10px 20px;
+            background: #16213e;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-top: 1px solid #0f3460;
+        }
+        .replay-bar span {
+            color: #888;
+            font-size: 13px;
+        }
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: #0f3460;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #e94560;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+        .speed-select {
+            width: 70px;
+        }
+        .status {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 10;
+        }
+        .status.hidden {
+            display: none;
+        }
+        .mode-tag {
+            background: #e94560;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">TradeSense</div>
+        <div class="controls">
+            <select id="symbolSelect">
+                <option value="螺纹钢">螺纹钢</option>
+                <option value="PVC">PVC</option>
+            </select>
+            <select id="displayPeriod">
+                <option value="5m" selected>5分钟显示</option>
+                <option value="1m">1分钟显示</option>
+                <option value="15m">15分钟显示</option>
+            </select>
+            <select id="stepPeriod">
+                <option value="1m" selected>1分钟步进</option>
+                <option value="5m">5分钟步进</option>
+            </select>
+            <select id="emaPeriod">
+                <option value="20" selected>EMA(20)</option>
+                <option value="10">EMA(10)</option>
+                <option value="60">EMA(60)</option>
+            </select>
+            <button id="loadBtn" class="primary">加载数据</button>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <div id="chart"></div>
+        <div class="status" id="status">加载中...</div>
+    </div>
+    
+    <div class="replay-bar">
+        <button id="prevBtn" disabled>◀ 上一根</button>
+        <button id="playBtn" disabled>▶ 播放</button>
+        <button id="nextBtn" disabled>下一根 ▶</button>
+        <span id="barInfo">0 / 0</span>
+        <span class="mode-tag" id="modeTag">5分钟显示 / 1分钟步进</span>
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <select id="speedSelect" class="speed-select">
+            <option value="500">0.5x</option>
+            <option value="300" selected>1x</option>
+            <option value="150">2x</option>
+            <option value="50">5x</option>
+        </select>
+    </div>
+
+    <script>
+        // 全局变量
+        let chart = null;
+        let candleSeries = null;
+        let emaLine = null;
+        let displayBars = [];      // 显示用K线（5分钟）
+        let stepBars = [];         // 步进用K线（1分钟）
+        let currentStepIndex = 0;  // 当前步进索引
+        let isPlaying = false;
+        let playInterval = null;
+        
+        const API_BASE = "http://localhost:8765";
+
+        // 初始化图表
+        function initChart() {
+            chart = LightweightCharts.createChart(document.getElementById("chart"), {
+                layout: {
+                    background: { type: "solid", color: "#1a1a2e" },
+                    textColor: "#888",
+                },
+                grid: {
+                    vertLines: { color: "#222" },
+                    horzLines: { color: "#222" },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                timeScale: {
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+            
+            candleSeries = chart.addCandlestickSeries({
+                upColor: "#26a69a",
+                downColor: "#ef5350",
+                borderUpColor: "#26a69a",
+                borderDownColor: "#ef5350",
+                wickUpColor: "#26a69a",
+                wickDownColor: "#ef5350",
+            });
+            
+            emaLine = chart.addLineSeries({
+                color: "#ffeb3b",
+                lineWidth: 2,
+            });
+            
+            window.addEventListener("resize", () => {
+                chart.applyOptions({ width: document.getElementById("chart").clientWidth });
+            });
+        }
+
+        // 加载回放数据（显示周期 + 步进周期）
+        async function loadData() {
+            const symbol = document.getElementById("symbolSelect").value;
+            const displayPeriod = document.getElementById("displayPeriod").value;
+            const stepPeriod = document.getElementById("stepPeriod").value;
+            const emaPeriod = document.getElementById("emaPeriod").value;
+            
+            document.getElementById("status").textContent = "加载回放数据...";
+            document.getElementById("status").classList.remove("hidden");
+            
+            try {
+                const res = await fetch(
+                    `${API_BASE}/replay_data?symbol=${encodeURIComponent(symbol)}` +
+                    `&display_period=${displayPeriod}&step_period=${stepPeriod}` +
+                    `&count=500&ma_period=${emaPeriod}`
+                );
+                const data = await res.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayBars = data.display;
+                stepBars = data.step;
+                
+                // 更新模式标签
+                document.getElementById("modeTag").textContent = 
+                    `${displayPeriod}显示 / ${stepPeriod}步进`;
+                
+                // 初始显示
+                currentStepIndex = 0;
+                updateChart();
+                updateUI();
+                
+                document.getElementById("status").classList.add("hidden");
+                
+                // 启用按钮
+                document.getElementById("prevBtn").disabled = false;
+                document.getElementById("playBtn").disabled = false;
+                document.getElementById("nextBtn").disabled = false;
+                
+            } catch (e) {
+                document.getElementById("status").textContent = "加载失败: " + e.message;
+                console.error(e);
+            }
+        }
+
+        // 根据步进索引计算当前显示的K线
+        function getCurrentDisplayBars() {
+            if (stepBars.length === 0 || displayBars.length === 0) return [];
+            
+            // 找到当前步进时间对应的显示K线索引
+            const currentStepTime = stepBars[currentStepIndex].time;
+            
+            // 找到当前时间属于哪个显示K线
+            let currentDisplayIndex = 0;
+            for (let i = 0; i < displayBars.length; i++) {
+                if (displayBars[i].time <= currentStepTime) {
+                    currentDisplayIndex = i;
+                } else {
+                    break;
+                }
+            }
+            
+            // 构建当前可见的显示K线（只显示到当前）
+            const result = [];
+            for (let i = 0; i <= currentDisplayIndex; i++) {
+                result.push(displayBars[i]);
+            }
+            
+            return result;
+        }
+
+        // 更新图表
+        function updateChart() {
+            if (displayBars.length === 0) return;
+            
+            const visibleDisplay = getCurrentDisplayBars();
+            
+            candleSeries.setData(visibleDisplay.map(bar => ({
+                time: bar.time,
+                open: bar.open,
+                high: bar.high,
+                low: bar.low,
+                close: bar.close,
+            })));
+            
+            // EMA
+            const emaData = visibleDisplay
+                .filter(bar => bar.ema !== null && bar.ema !== undefined)
+                .map(bar => ({
+                    time: bar.time,
+                    value: bar.ema,
+                }));
+            
+            emaLine.setData(emaData);
+            
+            chart.timeScale().scrollToRealTime();
+        }
+
+        // 更新UI状态
+        function updateUI() {
+            document.getElementById("barInfo").textContent = 
+                `${currentStepIndex + 1} / ${stepBars.length} (步进) | ${getCurrentDisplayIndex() + 1} / ${displayBars.length} (显示)`;
+            
+            const progress = stepBars.length > 0 ? ((currentStepIndex + 1) / stepBars.length) * 100 : 0;
+            document.getElementById("progressFill").style.width = `${progress}%`;
+            
+            document.getElementById("prevBtn").disabled = currentStepIndex === 0;
+            document.getElementById("nextBtn").disabled = currentStepIndex >= stepBars.length - 1;
+            
+            const playBtn = document.getElementById("playBtn");
+            playBtn.textContent = isPlaying ? "⏸ 暂停" : "▶ 播放";
+        }
+
+        function getCurrentDisplayIndex() {
+            if (stepBars.length === 0 || displayBars.length === 0) return 0;
+            const currentStepTime = stepBars[currentStepIndex].time;
+            for (let i = 0; i < displayBars.length; i++) {
+                if (displayBars[i].time <= currentStepTime) {
+                    if (i === displayBars.length - 1) return i;
+                } else {
+                    return i - 1;
+                }
+            }
+            return displayBars.length - 1;
+        }
+
+        // 播放控制
+        function play() {
+            if (isPlaying) {
+                stopPlay();
+                return;
+            }
+            
+            if (currentStepIndex >= stepBars.length - 1) {
+                currentStepIndex = 0;
+            }
+            
+            isPlaying = true;
+            const speed = parseInt(document.getElementById("speedSelect").value);
+            
+            playInterval = setInterval(() => {
+                currentStepIndex++;
+                if (currentStepIndex >= stepBars.length - 1) {
+                    stopPlay();
+                    return;
+                }
+                updateChart();
+                updateUI();
+            }, speed);
+            
+            updateUI();
+        }
+
+        function stopPlay() {
+            isPlaying = false;
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+            updateUI();
+        }
+
+        // 步进控制
+        function prevStep() {
+            if (currentStepIndex > 0) {
+                stopPlay();
+                currentStepIndex--;
+                updateChart();
+                updateUI();
+            }
+        }
+
+        function nextStep() {
+            if (currentStepIndex < stepBars.length - 1) {
+                stopPlay();
+                currentStepIndex++;
+                updateChart();
+                updateUI();
+            }
+        }
+
+        // 事件绑定
+        document.getElementById("loadBtn").addEventListener("click", loadData);
+        document.getElementById("prevBtn").addEventListener("click", prevStep);
+        document.getElementById("nextBtn").addEventListener("click", nextStep);
+        document.getElementById("playBtn").addEventListener("click", play);
+
+        // 进度条点击
+        document.getElementById("progressBar").addEventListener("click", (e) => {
+            if (stepBars.length === 0) return;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const ratio = x / rect.width;
+            const newIndex = Math.floor(ratio * stepBars.length);
+            stopPlay();
+            currentStepIndex = Math.max(0, Math.min(newIndex, stepBars.length - 1));
+            updateChart();
+            updateUI();
+        });
+
+        // 键盘快捷键
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") {
+                prevStep();
+            } else if (e.key === "ArrowRight") {
+                nextStep();
+            } else if (e.key === " ") {
+                e.preventDefault();
+                play();
+            }
+        });
+
+        // 初始化
+        initChart();
+    </script>
+</body>
+</html>

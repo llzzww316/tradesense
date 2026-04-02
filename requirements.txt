@@ -1,0 +1,4 @@
+gm
+fastapi
+uvicorn
+pandas
