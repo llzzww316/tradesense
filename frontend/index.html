@@ -13,19 +13,19 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            background: #ffffff;
+            color: #333;
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
         .header {
             padding: 12px 20px;
-            background: #16213e;
+            background: #f5f5f5;
             display: flex;
             align-items: center;
             gap: 20px;
-            border-bottom: 1px solid #0f3460;
+            border-bottom: 1px solid #ddd;
         }
         .logo {
             font-size: 20px;
@@ -39,18 +39,20 @@
         }
         select, button {
             padding: 8px 14px;
-            border: none;
+            border: 1px solid #ccc;
             border-radius: 6px;
-            background: #0f3460;
-            color: #fff;
+            background: #fff;
+            color: #333;
             cursor: pointer;
             font-size: 14px;
         }
         select:hover, button:hover {
-            background: #1a4f8a;
+            background: #eee;
         }
         button.primary {
             background: #e94560;
+            color: #fff;
+            border: none;
         }
         button.primary:hover {
             background: #ff6b6b;
@@ -71,20 +73,20 @@
         }
         .replay-bar {
             padding: 10px 20px;
-            background: #16213e;
+            background: #f5f5f5;
             display: flex;
             align-items: center;
             gap: 15px;
-            border-top: 1px solid #0f3460;
+            border-top: 1px solid #ddd;
         }
         .replay-bar span {
-            color: #888;
+            color: #666;
             font-size: 13px;
         }
         .progress-bar {
             flex: 1;
             height: 6px;
-            background: #0f3460;
+            background: #ddd;
             border-radius: 3px;
             cursor: pointer;
             position: relative;
@@ -103,7 +105,8 @@
             position: absolute;
             top: 10px;
             left: 20px;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
             padding: 8px 14px;
             border-radius: 6px;
             font-size: 13px;
@@ -114,6 +117,7 @@
         }
         .mode-tag {
             background: #e94560;
+            color: #fff;
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
@@ -129,24 +133,36 @@
                 <option value="PVC">PVC</option>
             </select>
             <select id="displayPeriod">
-                <option value="5m" selected>5分钟显示</option>
-                <option value="1m">1分钟显示</option>
-                <option value="15m">15分钟显示</option>
+                <option value="5m" selected>5分钟</option>
+                <option value="1m">1分钟</option>
+                <option value="15m">15分钟</option>
+                <option value="60m">60分钟</option>
+                <option value="1d">日线</option>
             </select>
             <select id="stepPeriod">
-                <option value="1m" selected>1分钟步进</option>
-                <option value="5m">5分钟步进</option>
+                <option value="1m" selected>1分钟</option>
+                <option value="5m">5分钟</option>
+                <option value="15m">15分钟</option>
+                <option value="60m">60分钟</option>
+                <option value="1d">日线</option>
             </select>
             <select id="emaPeriod">
                 <option value="20" selected>EMA(20)</option>
                 <option value="10">EMA(10)</option>
                 <option value="60">EMA(60)</option>
             </select>
-            <label style="font-size:12px;margin-left:10px;color:#888;">
-                开始: <input type="date" id="startDate" style="background:#0f3460;border:1px solid #333;color:#fff;padding:6px;border-radius:4px;width:120px;">
+            <select id="startPosition">
+                <option value="20" selected>起始20根</option>
+                <option value="40">起始40根</option>
+                <option value="60">起始60根</option>
+                <option value="100">起始100根</option>
+                <option value="all">全部显示</option>
+            </select>
+            <label style="font-size:14px;margin-left:10px;color:#666;">
+                开始: <input type="date" id="startDate" style="background:#fff;border:1px solid #ccc;color:#333;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:6px;border-radius:4px;width:120px;">
             </label>
-            <label style="font-size:12px;margin-left:5px;color:#888;">
-                结束: <input type="date" id="endDate" style="background:#0f3460;border:1px solid #333;color:#fff;padding:6px;border-radius:4px;width:120px;">
+            <label style="font-size:14px;margin-left:5px;color:#666;">
+                结束: <input type="date" id="endDate" style="background:#fff;border:1px solid #ccc;color:#333;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:6px;border-radius:4px;width:120px;">
             </label>
             <button id="loadBtn" class="primary">加载数据</button>
         </div>
@@ -154,7 +170,8 @@
     
     <div class="chart-container">
         <div id="chart"></div>
-        <div class="status" id="status">加载中...</div>
+        <div class="status hidden" id="status"></div>
+        <div id="ohlcDisplay" style="position:absolute;top:10px;right:20px;background:rgba(0,0,0,0.8);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ubuntu,sans-serif;z-index:1000;min-width:200px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">等待数据...</div>
     </div>
     
     <div class="replay-bar">
@@ -162,7 +179,7 @@
         <button id="playBtn" disabled>▶ 播放</button>
         <button id="nextBtn" disabled>下一根 ▶</button>
         <span id="barInfo">0 / 0</span>
-        <span class="mode-tag" id="modeTag">5分钟显示 / 1分钟步进</span>
+        <span class="mode-tag" id="modeTag">5分钟 / 1分钟</span>
         <div class="progress-bar" id="progressBar">
             <div class="progress-fill" id="progressFill"></div>
         </div>
@@ -197,12 +214,24 @@
                 width: width,
                 height: height,
                 layout: {
-                    background: { type: "solid", color: "#1a1a2e" },
-                    textColor: "#888",
+                    background: { type: "solid", color: "#ffffff" },
+                    textColor: "#333",
+                },
+                localization: {
+                    timeFormatter: (time) => {
+                        const timeMs = time * 1000;
+                        const d = new Date(timeMs);
+                        const yyyy = d.getUTCFullYear();
+                        const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getUTCDate()).padStart(2, '0');
+                        const hh = String(d.getUTCHours()).padStart(2, '0');
+                        const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                        return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+                    },
                 },
                 grid: {
-                    vertLines: { color: "#222" },
-                    horzLines: { color: "#222" },
+                    vertLines: { color: "#eee" },
+                    horzLines: { color: "#eee" },
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
@@ -217,14 +246,14 @@
                     timeVisible: true,
                     secondsVisible: false,
                     tickMarkFormatter: (time) => {
-                        const d = new Date(time * 1000);
-                        const shanghaiOffset = 8 * 60 * 60 * 1000;
-                        const shanghaiTime = new Date(d.getTime() + shanghaiOffset);
-                        const yyyy = shanghaiTime.getUTCFullYear();
-                        const MM = String(shanghaiTime.getUTCMonth() + 1).padStart(2, '0');
-                        const dd = String(shanghaiTime.getUTCDate()).padStart(2, '0');
-                        const hh = String(shanghaiTime.getUTCHours()).padStart(2, '0');
-                        const mm = String(shanghaiTime.getUTCMinutes()).padStart(2, '0');
+                        // 统一格式：YYYY-MM-DD HH:mm
+                        const timeMs = time * 1000;
+                        const d = new Date(timeMs);
+                        const yyyy = d.getUTCFullYear();
+                        const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getUTCDate()).padStart(2, '0');
+                        const hh = String(d.getUTCHours()).padStart(2, '0');
+                        const mm = String(d.getUTCMinutes()).padStart(2, '0');
                         return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
                     },
                 },
@@ -232,8 +261,9 @@
                     borderColor: "#333",
                 },
                 crosshairTimeFormatter: (time) => {
-                    // time is in seconds
-                    const d = new Date(time * 1000);
+                    // 统一格式：YYYY-MM-DD HH:mm
+                    const timeMs = time * 1000;
+                    const d = new Date(timeMs);
                     const yyyy = d.getUTCFullYear();
                     const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
                     const dd = String(d.getUTCDate()).padStart(2, '0');
@@ -244,22 +274,81 @@
             });
             
             candleSeries = chart.addCandlestickSeries({
-                upColor: "#26a69a",
-                downColor: "#ef5350",
-                borderUpColor: "#26a69a",
-                borderDownColor: "#ef5350",
-                wickUpColor: "#26a69a",
-                wickDownColor: "#ef5350",
+                upColor: "#ef5350",
+                downColor: "#26a69a",
+                borderUpColor: "#ef5350",
+                borderDownColor: "#26a69a",
+                wickUpColor: "#ef5350",
+                wickDownColor: "#26a69a",
             });
             
             emaLine = chart.addLineSeries({
-                color: "#ffeb3b",
+                color: "#ff9800",
                 lineWidth: 2,
             });
             
             window.addEventListener("resize", () => {
                 const w = container.clientWidth || 800;
                 chart.resize(w, 600);
+            });
+            
+            // 订阅十字线移动事件，显示OHLC
+            chart.subscribeCrosshairMove((param) => {
+                const ohlcEl = document.getElementById("ohlcDisplay");
+
+                // 调试：打印 param 对象查看结构
+                console.log("CrosshairMove param:", param);
+                console.log("param.point:", param.point);
+                console.log("param.time:", param.time);
+                console.log("param.seriesData:", param.seriesData);
+                if (param.seriesData) {
+                    console.log("seriesData keys:", Array.from(param.seriesData.keys()));
+                    console.log("seriesData values:", Array.from(param.seriesData.values()));
+                }
+
+                // 如果鼠标不在图表上，清除显示
+                if (!param.point) {
+                    ohlcEl.style.display = "none";
+                    return;
+                }
+
+                // 十字线没有时间数据时
+                if (!param.time) {
+                    ohlcEl.style.display = "none";
+                    return;
+                }
+
+                // 使用 param.seriesData.get() 获取当前K线数据
+                // 注意：seriesData 是一个 Map，key 是 series 实例
+                let data = null;
+                try {
+                    data = param.seriesData.get(candleSeries);
+                    console.log("Got data from seriesData:", data);
+                } catch (e) {
+                    console.error("Error getting series data:", e);
+                    ohlcEl.style.display = "none";
+                    return;
+                }
+
+                if (!data) {
+                    console.log("No data found for candleSeries");
+                    ohlcEl.style.display = "none";
+                    return;
+                }
+
+                // 转换时间为北京时间（与坐标轴格式一致）
+                // data.time 是 Unix 时间戳（秒），需要转换为北京时间字符串
+                const timeMs = data.time * 1000;
+                const d = new Date(timeMs);
+                // 格式化为北京时间：YYYY-MM-DD HH:mm
+                const yyyy = d.getUTCFullYear();
+                const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const hh = String(d.getUTCHours()).padStart(2, '0');
+                const mm = String(d.getUTCMinutes()).padStart(2, '0');
+
+                ohlcEl.innerHTML = `${yyyy}-${MM}-${dd} ${hh}:${mm} | <span style="color:#f0ad4e">O:${data.open}</span> <span style="color:#ef5350">H:${data.high}</span> <span style="color:#26a69a">L:${data.low}</span> <span style="color:#4fc3f7">C:${data.close}</span>`;
+                ohlcEl.style.display = "block";
             });
         }
 
@@ -303,11 +392,18 @@
                 stepBars = data.step;
                 
                 // 更新模式标签
-                document.getElementById("modeTag").textContent = 
-                    `${displayPeriod}显示 / ${stepPeriod}步进`;
+                document.getElementById("modeTag").textContent =
+                    `${displayPeriod} / ${stepPeriod}`;
                 
-                // 初始显示 - 直接显示所有K线（不用回放模式）
-                currentStepIndex = 0;
+                // 初始显示：根据下拉选择设定起始位置
+                const startPosSelect = document.getElementById("startPosition");
+                const startPosValue = startPosSelect.value;
+                if (startPosValue === "all") {
+                    currentStepIndex = stepBars.length - 1; // 最末尾，即全部已加载
+                } else {
+                    const N = parseInt(startPosValue);
+                    currentStepIndex = Math.min(N, stepBars.length - 1);
+                }
                 updateChart();
                 updateUI();
                 
@@ -337,24 +433,24 @@
             return displayBars;
         }
 
+        // 转换时间格式为Lightweight Charts需要的Unix时间戳（秒）
+        // 时间字符串格式: "2026-03-25 13:35:00" (北京时间 UTC+8)
+        function toChartTime(timeStr) {
+            // 手动解析日期字符串
+            const parts = timeStr.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+            if (parts) {
+                const [, yyyy, MM, dd, hh, mm, ss] = parts.map(Number);
+                // 直接用北京时间创建UTC时间戳
+                // Date.UTC returns milliseconds, divide by 1000 for seconds
+                return Math.floor(Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) / 1000);
+            }
+            const date = new Date(timeStr);
+            return Math.floor(date.getTime() / 1000);
+        }
+
         // 更新图表
         function updateChart() {
             if (displayBars.length === 0) return;
-            
-            // 转换时间格式为Lightweight Charts需要的Unix时间戳（秒）
-            // 时间字符串格式: "2026-03-25 13:35:00" (北京时间 UTC+8)
-            const toChartTime = (timeStr) => {
-                // 手动解析日期字符串
-                const parts = timeStr.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-                if (parts) {
-                    const [, yyyy, MM, dd, hh, mm, ss] = parts.map(Number);
-                    // 直接用北京时间创建UTC时间戳
-                    // Date.UTC returns milliseconds, divide by 1000 for seconds
-                    return Math.floor(Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) / 1000);
-                }
-                const date = new Date(timeStr);
-                return Math.floor(date.getTime() / 1000);
-            };
             
             if (stepBars.length === 0) {
                 // 无步进数据时，直接显示所有历史K线
@@ -439,8 +535,8 @@
 
         // 更新UI状态
         function updateUI() {
-            document.getElementById("barInfo").textContent = 
-                `${currentStepIndex + 1} / ${stepBars.length} (步进) | ${getCurrentDisplayIndex() + 1} / ${displayBars.length} (显示)`;
+            document.getElementById("barInfo").textContent =
+                `${currentStepIndex + 1} / ${stepBars.length} | ${getCurrentDisplayIndex() + 1} / ${displayBars.length}`;
             
             const progress = stepBars.length > 0 ? ((currentStepIndex + 1) / stepBars.length) * 100 : 0;
             document.getElementById("progressFill").style.width = `${progress}%`;

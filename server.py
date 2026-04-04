@@ -71,7 +71,7 @@ async def get_replay_data(
     
     period_map = {
         "1m": "1m", "5m": "5m", "15m": "15m",
-        "30m": "30m", "1h": "60m", "4h": "240m", "1d": "1d",
+        "30m": "30m", "60m": "60m", "1h": "60m", "4h": "240m", "1d": "1d",
     }
     
     display_gm = period_map.get(display_period, "5m")
@@ -113,7 +113,21 @@ async def get_replay_data(
         display_bars["ema"] = calculate_ema(display_bars["close"], ma_period)
         display_bars["time"] = display_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
         display_bars = display_bars.tail(count)
-        step_bars = step_bars.tail(count * 5 if display_period == "5m" else count)  # 5分钟≈5根1分钟
+        # 计算步进数据条数：确保可覆盖 display 的完整时间范围
+        period_minutes = {
+            "1m": 1,
+            "5m": 5,
+            "15m": 15,
+            "30m": 30,
+            "60m": 60,
+            "1h": 60,
+            "4h": 240,
+            "1d": 1440,
+        }
+        display_minutes = period_minutes.get(display_period, 5)
+        step_minutes = period_minutes.get(step_period, 1)
+        multiplier = max(1, display_minutes // step_minutes)
+        step_bars = step_bars.tail(count * multiplier)
         
         # 按时间升序排序（从旧到新）
         display_bars = display_bars.sort_values("bob")
