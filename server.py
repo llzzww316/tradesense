@@ -114,8 +114,10 @@ async def get_replay_data(
     symbol: str = Query(..., description="品种名称"),
     display_period: str = Query("5m", description="显示周期"),
     step_period: str = Query("1m", description="步进周期（回放用）"),
-    count: int = Query(500, description="K线数量，最大500"),
+    count: int = Query(2000, description="K线数量，最大2000"),
     ma_period: int = Query(20, description="EMA周期"),
+    start_date: str = Query(None, description="开始日期，如2025-10-01"),
+    end_date: str = Query(None, description="结束日期，如2026-04-01"),
 ):
     """
     获取回放数据：5分钟显示K线 + 1分钟步进数据
@@ -135,11 +137,15 @@ async def get_replay_data(
     step_gm = period_map.get(step_period, "1m")
     
     try:
+        # 确定日期范围
+        start_time = start_date if start_date else DATA_START
+        end_time = end_date if end_date else "2030-12-31"
+        
         # 获取显示周期K线（用于结构）
         display_bars = history(
             symbol=SYMBOLS[symbol],
-            start_time=DATA_START,
-            end_time="2026-04-04",
+            start_time=start_time,
+            end_time=end_time,
             df=True,
             adjust=1,
             frequency=display_gm,
@@ -149,8 +155,8 @@ async def get_replay_data(
         # 获取步进周期K线（用于回放）
         step_bars = history(
             symbol=SYMBOLS[symbol],
-            start_time=DATA_START,
-            end_time="2026-04-04",
+            start_time=start_time,
+            end_time=end_time,
             df=True,
             adjust=1,
             frequency=step_gm,

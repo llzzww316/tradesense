@@ -142,6 +142,12 @@
                 <option value="10">EMA(10)</option>
                 <option value="60">EMA(60)</option>
             </select>
+            <label style="font-size:12px;margin-left:10px;color:#888;">
+                开始: <input type="date" id="startDate" style="background:#0f3460;border:1px solid #333;color:#fff;padding:6px;border-radius:4px;width:120px;">
+            </label>
+            <label style="font-size:12px;margin-left:5px;color:#888;">
+                结束: <input type="date" id="endDate" style="background:#0f3460;border:1px solid #333;color:#fff;padding:6px;border-radius:4px;width:120px;">
+            </label>
             <button id="loadBtn" class="primary">加载数据</button>
         </div>
     </div>
@@ -200,10 +206,40 @@
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: {
+                        labelBackgroundColor: "#e94560",
+                    },
+                    horzLine: {
+                        labelBackgroundColor: "#e94560",
+                    },
                 },
                 timeScale: {
                     timeVisible: true,
                     secondsVisible: false,
+                    tickMarkFormatter: (time) => {
+                        const d = new Date(time * 1000);
+                        const shanghaiOffset = 8 * 60 * 60 * 1000;
+                        const shanghaiTime = new Date(d.getTime() + shanghaiOffset);
+                        const yyyy = shanghaiTime.getUTCFullYear();
+                        const MM = String(shanghaiTime.getUTCMonth() + 1).padStart(2, '0');
+                        const dd = String(shanghaiTime.getUTCDate()).padStart(2, '0');
+                        const hh = String(shanghaiTime.getUTCHours()).padStart(2, '0');
+                        const mm = String(shanghaiTime.getUTCMinutes()).padStart(2, '0');
+                        return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+                    },
+                },
+                rightPriceScale: {
+                    borderColor: "#333",
+                },
+                crosshairTimeFormatter: (time) => {
+                    // time is in seconds
+                    const d = new Date(time * 1000);
+                    const yyyy = d.getUTCFullYear();
+                    const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getUTCDate()).padStart(2, '0');
+                    const hh = String(d.getUTCHours()).padStart(2, '0');
+                    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                    return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
                 },
             });
             
@@ -227,22 +263,36 @@
             });
         }
 
+        // 初始化日期选择器（默认最近30天）
+        function initDatePickers() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            
+            document.getElementById("endDate").value = today.toISOString().split('T')[0];
+            document.getElementById("startDate").value = thirtyDaysAgo.toISOString().split('T')[0];
+        }
+        
         // 加载回放数据（显示周期 + 步进周期）
         async function loadData() {
             const symbol = document.getElementById("symbolSelect").value;
             const displayPeriod = document.getElementById("displayPeriod").value;
             const stepPeriod = document.getElementById("stepPeriod").value;
             const emaPeriod = document.getElementById("emaPeriod").value;
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
             
             document.getElementById("status").textContent = "加载回放数据...";
             document.getElementById("status").classList.remove("hidden");
             
             try {
-                const res = await fetch(
-                    `${API_BASE}/replay_data?symbol=${encodeURIComponent(symbol)}` +
+                let url = `${API_BASE}/replay_data?symbol=${encodeURIComponent(symbol)}` +
                     `&display_period=${displayPeriod}&step_period=${stepPeriod}` +
-                    `&count=500&ma_period=${emaPeriod}`
-                );
+                    `&count=2000&ma_period=${emaPeriod}`;
+                
+                if (startDate) url += `&start_date=${startDate}`;
+                if (endDate) url += `&end_date=${endDate}`;
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 
                 if (data.error) {
@@ -291,7 +341,17 @@
         function updateChart() {
             if (displayBars.length === 0) return;
             
+            // 转换时间格式为Lightweight Charts需要的Unix时间戳（秒）
+            // 时间字符串格式: "2026-03-25 13:35:00" (北京时间 UTC+8)
             const toChartTime = (timeStr) => {
+                // 手动解析日期字符串
+                const parts = timeStr.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+                if (parts) {
+                    const [, yyyy, MM, dd, hh, mm, ss] = parts.map(Number);
+                    // 直接用北京时间创建UTC时间戳
+                    // Date.UTC returns milliseconds, divide by 1000 for seconds
+                    return Math.floor(Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) / 1000);
+                }
                 const date = new Date(timeStr);
                 return Math.floor(date.getTime() / 1000);
             };
@@ -493,6 +553,7 @@
 
         // 初始化
         initChart();
+        initDatePickers();
     </script>
 </body>
 </html>
