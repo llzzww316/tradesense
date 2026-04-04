@@ -50,65 +50,6 @@ async def get_symbols():
     return {"symbols": list(SYMBOLS.keys())}
 
 
-@app.get("/bars")
-async def get_bars(
-    symbol: str = Query(..., description="品种名称，如螺纹钢"),
-    period: str = Query("5m", description="显示周期，如5m, 1m"),
-    count: int = Query(500, description="K线数量，最大1000"),
-):
-    """获取K线数据（用于显示）"""
-    if symbol not in SYMBOLS:
-        return {"error": f"Unknown symbol: {symbol}"}
-    
-    # 周期映射
-    period_map = {
-        "1m": "1m",
-        "5m": "5m",
-        "15m": "15m",
-        "30m": "30m",
-        "1h": "60m",
-        "4h": "240m",
-        "1d": "1d",
-    }
-    gm_period = period_map.get(period, "5m")
-    
-    try:
-        bars = history(
-            symbol=SYMBOLS[symbol],
-            start_time=DATA_START,
-            end_time="2026-04-04",
-            df=True,
-            adjust=1,
-            frequency=gm_period,
-            fields="bob,open,high,low,close,volume",
-        )
-        
-        if bars is None or bars.empty:
-            return {"error": "No data"}
-        
-        bars["time"] = bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        bars = bars.tail(count)
-        
-        # 按时间升序排序（从旧到新）
-        bars = bars.sort_values("bob")
-        
-        data = []
-        for _, row in bars.iterrows():
-            data.append({
-                "time": row["time"],
-                "open": float(row["open"]),
-                "high": float(row["high"]),
-                "low": float(row["low"]),
-                "close": float(row["close"]),
-                "volume": float(row["volume"]) if "volume" in row else 0,
-            })
-        
-        return {"bars": data, "symbol": symbol, "period": period}
-    
-    except Exception as e:
-        return {"error": str(e)}
-
-
 @app.get("/replay_data")
 async def get_replay_data(
     symbol: str = Query(..., description="品种名称"),
@@ -211,57 +152,6 @@ async def get_replay_data(
             "stepPeriod": step_period,
             "maPeriod": ma_period,
         }
-    
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/ema")
-async def get_ema(
-    symbol: str = Query(..., description="品种名称"),
-    period: str = Query("5m", description="周期"),
-    count: int = Query(500, description="K线数量"),
-    ma_period: int = Query(20, description="EMA周期"),
-):
-    """计算EMA指标"""
-    import pandas as pd
-    
-    if symbol not in SYMBOLS:
-        return {"error": f"Unknown symbol: {symbol}"}
-    
-    period_map = {
-        "1m": "1m", "5m": "5m", "15m": "15m",
-        "30m": "30m", "1h": "60m", "4h": "240m", "1d": "1d",
-    }
-    gm_period = period_map.get(period, "5m")
-    
-    try:
-        bars = history(
-            symbol=SYMBOLS[symbol],
-            start_time=DATA_START,
-            end_time="2026-04-04",
-            df=True,
-            adjust=1,
-            frequency=gm_period,
-            fields="bob,open,high,low,close,volume",
-        )
-        
-        if bars is None or bars.empty:
-            return {"error": "No data"}
-        
-        bars["ema"] = bars["close"].ewm(span=ma_period, adjust=False).mean()
-        bars["time"] = bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        bars = bars.tail(count)
-        
-        data = []
-        for _, row in bars.iterrows():
-            if pd.notna(row["ema"]):
-                data.append({
-                    "time": row["time"],
-                    "value": float(row["ema"]),
-                })
-        
-        return {"ema": data, "period": ma_period}
     
     except Exception as e:
         return {"error": str(e)}
