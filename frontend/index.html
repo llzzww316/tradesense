@@ -62,10 +62,12 @@
         .chart-container {
             flex: 1;
             position: relative;
+            height: 600px;
         }
         #chart {
             width: 100%;
-            height: 100%;
+            height: 600px;
+            display: block;
         }
         .replay-bar {
             padding: 10px 20px;
@@ -181,7 +183,13 @@
 
         // 初始化图表
         function initChart() {
-            chart = LightweightCharts.createChart(document.getElementById("chart"), {
+            const container = document.getElementById("chart");
+            const width = container.clientWidth || 800;
+            const height = 600;
+            
+            chart = LightweightCharts.createChart(container, {
+                width: width,
+                height: height,
                 layout: {
                     background: { type: "solid", color: "#1a1a2e" },
                     textColor: "#888",
@@ -214,7 +222,8 @@
             });
             
             window.addEventListener("resize", () => {
-                chart.applyOptions({ width: document.getElementById("chart").clientWidth });
+                const w = container.clientWidth || 800;
+                chart.resize(w, 600);
             });
         }
 
@@ -247,7 +256,7 @@
                 document.getElementById("modeTag").textContent = 
                     `${displayPeriod}显示 / ${stepPeriod}步进`;
                 
-                // 初始显示
+                // 初始显示 - 直接显示所有K线（不用回放模式）
                 currentStepIndex = 0;
                 updateChart();
                 updateUI();
@@ -267,53 +276,103 @@
 
         // 根据步进索引计算当前显示的K线
         function getCurrentDisplayBars() {
-            if (stepBars.length === 0 || displayBars.length === 0) return [];
+            if (displayBars.length === 0) return [];
             
-            // 找到当前步进时间对应的显示K线索引
-            const currentStepTime = stepBars[currentStepIndex].time;
-            
-            // 找到当前时间属于哪个显示K线
-            let currentDisplayIndex = 0;
-            for (let i = 0; i < displayBars.length; i++) {
-                if (displayBars[i].time <= currentStepTime) {
-                    currentDisplayIndex = i;
-                } else {
-                    break;
-                }
+            if (stepBars.length === 0) {
+                // 没有步进数据时，返回所有显示K线
+                return displayBars;
             }
             
-            // 构建当前可见的显示K线（只显示到当前）
-            const result = [];
-            for (let i = 0; i <= currentDisplayIndex; i++) {
-                result.push(displayBars[i]);
-            }
-            
-            return result;
+            // 返回所有500根显示K线（始终显示全部历史）
+            return displayBars;
         }
 
         // 更新图表
         function updateChart() {
             if (displayBars.length === 0) return;
             
-            const visibleDisplay = getCurrentDisplayBars();
+            const toChartTime = (timeStr) => {
+                const date = new Date(timeStr);
+                return Math.floor(date.getTime() / 1000);
+            };
             
-            candleSeries.setData(visibleDisplay.map(bar => ({
-                time: bar.time,
+            if (stepBars.length === 0) {
+                // 无步进数据时，直接显示所有历史K线
+                const candleData = displayBars.map(bar => ({
+                    time: toChartTime(bar.time),
+                    open: bar.open,
+                    high: bar.high,
+                    low: bar.low,
+                    close: bar.close,
+                }));
+                candleSeries.setData(candleData);
+                emaLine.setData(displayBars.filter(bar => bar.ema).map(bar => ({
+                    time: toChartTime(bar.time),
+                    value: bar.ema,
+                })));
+                chart.timeScale().scrollToRealTime();
+                return;
+            }
+            
+            // 有步进数据时的逻辑：
+            // 1. 已完成的5分钟K线：直接用原始数据
+            // 2. 当前正在形成的5分钟K线：基于1分钟数据实时计算
+            
+            const currentStep = stepBars[currentStepIndex];
+            const currentStepTime = currentStep.time;
+            
+            // 找到当前1分钟所属的5分钟K线索引
+            let currentDisplayIndex = 0;
+            for (let i = displayBars.length - 1; i >= 0; i--) {
+                if (displayBars[i].time <= currentStepTime) {
+                    currentDisplayIndex = i;
+                    break;
+                }
+            }
+            
+            // 分离：已完成的K线 + 当前K线
+            const completedBars = displayBars.slice(0, currentDisplayIndex);
+            const currentBar = displayBars[currentDisplayIndex];
+            const currentBarTime = currentBar.time;
+            
+            // 计算当前5分钟K线从开始到当前1分钟步进的OHLC
+            let high = currentBar.open;
+            let low = currentBar.open;
+            let close = currentStep.close;
+            
+            for (let i = 0; i <= currentStepIndex; i++) {
+                const t = stepBars[i].time;
+                if (t >= currentBarTime && t <= currentStepTime) {
+                    high = Math.max(high, stepBars[i].high);
+                    low = Math.min(low, stepBars[i].low);
+                }
+            }
+            
+            // 构建完整K线数据
+            const candleData = completedBars.map(bar => ({
+                time: toChartTime(bar.time),
                 open: bar.open,
                 high: bar.high,
                 low: bar.low,
                 close: bar.close,
+            }));
+            
+            // 添加当前正在形成的K线
+            candleData.push({
+                time: toChartTime(currentBarTime),
+                open: currentBar.open,
+                high: high,
+                low: low,
+                close: close,
+            });
+            
+            candleSeries.setData(candleData);
+            
+            // EMA（只用已完成的K线）
+            emaLine.setData(completedBars.filter(bar => bar.ema).map(bar => ({
+                time: toChartTime(bar.time),
+                value: bar.ema,
             })));
-            
-            // EMA
-            const emaData = visibleDisplay
-                .filter(bar => bar.ema !== null && bar.ema !== undefined)
-                .map(bar => ({
-                    time: bar.time,
-                    value: bar.ema,
-                }));
-            
-            emaLine.setData(emaData);
             
             chart.timeScale().scrollToRealTime();
         }

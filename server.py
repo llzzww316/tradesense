@@ -3,7 +3,7 @@ TradeSense Backend - 掘金K线数据服务
 支持5分钟K线显示 + 1分钟步进回放
 """
 import json
-from gm.api import history
+from gm.api import history, set_token, set_serv_addr
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -22,11 +22,18 @@ app.add_middleware(
 # Token from MEMORY.md
 TOKEN = "4f55349af303c29b273eab9e9f257c39c47177b8"
 
+# 初始化掘金连接
+set_token(TOKEN)
+set_serv_addr("127.0.0.1:7001")
+
 # 支持的品种
 SYMBOLS = {
-    "螺纹钢": "SHFE.rb2505",
-    "PVC": "DCE.v2505",
+    "螺纹钢": "SHFE.rb2605",
+    "PVC": "DCE.v2605",
 }
+
+# 数据权限范围：最近180天，最早不早于 2025-10-06
+DATA_START = "2025-10-06"
 
 
 def calculate_ema(closes, period):
@@ -68,11 +75,11 @@ async def get_bars(
     try:
         bars = history(
             symbol=SYMBOLS[symbol],
-            start_time="2025-01-01",
-            end_time="2026-04-02",
+            start_time=DATA_START,
+            end_time="2026-04-04",
             df=True,
             adjust=1,
-            period=gm_period,
+            frequency=gm_period,
             fields="bob,open,high,low,close,volume",
         )
         
@@ -81,6 +88,9 @@ async def get_bars(
         
         bars["time"] = bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
         bars = bars.tail(count)
+        
+        # 按时间升序排序（从旧到新）
+        bars = bars.sort_values("bob")
         
         data = []
         for _, row in bars.iterrows():
@@ -128,22 +138,22 @@ async def get_replay_data(
         # 获取显示周期K线（用于结构）
         display_bars = history(
             symbol=SYMBOLS[symbol],
-            start_time="2025-01-01",
-            end_time="2026-04-02",
+            start_time=DATA_START,
+            end_time="2026-04-04",
             df=True,
             adjust=1,
-            period=display_gm,
+            frequency=display_gm,
             fields="bob,open,high,low,close,volume",
         )
         
         # 获取步进周期K线（用于回放）
         step_bars = history(
             symbol=SYMBOLS[symbol],
-            start_time="2025-01-01",
-            end_time="2026-04-02",
+            start_time=DATA_START,
+            end_time="2026-04-04",
             df=True,
             adjust=1,
-            period=step_gm,
+            frequency=step_gm,
             fields="bob,open,high,low,close,volume",
         )
         
@@ -156,10 +166,14 @@ async def get_replay_data(
         display_bars["ema"] = calculate_ema(display_bars["close"], ma_period)
         display_bars["time"] = display_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
         display_bars = display_bars.tail(count)
+        step_bars = step_bars.tail(count * 5 if display_period == "5m" else count)  # 5分钟≈5根1分钟
+        
+        # 按时间升序排序（从旧到新）
+        display_bars = display_bars.sort_values("bob")
+        step_bars = step_bars.sort_values("bob")
         
         # 步进数据：1分钟K线
         step_bars["time"] = step_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        step_bars = step_bars.tail(count * 5 if display_period == "5m" else count)  # 5分钟≈5根1分钟
         
         # 构建显示K线列表
         display_data = []
@@ -218,11 +232,11 @@ async def get_ema(
     try:
         bars = history(
             symbol=SYMBOLS[symbol],
-            start_time="2025-01-01",
-            end_time="2026-04-02",
+            start_time=DATA_START,
+            end_time="2026-04-04",
             df=True,
             adjust=1,
-            period=gm_period,
+            frequency=gm_period,
             fields="bob,open,high,low,close,volume",
         )
         
