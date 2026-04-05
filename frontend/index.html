@@ -122,6 +122,96 @@
             border-radius: 4px;
             font-size: 12px;
         }
+        .sim-account {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: #333;
+            flex-wrap: wrap;
+        }
+        .sim-pill {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+        .sim-pill strong {
+            color: #e94560;
+            margin-left: 4px;
+        }
+        .trade-log {
+            max-height: 180px;
+            overflow: auto;
+            border-top: 1px solid #ddd;
+            background: #fafafa;
+            padding: 8px 20px;
+            font-size: 13px;
+            color: #444;
+        }
+        .trade-log table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .trade-log th, .trade-log td {
+            border-bottom: 1px solid #eee;
+            padding: 6px 4px;
+            text-align: left;
+        }
+        .trade-log th {
+            color: #666;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            background: #fafafa;
+        }
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-card {
+            background: #fff;
+            border-radius: 10px;
+            min-width: 340px;
+            max-width: 92vw;
+            padding: 18px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .form-row input {
+            width: 160px;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .modal-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -178,6 +268,8 @@
         <button id="prevBtn" disabled>◀ 上一根</button>
         <button id="playBtn" disabled>▶ 播放</button>
         <button id="nextBtn" disabled>下一根 ▶</button>
+        <button id="tradeBtn" disabled>交易</button>
+        <button id="simSettingsBtn">模拟设置</button>
         <span id="barInfo">0 / 0</span>
         <span class="mode-tag" id="modeTag">5分钟 / 1分钟</span>
         <div class="progress-bar" id="progressBar">
@@ -189,6 +281,74 @@
             <option value="150">2x</option>
             <option value="50">5x</option>
         </select>
+        <div class="sim-account" id="simAccountBar">
+            <div class="sim-pill">权益<strong id="simEquity">10000.00</strong></div>
+            <div class="sim-pill">可用<strong id="simAvailable">10000.00</strong></div>
+            <div class="sim-pill">持仓<strong id="simPosition">无</strong></div>
+            <div class="sim-pill">浮盈<strong id="simUnrealized">0.00</strong></div>
+            <div class="sim-pill">已实现<strong id="simRealized">0.00</strong></div>
+            <div class="sim-pill">手续费<strong id="simFees">0.00</strong></div>
+        </div>
+    </div>
+
+    <div class="trade-log" id="tradeLogWrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>品种</th>
+                    <th>动作</th>
+                    <th>价格</th>
+                    <th>手数</th>
+                    <th>手续费</th>
+                    <th>本笔净盈亏</th>
+                    <th>权益</th>
+                </tr>
+            </thead>
+            <tbody id="tradeLogBody">
+                <tr><td colspan="8" style="color:#999;">暂无交易记录</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal" id="simSettingsModal">
+        <div class="modal-card">
+            <div class="modal-title">模拟交易设置</div>
+            <div class="form-row">
+                <label>初始资金</label>
+                <input id="simInitialCapital" type="number" min="1" step="1" value="10000">
+            </div>
+            <div class="form-row">
+                <label>手续费（元/手/次）</label>
+                <input id="simFeePerLot" type="number" min="0" step="1" value="20">
+            </div>
+            <div class="form-row" style="font-size:12px;color:#777;line-height:1.5;align-items:flex-start;">
+                <span>说明</span>
+                <span>不做保证金，不支持反手。<br>每跳价值：螺纹钢10元，PVC5元。</span>
+            </div>
+            <div class="modal-actions">
+                <button id="simSettingsCancel">取消</button>
+                <button id="simSettingsSave" class="primary">重置并应用</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="tradeModal">
+        <div class="modal-card">
+            <div class="modal-title">交易下单</div>
+            <div class="form-row"><label>品种</label><strong id="tradeSymbolText">-</strong></div>
+            <div class="form-row"><label>当前价</label><strong id="tradePriceText">-</strong></div>
+            <div class="form-row"><label>手数</label><input id="tradeQty" type="number" min="1" step="1" value="1"></div>
+            <div class="form-row"><label>当前持仓</label><strong id="tradePositionText">无</strong></div>
+            <div class="modal-actions" style="justify-content:space-between;">
+                <div style="display:flex;gap:8px;">
+                    <button id="openLongBtn">开多</button>
+                    <button id="openShortBtn">开空</button>
+                    <button id="closePositionBtn">平仓</button>
+                </div>
+                <button id="tradeCancelBtn">关闭</button>
+            </div>
+        </div>
     </div>
 
     <script>
