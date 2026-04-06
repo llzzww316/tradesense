@@ -364,6 +364,17 @@
         
         const API_BASE = "http://localhost:8765";
 
+        // 时间格式化函数（统一用于图表）
+        function formatChartTime(time) {
+            const d = new Date(time * 1000);
+            const yyyy = d.getUTCFullYear();
+            const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            const hh = String(d.getUTCHours()).padStart(2, '0');
+            const mm = String(d.getUTCMinutes()).padStart(2, '0');
+            return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+        }
+
         // 初始化图表
         function initChart() {
             const container = document.getElementById("chart");
@@ -378,16 +389,7 @@
                     textColor: "#333",
                 },
                 localization: {
-                    timeFormatter: (time) => {
-                        const timeMs = time * 1000;
-                        const d = new Date(timeMs);
-                        const yyyy = d.getUTCFullYear();
-                        const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
-                        const dd = String(d.getUTCDate()).padStart(2, '0');
-                        const hh = String(d.getUTCHours()).padStart(2, '0');
-                        const mm = String(d.getUTCMinutes()).padStart(2, '0');
-                        return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
-                    },
+                    timeFormatter: formatChartTime,
                 },
                 grid: {
                     vertLines: { color: "#eee" },
@@ -405,32 +407,12 @@
                 timeScale: {
                     timeVisible: true,
                     secondsVisible: false,
-                    tickMarkFormatter: (time) => {
-                        // 统一格式：YYYY-MM-DD HH:mm
-                        const timeMs = time * 1000;
-                        const d = new Date(timeMs);
-                        const yyyy = d.getUTCFullYear();
-                        const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
-                        const dd = String(d.getUTCDate()).padStart(2, '0');
-                        const hh = String(d.getUTCHours()).padStart(2, '0');
-                        const mm = String(d.getUTCMinutes()).padStart(2, '0');
-                        return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
-                    },
+                    tickMarkFormatter: formatChartTime,
                 },
                 rightPriceScale: {
                     borderColor: "#333",
                 },
-                crosshairTimeFormatter: (time) => {
-                    // 统一格式：YYYY-MM-DD HH:mm
-                    const timeMs = time * 1000;
-                    const d = new Date(timeMs);
-                    const yyyy = d.getUTCFullYear();
-                    const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getUTCDate()).padStart(2, '0');
-                    const hh = String(d.getUTCHours()).padStart(2, '0');
-                    const mm = String(d.getUTCMinutes()).padStart(2, '0');
-                    return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
-                },
+                crosshairTimeFormatter: formatChartTime,
             });
             
             candleSeries = chart.addCandlestickSeries({
@@ -456,58 +438,28 @@
             chart.subscribeCrosshairMove((param) => {
                 const ohlcEl = document.getElementById("ohlcDisplay");
 
-                // 调试：打印 param 对象查看结构
-                console.log("CrosshairMove param:", param);
-                console.log("param.point:", param.point);
-                console.log("param.time:", param.time);
-                console.log("param.seriesData:", param.seriesData);
-                if (param.seriesData) {
-                    console.log("seriesData keys:", Array.from(param.seriesData.keys()));
-                    console.log("seriesData values:", Array.from(param.seriesData.values()));
-                }
-
                 // 如果鼠标不在图表上，清除显示
-                if (!param.point) {
-                    ohlcEl.style.display = "none";
-                    return;
-                }
-
-                // 十字线没有时间数据时
-                if (!param.time) {
+                if (!param.point || !param.time) {
                     ohlcEl.style.display = "none";
                     return;
                 }
 
                 // 使用 param.seriesData.get() 获取当前K线数据
-                // 注意：seriesData 是一个 Map，key 是 series 实例
                 let data = null;
                 try {
                     data = param.seriesData.get(candleSeries);
-                    console.log("Got data from seriesData:", data);
                 } catch (e) {
-                    console.error("Error getting series data:", e);
                     ohlcEl.style.display = "none";
                     return;
                 }
 
                 if (!data) {
-                    console.log("No data found for candleSeries");
                     ohlcEl.style.display = "none";
                     return;
                 }
 
-                // 转换时间为北京时间（与坐标轴格式一致）
-                // data.time 是 Unix 时间戳（秒），需要转换为北京时间字符串
-                const timeMs = data.time * 1000;
-                const d = new Date(timeMs);
-                // 格式化为北京时间：YYYY-MM-DD HH:mm
-                const yyyy = d.getUTCFullYear();
-                const MM = String(d.getUTCMonth() + 1).padStart(2, '0');
-                const dd = String(d.getUTCDate()).padStart(2, '0');
-                const hh = String(d.getUTCHours()).padStart(2, '0');
-                const mm = String(d.getUTCMinutes()).padStart(2, '0');
-
-                ohlcEl.innerHTML = `${yyyy}-${MM}-${dd} ${hh}:${mm} | <span style="color:#f0ad4e">O:${data.open}</span> <span style="color:#ef5350">H:${data.high}</span> <span style="color:#26a69a">L:${data.low}</span> <span style="color:#4fc3f7">C:${data.close}</span>`;
+                const timeStr = formatChartTime(data.time);
+                ohlcEl.innerHTML = `${timeStr} | <span style="color:#f0ad4e">O:${data.open}</span> <span style="color:#ef5350">H:${data.high}</span> <span style="color:#26a69a">L:${data.low}</span> <span style="color:#4fc3f7">C:${data.close}</span>`;
                 ohlcEl.style.display = "block";
             });
         }
@@ -743,6 +695,7 @@
                 }
                 updateChart();
                 updateUI();
+                updateSimAccountOnStep();
             }, speed);
             
             updateUI();
@@ -764,6 +717,7 @@
                 currentStepIndex--;
                 updateChart();
                 updateUI();
+                updateSimAccountOnStep();
             }
         }
 
@@ -773,14 +727,302 @@
                 currentStepIndex++;
                 updateChart();
                 updateUI();
+                updateSimAccountOnStep();
             }
         }
 
-        // 事件绑定
-        document.getElementById("loadBtn").addEventListener("click", loadData);
+        // ==================== 模拟交易模块 ====================
+
+        // 每跳价值（元/手）
+        const TICK_VALUE = {
+            "螺纹钢": 10,
+            "PVC": 5,
+        };
+
+        // 模拟账户状态
+        let simAccount = {
+            initialCapital: 10000,
+            feePerLot: 20,
+            equity: 10000,
+            available: 10000,
+            position: null, // { direction: "long"|"short", qty: number, avgPrice: number }
+            realized: 0,
+            fees: 0,
+            tradeLogs: [],
+        };
+
+        // 从 localStorage 加载账户
+        function loadSimAccount() {
+            try {
+                const saved = localStorage.getItem("tradesense_sim_account");
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    simAccount = { ...simAccount, ...parsed };
+                }
+            } catch (e) {
+                console.warn("加载模拟账户失败:", e);
+            }
+            // 始终用当前持仓价格计算浮盈
+            recalculateEquity();
+            updateSimAccountBar();
+            renderTradeLog();
+        }
+
+        // 保存账户到 localStorage
+        function saveSimAccount() {
+            try {
+                localStorage.setItem("tradesense_sim_account", JSON.stringify(simAccount));
+            } catch (e) {
+                console.warn("保存模拟账户失败:", e);
+            }
+        }
+
+        // 重置账户（重新开始）
+        function resetSimAccount(initialCapital, feePerLot) {
+            simAccount = {
+                initialCapital: initialCapital,
+                feePerLot: feePerLot,
+                equity: initialCapital,
+                available: initialCapital,
+                position: null,
+                realized: 0,
+                fees: 0,
+                tradeLogs: [],
+            };
+            saveSimAccount();
+            updateSimAccountBar();
+            renderTradeLog();
+        }
+
+        // 获取当前价格（当前步进K线的收盘价）
+        function getCurrentPrice() {
+            if (stepBars.length === 0) return null;
+            return stepBars[currentStepIndex].close;
+        }
+
+        // 获取当前品种
+        function getCurrentSymbol() {
+            return document.getElementById("symbolSelect").value;
+        }
+
+        // 计算浮盈
+        function calculateUnrealizedPnl() {
+            if (!simAccount.position) return 0;
+            const currentPrice = getCurrentPrice();
+            if (currentPrice === null) return 0;
+            const pos = simAccount.position;
+            const tickValue = TICK_VALUE[getCurrentSymbol()] || 10;
+            const pnl = (currentPrice - pos.avgPrice) * pos.qty * tickValue;
+            return pos.direction === "short" ? -pnl : pnl;
+        }
+
+        // 重新计算权益（权益 = 可用 + 浮盈）
+        function recalculateEquity() {
+            const unrealized = calculateUnrealizedPnl();
+            simAccount.equity = simAccount.available + unrealized;
+        }
+
+        // 更新顶部状态栏
+        function updateSimAccountBar() {
+            const unrealized = calculateUnrealizedPnl();
+            document.getElementById("simEquity").textContent = simAccount.equity.toFixed(2);
+            document.getElementById("simAvailable").textContent = simAccount.available.toFixed(2);
+            const pos = simAccount.position;
+            if (pos) {
+                const dirText = pos.direction === "long" ? "多" : "空";
+                document.getElementById("simPosition").textContent = `${dirText}${pos.qty}手 @ ${pos.avgPrice.toFixed(1)}`;
+            } else {
+                document.getElementById("simPosition").textContent = "无";
+            }
+            document.getElementById("simUnrealized").textContent = unrealized.toFixed(2);
+            document.getElementById("simRealized").textContent = simAccount.realized.toFixed(2);
+            document.getElementById("simFees").textContent = simAccount.fees.toFixed(2);
+        }
+
+        // 记录交易日志
+        function addTradeLog(action, price, qty, fee, netPnl) {
+            const symbol = getCurrentSymbol();
+            const time = stepBars.length > 0 ? stepBars[currentStepIndex].time : new Date().toLocaleString();
+            simAccount.tradeLogs.unshift({
+                time,
+                symbol,
+                action,
+                price,
+                qty,
+                fee,
+                netPnl,
+                equity: simAccount.equity,
+            });
+            // 最多保留100条
+            if (simAccount.tradeLogs.length > 100) {
+                simAccount.tradeLogs.pop();
+            }
+        }
+
+        // 渲染交易日志表格
+        function renderTradeLog() {
+            const tbody = document.getElementById("tradeLogBody");
+            if (simAccount.tradeLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="color:#999;">暂无交易记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = simAccount.tradeLogs.map(log => {
+                const pnlColor = log.netPnl >= 0 ? '#ef5350' : '#26a69a';
+                return `<tr>
+                    <td>${log.time}</td>
+                    <td>${log.symbol}</td>
+                    <td>${log.action}</td>
+                    <td>${log.price}</td>
+                    <td>${log.qty}</td>
+                    <td>${log.fee.toFixed(2)}</td>
+                    <td style="color:${pnlColor};">${log.netPnl.toFixed(2)}</td>
+                    <td>${log.equity.toFixed(2)}</td>
+                </tr>`;
+            }).join("");
+        }
+
+        // 交易模态框
+        function openTradeModal() {
+            const symbol = getCurrentSymbol();
+            const price = getCurrentPrice();
+            const pos = simAccount.position;
+            document.getElementById("tradeSymbolText").textContent = symbol;
+            document.getElementById("tradePriceText").textContent = price !== null ? price.toFixed(1) : "-";
+            document.getElementById("tradeQty").value = 1;
+            document.getElementById("tradePositionText").textContent =
+                pos ? `${pos.direction === "long" ? "多" : "空"} ${pos.qty}手 @ ${pos.avgPrice.toFixed(1)}` : "无";
+            document.getElementById("tradeModal").classList.add("show");
+        }
+
+        function closeTradeModal() {
+            document.getElementById("tradeModal").classList.remove("show");
+        }
+
+        // 开多
+        function openLong() {
+            const price = getCurrentPrice();
+            if (price === null) return;
+            const qty = parseInt(document.getElementById("tradeQty").value) || 1;
+            const fee = simAccount.feePerLot * qty;
+
+            if (simAccount.position) {
+                alert("当前已有持仓，请先平仓！");
+                return;
+            }
+            if (simAccount.available < fee) {
+                alert("可用资金不足支付手续费！");
+                return;
+            }
+
+            simAccount.position = { direction: "long", qty: qty, avgPrice: price };
+            simAccount.available -= fee;
+            simAccount.fees += fee;
+            recalculateEquity();
+            addTradeLog("开多", price, qty, fee, -fee);
+            saveSimAccount();
+            updateSimAccountBar();
+            renderTradeLog();
+            closeTradeModal();
+        }
+
+        // 开空
+        function openShort() {
+            const price = getCurrentPrice();
+            if (price === null) return;
+            const qty = parseInt(document.getElementById("tradeQty").value) || 1;
+            const fee = simAccount.feePerLot * qty;
+
+            if (simAccount.position) {
+                alert("当前已有持仓，请先平仓！");
+                return;
+            }
+            if (simAccount.available < fee) {
+                alert("可用资金不足支付手续费！");
+                return;
+            }
+
+            simAccount.position = { direction: "short", qty: qty, avgPrice: price };
+            simAccount.available -= fee;
+            simAccount.fees += fee;
+            recalculateEquity();
+            addTradeLog("开空", price, qty, fee, -fee);
+            saveSimAccount();
+            updateSimAccountBar();
+            renderTradeLog();
+            closeTradeModal();
+        }
+
+        // 平仓
+        function closePosition() {
+            const price = getCurrentPrice();
+            if (price === null || !simAccount.position) return;
+            const pos = simAccount.position;
+            const qty = pos.qty;
+            const fee = simAccount.feePerLot * qty;
+            const tickValue = TICK_VALUE[getCurrentSymbol()] || 10;
+            const pnl = (price - pos.avgPrice) * qty * tickValue;
+            const grossPnl = pos.direction === "short" ? -pnl : pnl;
+
+            const realizedPnl = grossPnl - fee;
+            simAccount.available += realizedPnl;
+            simAccount.realized += realizedPnl;
+            simAccount.fees += fee;
+            simAccount.position = null;
+            recalculateEquity();
+            addTradeLog("平仓", price, qty, fee, realizedPnl);
+            saveSimAccount();
+            updateSimAccountBar();
+            renderTradeLog();
+            closeTradeModal();
+        }
+
+        // 模拟设置模态框
+        function openSimSettingsModal() {
+            document.getElementById("simInitialCapital").value = simAccount.initialCapital;
+            document.getElementById("simFeePerLot").value = simAccount.feePerLot;
+            document.getElementById("simSettingsModal").classList.add("show");
+        }
+
+        function closeSimSettingsModal() {
+            document.getElementById("simSettingsModal").classList.remove("show");
+        }
+
+        function saveSimSettings() {
+            const initialCapital = parseFloat(document.getElementById("simInitialCapital").value) || 10000;
+            const feePerLot = parseFloat(document.getElementById("simFeePerLot").value) || 20;
+            resetSimAccount(initialCapital, feePerLot);
+            closeSimSettingsModal();
+        }
+
+        // 回放步进时更新权益显示
+        function updateSimAccountOnStep() {
+            recalculateEquity();
+            updateSimAccountBar();
+        }
+
+        // ==================== 事件绑定 ====================
+
+        document.getElementById("loadBtn").addEventListener("click", () => {
+            loadData().then(() => {
+                // 数据加载成功后启用交易按钮
+                document.getElementById("tradeBtn").disabled = false;
+            });
+        });
         document.getElementById("prevBtn").addEventListener("click", prevStep);
         document.getElementById("nextBtn").addEventListener("click", nextStep);
         document.getElementById("playBtn").addEventListener("click", play);
+
+        // 交易按钮
+        document.getElementById("tradeBtn").addEventListener("click", openTradeModal);
+        document.getElementById("openLongBtn").addEventListener("click", openLong);
+        document.getElementById("openShortBtn").addEventListener("click", openShort);
+        document.getElementById("closePositionBtn").addEventListener("click", closePosition);
+        document.getElementById("tradeCancelBtn").addEventListener("click", closeTradeModal);
+
+        // 模拟设置
+        document.getElementById("simSettingsBtn").addEventListener("click", openSimSettingsModal);
+        document.getElementById("simSettingsCancel").addEventListener("click", closeSimSettingsModal);
+        document.getElementById("simSettingsSave").addEventListener("click", saveSimSettings);
 
         // 进度条点击
         document.getElementById("progressBar").addEventListener("click", (e) => {
@@ -793,6 +1035,7 @@
             currentStepIndex = Math.max(0, Math.min(newIndex, stepBars.length - 1));
             updateChart();
             updateUI();
+            updateSimAccountOnStep();
         });
 
         // 键盘快捷键
@@ -810,6 +1053,7 @@
         // 初始化
         initChart();
         initDatePickers();
+        loadSimAccount();
     </script>
 </body>
 </html>

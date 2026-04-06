@@ -3,6 +3,8 @@ TradeSense Backend - 掘金K线数据服务
 支持5分钟K线显示 + 1分钟步进回放
 """
 import json
+import traceback
+import pandas as pd
 from gm.api import history, set_token, set_serv_addr
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +40,6 @@ DATA_START = "2025-10-06"
 
 def calculate_ema(closes, period):
     """计算EMA"""
-    import pandas as pd
     if len(closes) < period:
         return pd.Series([None] * len(closes), index=closes.index)
     return closes.ewm(span=period, adjust=False).mean()
@@ -64,24 +65,22 @@ async def get_replay_data(
     获取回放数据：5分钟显示K线 + 1分钟步进数据
     用于支持"按1分钟走，但显示5分钟K线结构"的回放
     """
-    import pandas as pd
-    
     if symbol not in SYMBOLS:
         return {"error": f"Unknown symbol: {symbol}"}
-    
+
     period_map = {
         "1m": "1m", "5m": "5m", "15m": "15m",
         "30m": "30m", "60m": "60m", "1h": "60m", "4h": "240m", "1d": "1d",
     }
-    
+
     display_gm = period_map.get(display_period, "5m")
     step_gm = period_map.get(step_period, "1m")
-    
+
     try:
         # 确定日期范围
         start_time = start_date if start_date else DATA_START
         end_time = end_date if end_date else "2030-12-31"
-        
+
         # 获取显示周期K线（用于结构）
         display_bars = history(
             symbol=SYMBOLS[symbol],
@@ -92,7 +91,7 @@ async def get_replay_data(
             frequency=display_gm,
             fields="bob,open,high,low,close,volume",
         )
-        
+
         # 获取步进周期K线（用于回放）
         step_bars = history(
             symbol=SYMBOLS[symbol],
@@ -103,12 +102,12 @@ async def get_replay_data(
             frequency=step_gm,
             fields="bob,open,high,low,close,volume",
         )
-        
+
         if display_bars is None or display_bars.empty:
             return {"error": "No display period data"}
         if step_bars is None or step_bars.empty:
             return {"error": "No step period data"}
-        
+
         # 计算显示周期EMA
         display_bars["ema"] = calculate_ema(display_bars["close"], ma_period)
         display_bars["time"] = display_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -128,14 +127,14 @@ async def get_replay_data(
         step_minutes = period_minutes.get(step_period, 1)
         multiplier = max(1, display_minutes // step_minutes)
         step_bars = step_bars.tail(count * multiplier)
-        
+
         # 按时间升序排序（从旧到新）
         display_bars = display_bars.sort_values("bob")
         step_bars = step_bars.sort_values("bob")
-        
+
         # 步进数据：1分钟K线
         step_bars["time"] = step_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        
+
         # 构建显示K线列表
         display_data = []
         for _, row in display_bars.iterrows():
@@ -147,7 +146,7 @@ async def get_replay_data(
                 "close": float(row["close"]),
                 "ema": float(row["ema"]) if pd.notna(row["ema"]) else None,
             })
-        
+
         # 构建步进K线列表（1分钟）
         step_data = []
         for _, row in step_bars.iterrows():
@@ -158,7 +157,7 @@ async def get_replay_data(
                 "low": float(row["low"]),
                 "close": float(row["close"]),
             })
-        
+
         return {
             "display": display_data,
             "step": step_data,
@@ -166,9 +165,10 @@ async def get_replay_data(
             "stepPeriod": step_period,
             "maPeriod": ma_period,
         }
-    
+
     except Exception as e:
-        return {"error": str(e)}
+        traceback.print_exc()
+        return {"error": "Internal server error"}
 
 
 if __name__ == "__main__":
