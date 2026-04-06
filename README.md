@@ -37,10 +37,10 @@ python server.py
 或者用本地服务器：
 
 ```bash
-npx http-server -p 8080
+npx http-server -p 8888
 ```
 
-然后访问 `http://localhost:8080/frontend/index.html`
+然后访问 `http://localhost:8888/frontend/index.html`
 
 ### 3. 开始回放
 

@@ -18,9 +18,9 @@ uv run python server.py
 ### 前端
 直接用浏览器打开 `frontend/index.html`，或使用：
 ```bash
-npx http-server -p 8080
+npx http-server -p 8888
 ```
-然后访问 `http://localhost:8080/frontend/index.html`
+然后访问 `http://localhost:8888/frontend/index.html`
 
 ## 架构说明
 
