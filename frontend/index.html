@@ -219,8 +219,7 @@
         <div class="logo">TradeSense</div>
         <div class="controls">
             <select id="symbolSelect">
-                <option value="螺纹钢">螺纹钢</option>
-                <option value="PVC">PVC</option>
+                <option value="">加载中...</option>
             </select>
             <select id="displayPeriod">
                 <option value="5m" selected>5分钟</option>
@@ -473,9 +472,47 @@
             document.getElementById("startDate").value = thirtyDaysAgo.toISOString().split('T')[0];
         }
         
+        // 初始化品种列表（从后端获取）
+        async function initSymbolList() {
+            try {
+                const res = await fetch(`${API_BASE}/symbols`);
+                const data = await res.json();
+                const select = document.getElementById("symbolSelect");
+                select.innerHTML = "";
+                
+                if (data.symbols) {
+                    for (const [name, info] of Object.entries(data.symbols)) {
+                        const code = info.code || info;
+                        const tickValue = info.tick_value || 10;
+                        const option = document.createElement("option");
+                        option.value = name;
+                        option.textContent = `${name} (${code})`;
+                        select.appendChild(option);
+                        // 更新每跳价值
+                        TICK_VALUE[name] = tickValue;
+                    }
+                }
+            } catch (e) {
+                console.warn("加载品种列表失败:", e);
+                // 使用默认列表
+                const select = document.getElementById("symbolSelect");
+                select.innerHTML = `
+                    <option value="螺纹钢">螺纹钢 (SHFE.rb2610)</option>
+                    <option value="热卷">热卷 (SHFE.hc2610)</option>
+                    <option value="PVC">PVC (DCE.v2609)</option>
+                    <option value="纯碱">纯碱 (ZCE.SA2509)</option>
+                `;
+                TICK_VALUE = {"螺纹钢": 10, "热卷": 10, "PVC": 5, "纯碱": 20};
+            }
+        }
+        
         // 加载回放数据（显示周期 + 步进周期）
         async function loadData() {
-            const symbol = document.getElementById("symbolSelect").value;
+            const symbol = document.getElementById("symbolSelect").value.trim();
+            if (!symbol) {
+                alert("请输入品种名称或代码");
+                return;
+            }
             const displayPeriod = document.getElementById("displayPeriod").value;
             const stepPeriod = document.getElementById("stepPeriod").value;
             const emaPeriod = document.getElementById("emaPeriod").value;
@@ -733,11 +770,8 @@
 
         // ==================== 模拟交易模块 ====================
 
-        // 每跳价值（元/手）
-        const TICK_VALUE = {
-            "螺纹钢": 10,
-            "PVC": 5,
-        };
+        // 每跳价值（从后端动态加载）
+        let TICK_VALUE = {};
 
         // 模拟账户状态
         let simAccount = {
@@ -802,7 +836,8 @@
 
         // 获取当前品种
         function getCurrentSymbol() {
-            return document.getElementById("symbolSelect").value;
+            const symbol = document.getElementById("symbolSelect").value.trim();
+            return symbol || "螺纹钢";
         }
 
         // 计算浮盈
@@ -1053,6 +1088,7 @@
         // 初始化
         initChart();
         initDatePickers();
+        initSymbolList();
         loadSimAccount();
     </script>
 </body>

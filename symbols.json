@@ -1,0 +1,26 @@
+{
+  "symbols": {
+    "螺纹钢": {
+      "code": "SHFE.RB",
+      "tick_value": 10,
+      "exchange": "上期所"
+    },
+    "热卷": {
+      "code": "SHFE.HC",
+      "tick_value": 10,
+      "exchange": "上期所"
+    },
+    "PVC": {
+      "code": "DCE.V",
+      "tick_value": 5,
+      "exchange": "大商所"
+    },
+    "纯碱": {
+      "code": "CZCE.SA",
+      "tick_value": 20,
+      "exchange": "郑商所"
+    }
+  },
+  "updated_at": "2026-04-08",
+  "note": "主力合约换月时修改此文件，然后重启后端服务"
+}

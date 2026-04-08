@@ -5,6 +5,7 @@ TradeSense Backend - 掘金K线数据服务
 import json
 import traceback
 import pandas as pd
+from pathlib import Path
 from gm.api import history, set_token, set_serv_addr
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,14 +29,37 @@ TOKEN = "4f55349af303c29b273eab9e9f257c39c47177b8"
 set_token(TOKEN)
 set_serv_addr("127.0.0.1:7001")
 
-# 支持的品种
-SYMBOLS = {
-    "螺纹钢": "SHFE.rb2605",
-    "PVC": "DCE.v2605",
-}
+# 配置文件路径
+CONFIG_FILE = Path(__file__).parent / "symbols.json"
 
-# 数据权限范围：最近180天，最早不早于 2025-10-06
-DATA_START = "2025-10-06"
+def load_symbols_config():
+    """从配置文件加载品种信息"""
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        return config
+    except Exception as e:
+        print(f"加载配置文件失败: {e}")
+        return {"symbols": {}}
+
+# 加载配置
+SYMBOLS_CONFIG = load_symbols_config()
+
+# 常用品种代码（从配置文件读取）
+COMMON_SYMBOLS = {name: info["code"] for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
+TICK_VALUES = {name: info["tick_value"] for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
+
+# 数据权限范围：最近180天，最早不早于 2025-10-10
+DATA_START = "2025-10-10"
+
+
+def resolve_symbol(symbol: str) -> str:
+    """解析品种代码，支持中文名或直接代码"""
+    if symbol in COMMON_SYMBOLS:
+        return COMMON_SYMBOLS[symbol]
+    if "." in symbol:
+        return symbol
+    return None
 
 
 def calculate_ema(closes, period):
@@ -48,12 +72,27 @@ def calculate_ema(closes, period):
 @app.get("/symbols")
 async def get_symbols():
     """返回支持的品种列表"""
-    return {"symbols": list(SYMBOLS.keys())}
+    return {
+        "symbols": SYMBOLS_CONFIG.get("symbols", {}),
+        "usage": "可以使用中文名或直接使用代码",
+    }
+
+
+@app.get("/search_symbols")
+async def search_symbols(q: str = Query("", description="搜索关键词")):
+    """模糊搜索品种"""
+    q = q.lower()
+    results = []
+    for name, info in SYMBOLS_CONFIG.get("symbols", {}).items():
+        code = info["code"]
+        if q in name.lower() or q in code.lower():
+            results.append({"name": name, "code": code, "tick_value": info.get("tick_value", 10)})
+    return {"results": results}
 
 
 @app.get("/replay_data")
 async def get_replay_data(
-    symbol: str = Query(..., description="品种名称"),
+    symbol: str = Query(..., description="品种名称或代码，如：螺纹钢、SHFE.rb2610"),
     display_period: str = Query("5m", description="显示周期"),
     step_period: str = Query("1m", description="步进周期（回放用）"),
     count: int = Query(2000, description="K线数量，最大2000"),
@@ -65,8 +104,10 @@ async def get_replay_data(
     获取回放数据：5分钟显示K线 + 1分钟步进数据
     用于支持"按1分钟走，但显示5分钟K线结构"的回放
     """
-    if symbol not in SYMBOLS:
-        return {"error": f"Unknown symbol: {symbol}"}
+    # 解析品种代码
+    symbol_code = resolve_symbol(symbol)
+    if symbol_code is None:
+        return {"error": f"未知品种: {symbol}，请使用中文名或代码格式（如 SHFE.rb2610）"}
 
     period_map = {
         "1m": "1m", "5m": "5m", "15m": "15m",
@@ -83,7 +124,7 @@ async def get_replay_data(
 
         # 获取显示周期K线（用于结构）
         display_bars = history(
-            symbol=SYMBOLS[symbol],
+            symbol=symbol_code,
             start_time=start_time,
             end_time=end_time,
             df=True,
@@ -94,7 +135,7 @@ async def get_replay_data(
 
         # 获取步进周期K线（用于回放）
         step_bars = history(
-            symbol=SYMBOLS[symbol],
+            symbol=symbol_code,
             start_time=start_time,
             end_time=end_time,
             df=True,
@@ -159,6 +200,8 @@ async def get_replay_data(
             })
 
         return {
+            "symbol": symbol,
+            "symbol_code": symbol_code,
             "display": display_data,
             "step": step_data,
             "displayPeriod": display_period,
@@ -168,7 +211,7 @@ async def get_replay_data(
 
     except Exception as e:
         traceback.print_exc()
-        return {"error": "Internal server error"}
+        return {"error": f"Internal server error: {str(e)}"}
 
 
 if __name__ == "__main__":
