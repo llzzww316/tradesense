@@ -8,7 +8,37 @@ let currentStepIndex = 0;  // 当前步进索引
 let isPlaying = false;
 let playInterval = null;
 
-const API_BASE = "http://localhost:8765";
+/**
+ * API 根地址（无尾部斜杠）。优先级：
+ * 1) html 根节点 data-api-base — 空字符串表示与页面同源（相对路径 /symbols、/replay_data）
+ * 2) localStorage.tradesense_api_base
+ * 3) 本机非 8765 端口（如用 http-server 开前端）→ 默认连 http(s)://同主机:8765
+ * 4) 否则 ""（同源，适合后端托管静态页或反向代理）
+ */
+function resolveApiBase() {
+    if (document.documentElement.hasAttribute("data-api-base")) {
+        return document.documentElement.getAttribute("data-api-base").trim().replace(/\/$/, "");
+    }
+    try {
+        const ls = localStorage.getItem("tradesense_api_base");
+        if (ls != null && ls.trim() !== "") {
+            return ls.trim().replace(/\/$/, "");
+        }
+    } catch (_) {
+        /* ignore */
+    }
+    const { protocol, hostname, port } = window.location;
+    const effectivePort = port || (protocol === "https:" ? "443" : "80");
+    if (
+        (hostname === "localhost" || hostname === "127.0.0.1") &&
+        effectivePort !== "8765"
+    ) {
+        return `${protocol}//${hostname}:8765`.replace(/\/$/, "");
+    }
+    return "";
+}
+
+const API_BASE = resolveApiBase();
 
 let TICK_VALUE = {};
 
