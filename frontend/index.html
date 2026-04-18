@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- 后端 API 根：在 html 上设置 data-api-base，或 localStorage key tradesense_api_base。不设则本机非 8765 端口默认连 :8765，否则走页面同源相对路径。 -->
-<html lang="zh" data-api-base="http://172.22.16.1:8765/">
-<!-- <html lang="zh"> -->
+<!-- <html lang="zh" data-api-base="http://172.22.16.1:8765/"> -->
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,14 +16,14 @@
             <select id="symbolSelect">
                 <option value="">加载中...</option>
             </select>
-            <select id="displayPeriod">
+            <select id="displayPeriod" title="已成功加载数据后，更改显示周期会自动重新请求">
                 <option value="5m" selected>5分钟</option>
                 <option value="1m">1分钟</option>
                 <option value="15m">15分钟</option>
                 <option value="60m">60分钟</option>
                 <option value="1d">日线</option>
             </select>
-            <select id="stepPeriod">
+            <select id="stepPeriod" title="已成功加载数据后，更改步进周期会自动重新请求">
                 <option value="1m" selected>1分钟</option>
                 <option value="5m">5分钟</option>
                 <option value="15m">15分钟</option>
@@ -36,10 +36,13 @@
                 <option value="60">EMA(60)</option>
             </select>
             <select id="startPosition">
-                <option value="20" selected>起始20根</option>
+                <option value="20">起始20根</option>
                 <option value="40">起始40根</option>
                 <option value="60">起始60根</option>
-                <option value="100">起始100根</option>
+                <option value="100" selected>起始100根</option>
+                <option value="200">起始200根</option>
+                <option value="300">起始300根</option>
+                <option value="500">起始500根</option>
                 <option value="all">全部显示</option>
             </select>
             <label class="date-field-label">

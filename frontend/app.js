@@ -7,6 +7,14 @@ let stepBars = [];         // 步进用K线（1分钟）
 let currentStepIndex = 0;  // 当前步进索引
 let isPlaying = false;
 let playInterval = null;
+/** 本会话是否已成功加载过回放数据（用于周期下拉变更时自动重新拉数） */
+let sessionHasLoadedReplay = false;
+let periodReloadTimer = null;
+/** 当前图表显示周期首尾时间（与后端 bob 字符串一致），用于切换周期时保持时间窗 */
+let replayWindowStart = null;
+let replayWindowEnd = null;
+/** 下一次 loadData 是否携带上述时间窗（仅由改周期触发） */
+let pendingPreserveWindow = false;
 
 /**
  * API 根地址（无尾部斜杠）。优先级：
@@ -222,12 +230,22 @@ async function loadData() {
     
     el.status.textContent = "加载回放数据...";
     el.status.classList.remove("hidden");
-    
+
+    const useRange =
+        pendingPreserveWindow && replayWindowStart && replayWindowEnd;
+    pendingPreserveWindow = false;
+
     try {
         let url = `${API_BASE}/replay_data?symbol=${encodeURIComponent(symbol)}` +
             `&display_period=${displayPeriod}&step_period=${stepPeriod}` +
             `&count=2000&ma_period=${emaPeriod}`;
-        
+
+        if (useRange) {
+            url +=
+                `&range_start=${encodeURIComponent(replayWindowStart)}` +
+                `&range_end=${encodeURIComponent(replayWindowEnd)}`;
+        }
+
         if (startDate) url += `&start_date=${startDate}`;
         if (endDate) url += `&end_date=${endDate}`;
         
@@ -264,11 +282,31 @@ async function loadData() {
         el.prevBtn.disabled = false;
         el.playBtn.disabled = false;
         el.nextBtn.disabled = false;
-        
+
+        sessionHasLoadedReplay = true;
+
+        if (displayBars.length > 0) {
+            replayWindowStart = displayBars[0].time;
+            replayWindowEnd = displayBars[displayBars.length - 1].time;
+        }
+
     } catch (e) {
         el.status.textContent = "加载失败: " + e.message;
         console.error(e);
     }
+}
+
+function scheduleReloadOnPeriodChange() {
+    if (!sessionHasLoadedReplay) return;
+    clearTimeout(periodReloadTimer);
+    periodReloadTimer = setTimeout(() => {
+        periodReloadTimer = null;
+        stopPlay();
+        pendingPreserveWindow = true;
+        loadData().then(() => {
+            el.tradeBtn.disabled = false;
+        });
+    }, 250);
 }
 
 // 转换时间格式为Lightweight Charts需要的Unix时间戳（秒）
@@ -870,11 +908,14 @@ function updateSimAccountOnStep() {
 // ==================== 事件绑定 ====================
 
 el.loadBtn.addEventListener("click", () => {
+    pendingPreserveWindow = false;
     loadData().then(() => {
         // 数据加载成功后启用交易按钮
         el.tradeBtn.disabled = false;
     });
 });
+el.displayPeriod.addEventListener("change", scheduleReloadOnPeriodChange);
+el.stepPeriod.addEventListener("change", scheduleReloadOnPeriodChange);
 el.prevBtn.addEventListener("click", prevStep);
 el.nextBtn.addEventListener("click", nextStep);
 el.playBtn.addEventListener("click", play);

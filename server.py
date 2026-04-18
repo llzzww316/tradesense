@@ -69,6 +69,18 @@ def calculate_ema(closes, period):
     return closes.ewm(span=period, adjust=False).mean()
 
 
+def parse_range_timestamps(range_start: str, range_end: str, bob_ref: pd.Series):
+    """
+    将 range 字符串解析为可与掘金 bob 列比较的时间戳。
+    bob 常为 tz-aware（如 Asia/Shanghai）， naive 的 pd.Timestamp 会触发比较错误。
+    """
+    ref = bob_ref.iloc[0]
+    if isinstance(ref, pd.Timestamp) and ref.tzinfo is not None:
+        tz = ref.tz
+        return pd.Timestamp(range_start, tz=tz), pd.Timestamp(range_end, tz=tz)
+    return pd.Timestamp(range_start), pd.Timestamp(range_end)
+
+
 @app.get("/symbols")
 async def get_symbols():
     """返回支持的品种列表"""
@@ -99,6 +111,11 @@ async def get_replay_data(
     ma_period: int = Query(20, description="EMA周期"),
     start_date: str = Query(None, description="开始日期，如2025-10-01"),
     end_date: str = Query(None, description="结束日期，如2026-04-01"),
+    range_start: str = Query(
+        None,
+        description="与 range_end 同时传入时按显示 K 线 bob 时间窗截取，用于切换周期时保持起止时间一致，格式 2026-03-25 13:35:00",
+    ),
+    range_end: str = Query(None, description="显示周期 K 线 bob 上界（含）"),
 ):
     """
     获取回放数据：5分钟显示K线 + 1分钟步进数据
@@ -152,8 +169,7 @@ async def get_replay_data(
         # 计算显示周期EMA
         display_bars["ema"] = calculate_ema(display_bars["close"], ma_period)
         display_bars["time"] = display_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        display_bars = display_bars.tail(count)
-        # 计算步进数据条数：确保可覆盖 display 的完整时间范围
+
         period_minutes = {
             "1m": 1,
             "5m": 5,
@@ -166,8 +182,26 @@ async def get_replay_data(
         }
         display_minutes = period_minutes.get(display_period, 5)
         step_minutes = period_minutes.get(step_period, 1)
-        multiplier = max(1, display_minutes // step_minutes)
-        step_bars = step_bars.tail(count * multiplier)
+
+        if range_start and range_end:
+            rs, re = parse_range_timestamps(range_start, range_end, display_bars["bob"])
+            if rs > re:
+                return {"error": "range_start 不能晚于 range_end"}
+            display_bars = display_bars[
+                (display_bars["bob"] >= rs) & (display_bars["bob"] <= re)
+            ].copy()
+            if display_bars.empty:
+                return {"error": "指定时间范围内无显示周期数据"}
+            step_upper = re + pd.Timedelta(minutes=display_minutes)
+            step_bars = step_bars[
+                (step_bars["bob"] >= rs) & (step_bars["bob"] < step_upper)
+            ].copy()
+            if step_bars.empty:
+                return {"error": "指定时间范围内无步进周期数据"}
+        else:
+            display_bars = display_bars.tail(count)
+            multiplier = max(1, display_minutes // step_minutes)
+            step_bars = step_bars.tail(count * multiplier)
 
         # 按时间升序排序（从旧到新）
         display_bars = display_bars.sort_values("bob")
