@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- 后端 API 根：在 html 上设置 data-api-base，或 localStorage key tradesense_api_base。不设则本机非 8765 端口默认连 :8765，否则走页面同源相对路径。 -->
-<html lang="zh">
+<html lang="zh" data-api-base="http://172.22.16.1:8765/">
+<!-- <html lang="zh"> -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -85,6 +86,10 @@
     </div>
 
     <div class="trade-log" id="tradeLogWrap">
+        <div class="trade-log-toolbar">
+            <span class="trade-log-title">交易记录</span>
+            <button type="button" id="exportTradeLogBtn">导出 TXT</button>
+        </div>
         <table>
             <thead>
                 <tr>
@@ -132,6 +137,12 @@
             <div class="form-row"><label>品种</label><strong id="tradeSymbolText">-</strong></div>
             <div class="form-row"><label>当前价</label><strong id="tradePriceText">-</strong></div>
             <div class="form-row"><label>手数</label><input id="tradeQty" type="number" min="1" step="1" value="1"></div>
+            <div class="form-row"><label>止损价</label><input id="tradeStopLoss" type="number" step="0.1" placeholder="可选"></div>
+            <div class="form-row"><label>止盈价</label><input id="tradeTakeProfit" type="number" step="0.1" placeholder="可选"></div>
+            <div class="form-row form-row--note">
+                <span></span>
+                <span>多：止损低于开仓价、止盈高于开仓价；空则相反。回放步进时按当根 K 线高低点判定；同根触及二者时按止损优先。</span>
+            </div>
             <div class="form-row"><label>当前持仓</label><strong id="tradePositionText">无</strong></div>
             <div class="modal-actions modal-actions--split">
                 <div class="btn-group">

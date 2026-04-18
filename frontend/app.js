@@ -51,9 +51,11 @@ const el = {};
         "progressBar", "progressFill", "speedSelect", "simEquity", "simAvailable",
         "simPosition", "simUnrealized", "simRealized", "simFees", "tradeLogBody",
         "simInitialCapital", "simFeePerLot", "simSettingsModal", "tradeModal",
-        "tradeSymbolText", "tradePriceText", "tradeQty", "tradePositionText",
+        "tradeSymbolText", "tradePriceText", "tradeQty", "tradeStopLoss", "tradeTakeProfit",
+        "tradePositionText",
         "openLongBtn", "openShortBtn", "closePositionBtn", "tradeCancelBtn",
-        "simSettingsBtn", "simSettingsCancel", "simSettingsSave"
+        "simSettingsBtn", "simSettingsCancel", "simSettingsSave",
+        "exportTradeLogBtn"
     ];
     for (const id of ids) {
         el[id] = document.getElementById(id);
@@ -104,6 +106,8 @@ function initChart() {
             timeVisible: true,
             secondsVisible: false,
             tickMarkFormatter: formatChartTime,
+            /* 最后一根 K 与右侧价格轴之间留出若干根 K 线宽度的空隙，避免贴太紧 */
+            rightOffset: 12,
         },
         rightPriceScale: {
             borderColor: "#333",
@@ -252,6 +256,7 @@ async function loadData() {
         }
         updateChart();
         updateUI();
+        updateSimAccountOnStep();
         
         el.status.classList.add("hidden");
         
@@ -460,7 +465,7 @@ let simAccount = {
     feePerLot: 20,
     equity: 10000,
     available: 10000,
-    position: null, // { direction: "long"|"short", qty: number, avgPrice: number }
+    position: null, // { direction, qty, avgPrice, stopLoss?, takeProfit?, openedAtStep? }
     realized: 0,
     fees: 0,
     tradeLogs: [],
@@ -546,7 +551,13 @@ function updateSimAccountBar() {
     const pos = simAccount.position;
     if (pos) {
         const dirText = pos.direction === "long" ? "多" : "空";
-        el.simPosition.textContent = `${dirText}${pos.qty}手 @ ${pos.avgPrice.toFixed(1)}`;
+        let extra = "";
+        if (pos.stopLoss != null || pos.takeProfit != null) {
+            const sl = pos.stopLoss != null ? pos.stopLoss.toFixed(1) : "-";
+            const tp = pos.takeProfit != null ? pos.takeProfit.toFixed(1) : "-";
+            extra = ` · 损${sl}盈${tp}`;
+        }
+        el.simPosition.textContent = `${dirText}${pos.qty}手 @ ${pos.avgPrice.toFixed(1)}${extra}`;
     } else {
         el.simPosition.textContent = "无";
     }
@@ -597,6 +608,70 @@ function renderTradeLog() {
     }).join("");
 }
 
+// 导出模拟交易历史为 UTF-8 文本（带 BOM，便于 Windows 记事本识别中文）
+function exportTradeLogToTxt() {
+    recalculateEquity();
+    const pad = (n) => String(n).padStart(2, "0");
+    const now = new Date();
+    const fileStamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const lines = [];
+    lines.push("TradeSense 模拟交易记录导出");
+    lines.push(`导出时间: ${now.toLocaleString("zh-CN", { hour12: false })}`);
+    lines.push("");
+    lines.push("--- 当前账户摘要 ---");
+    lines.push(`初始资金: ${simAccount.initialCapital}`);
+    lines.push(`手续费(元/手/次): ${simAccount.feePerLot}`);
+    lines.push(`当前权益: ${simAccount.equity.toFixed(2)}`);
+    lines.push(`可用资金: ${simAccount.available.toFixed(2)}`);
+    lines.push(`已实现盈亏: ${simAccount.realized.toFixed(2)}`);
+    lines.push(`累计手续费: ${simAccount.fees.toFixed(2)}`);
+    if (simAccount.position) {
+        const pos = simAccount.position;
+        let line = `当前持仓: ${pos.direction === "long" ? "多" : "空"} ${pos.qty}手 @ ${pos.avgPrice.toFixed(1)}`;
+        if (pos.stopLoss != null || pos.takeProfit != null) {
+            line += ` 止损:${pos.stopLoss != null ? pos.stopLoss : "-"} 止盈:${pos.takeProfit != null ? pos.takeProfit : "-"}`;
+        }
+        lines.push(line);
+    } else {
+        lines.push("当前持仓: 无");
+    }
+    lines.push("");
+    lines.push("--- 交易流水（按时间从早到晚；页面表格为最新在上，与此顺序相反）---");
+    const logsChrono = [...simAccount.tradeLogs].reverse();
+    if (logsChrono.length === 0) {
+        lines.push("(暂无交易记录)");
+    } else {
+        lines.push(["时间", "品种", "动作", "价格", "手数", "手续费", "本笔净盈亏", "权益"].join("\t"));
+        for (const log of logsChrono) {
+            const fee = Number(log.fee ?? 0);
+            const netPnl = Number(log.netPnl ?? 0);
+            const eq = Number(log.equity ?? 0);
+            lines.push(
+                [
+                    log.time,
+                    log.symbol,
+                    log.action,
+                    log.price,
+                    log.qty,
+                    fee.toFixed(2),
+                    netPnl.toFixed(2),
+                    eq.toFixed(2),
+                ].join("\t")
+            );
+        }
+    }
+    const text = "\uFEFF" + lines.join("\r\n");
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tradesense_sim_trades_${fileStamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
 // 交易模态框
 function openTradeModal() {
     const symbol = getCurrentSymbol();
@@ -605,6 +680,8 @@ function openTradeModal() {
     el.tradeSymbolText.textContent = symbol;
     el.tradePriceText.textContent = price !== null ? price.toFixed(1) : "-";
     el.tradeQty.value = 1;
+    el.tradeStopLoss.value = "";
+    el.tradeTakeProfit.value = "";
     el.tradePositionText.textContent =
         pos ? `${pos.direction === "long" ? "多" : "空"} ${pos.qty}手 @ ${pos.avgPrice.toFixed(1)}` : "无";
     el.tradeModal.classList.add("show");
@@ -612,6 +689,13 @@ function openTradeModal() {
 
 function closeTradeModal() {
     el.tradeModal.classList.remove("show");
+}
+
+function parseOptionalPriceInput(raw) {
+    const s = String(raw ?? "").trim();
+    if (s === "") return null;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
 }
 
 // 开仓（多 / 空）
@@ -630,7 +714,40 @@ function openPosition(direction) {
         return;
     }
 
-    simAccount.position = { direction, qty, avgPrice: price };
+    const sl = parseOptionalPriceInput(el.tradeStopLoss.value);
+    const tp = parseOptionalPriceInput(el.tradeTakeProfit.value);
+    if (Number.isNaN(sl) || Number.isNaN(tp)) {
+        alert("止损/止盈价格格式无效，请留空或填写数字。");
+        return;
+    }
+    if (direction === "long") {
+        if (sl != null && sl >= price) {
+            alert("开多时止损价须低于当前开仓价。");
+            return;
+        }
+        if (tp != null && tp <= price) {
+            alert("开多时止盈价须高于当前开仓价。");
+            return;
+        }
+    } else {
+        if (sl != null && sl <= price) {
+            alert("开空时止损价须高于当前开仓价。");
+            return;
+        }
+        if (tp != null && tp >= price) {
+            alert("开空时止盈价须低于当前开仓价。");
+            return;
+        }
+    }
+
+    simAccount.position = {
+        direction,
+        qty,
+        avgPrice: price,
+        stopLoss: sl,
+        takeProfit: tp,
+        openedAtStep: currentStepIndex,
+    };
     simAccount.available -= fee;
     simAccount.fees += fee;
     recalculateEquity();
@@ -642,15 +759,15 @@ function openPosition(direction) {
     closeTradeModal();
 }
 
-// 平仓
-function closePosition() {
-    const price = getCurrentPrice();
-    if (price === null || !simAccount.position) return;
+/** 按指定成交价平仓（手续费规则与手动平仓一致） */
+function settleClosePosition(execPrice, actionLabel, closeModal) {
+    if (!simAccount.position) return false;
+    if (execPrice === null || execPrice === undefined || !Number.isFinite(execPrice)) return false;
     const pos = simAccount.position;
     const qty = pos.qty;
     const fee = simAccount.feePerLot * qty;
     const tickValue = TICK_VALUE[getCurrentSymbol()] || 10;
-    const pnl = (price - pos.avgPrice) * qty * tickValue;
+    const pnl = (execPrice - pos.avgPrice) * qty * tickValue;
     const grossPnl = pos.direction === "short" ? -pnl : pnl;
 
     const realizedPnl = grossPnl - fee;
@@ -659,11 +776,70 @@ function closePosition() {
     simAccount.fees += fee;
     simAccount.position = null;
     recalculateEquity();
-    addTradeLog("平仓", price, qty, fee, realizedPnl);
+    addTradeLog(actionLabel, execPrice, qty, fee, realizedPnl);
     saveSimAccount();
     updateSimAccountBar();
     renderTradeLog();
-    closeTradeModal();
+    if (closeModal) closeTradeModal();
+    return true;
+}
+
+/** 当前步进 K 线是否触及止损/止盈（不含开仓当根） */
+function checkStopTakeOnCurrentBar() {
+    if (stepBars.length === 0 || !simAccount.position) return;
+    const pos = simAccount.position;
+    if (pos.stopLoss == null && pos.takeProfit == null) return;
+
+    if (pos.openedAtStep === undefined || pos.openedAtStep === null) {
+        pos.openedAtStep = currentStepIndex;
+        saveSimAccount();
+        return;
+    }
+    if (currentStepIndex <= pos.openedAtStep) return;
+
+    const bar = stepBars[currentStepIndex];
+    let triggerPrice = null;
+    let actionLabel = null;
+
+    if (pos.direction === "long") {
+        const slHit = pos.stopLoss != null && bar.low <= pos.stopLoss;
+        const tpHit = pos.takeProfit != null && bar.high >= pos.takeProfit;
+        if (slHit && tpHit) {
+            triggerPrice = pos.stopLoss;
+            actionLabel = "止损平仓";
+        } else if (slHit) {
+            triggerPrice = pos.stopLoss;
+            actionLabel = "止损平仓";
+        } else if (tpHit) {
+            triggerPrice = pos.takeProfit;
+            actionLabel = "止盈平仓";
+        }
+    } else {
+        const slHit = pos.stopLoss != null && bar.high >= pos.stopLoss;
+        const tpHit = pos.takeProfit != null && bar.low <= pos.takeProfit;
+        if (slHit && tpHit) {
+            triggerPrice = pos.stopLoss;
+            actionLabel = "止损平仓";
+        } else if (slHit) {
+            triggerPrice = pos.stopLoss;
+            actionLabel = "止损平仓";
+        } else if (tpHit) {
+            triggerPrice = pos.takeProfit;
+            actionLabel = "止盈平仓";
+        }
+    }
+
+    if (triggerPrice != null && actionLabel) {
+        stopPlay();
+        settleClosePosition(triggerPrice, actionLabel, false);
+    }
+}
+
+// 平仓
+function closePosition() {
+    const price = getCurrentPrice();
+    if (price === null || !simAccount.position) return;
+    settleClosePosition(price, "平仓", true);
 }
 
 // 模拟设置模态框
@@ -686,6 +862,7 @@ function saveSimSettings() {
 
 // 回放步进时更新权益显示
 function updateSimAccountOnStep() {
+    checkStopTakeOnCurrentBar();
     recalculateEquity();
     updateSimAccountBar();
 }
@@ -713,6 +890,8 @@ el.tradeCancelBtn.addEventListener("click", closeTradeModal);
 el.simSettingsBtn.addEventListener("click", openSimSettingsModal);
 el.simSettingsCancel.addEventListener("click", closeSimSettingsModal);
 el.simSettingsSave.addEventListener("click", saveSimSettings);
+
+el.exportTradeLogBtn.addEventListener("click", exportTradeLogToTxt);
 
 // 进度条点击
 el.progressBar.addEventListener("click", (e) => {
