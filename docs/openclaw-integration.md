@@ -83,6 +83,8 @@ openclaw skills list
 
 发一条测试消息（示例）：「查螺纹钢 5 分钟最近 50 根 K 线」，确认模型调用 MCP `get_klines` 且返回合理 JSON。
 
+带日历区间时（示例）：「螺纹钢 5 分钟，2026-03-10 到 2026-03-12」，模型应在 `get_klines` 中传入 `start_date` / `end_date`（详见 `skills/tradesense-kline/SKILL.md`）。
+
 ## 相关设计
 
 - `docs/specs/2026-04-19-openclaw-kline-skill-design.md`
