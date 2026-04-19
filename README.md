@@ -28,6 +28,8 @@ pip install -r requirements.txt
 python server.py
 ```
 
+（推荐）使用 uv：`uv pip install -r requirements.txt` 后 `uv run python server.py`。
+
 服务启动后运行在 `http://localhost:8765`
 
 ### 2. 打开前端
@@ -59,6 +61,14 @@ tradesense/
 └── frontend/
     └── index.html      # 前端页面
 ```
+
+## OpenClaw 集成
+
+- 设计说明：`docs/specs/2026-04-19-openclaw-kline-skill-design.md`
+- 接线步骤：`docs/openclaw-integration.md`
+- 技能文件：`skills/tradesense-kline/SKILL.md`
+
+本仓库内启动 Python 服务或 MCP 时，请使用 `uv run`（详见集成文档）。
 
 ## 使用场景
 
