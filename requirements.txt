@@ -1,4 +1,4 @@
-gm
 fastapi
 uvicorn
 pandas
+mootdx

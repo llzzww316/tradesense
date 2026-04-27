@@ -2,25 +2,33 @@
   "symbols": {
     "螺纹钢": {
       "code": "SHFE.RB",
+      "mootdx_market": 30,
+      "mootdx_code": "rb2510",
       "tick_value": 10,
       "exchange": "上期所"
     },
     "热卷": {
       "code": "SHFE.HC",
+      "mootdx_market": 30,
+      "mootdx_code": "hc2510",
       "tick_value": 10,
       "exchange": "上期所"
     },
     "PVC": {
       "code": "DCE.V",
+      "mootdx_market": 29,
+      "mootdx_code": "v2509",
       "tick_value": 5,
       "exchange": "大商所"
     },
     "纯碱": {
       "code": "CZCE.SA",
+      "mootdx_market": 28,
+      "mootdx_code": "sa2510",
       "tick_value": 20,
       "exchange": "郑商所"
     }
   },
-  "updated_at": "2026-04-08",
+  "updated_at": "2026-04-27",
   "note": "主力合约换月时修改此文件，然后重启后端服务"
 }

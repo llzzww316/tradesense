@@ -1,15 +1,16 @@
 """
-TradeSense Backend - 掘金K线数据服务
+TradeSense Backend - mootdx K线数据服务
 支持5分钟K线显示 + 1分钟步进回放
 """
 import json
 import traceback
 import pandas as pd
 from pathlib import Path
-from gm.api import history, set_token, set_serv_addr
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+
+from data_provider import fetch_replay_data, PERIOD_MINUTES
 
 app = FastAPI()
 
@@ -22,15 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Token from MEMORY.md
-TOKEN = "4f55349af303c29b273eab9e9f257c39c47177b8"
-
-# 初始化掘金连接
-set_token(TOKEN)
-set_serv_addr("127.0.0.1:7001")
-
 # 配置文件路径
 CONFIG_FILE = Path(__file__).parent / "symbols.json"
+
 
 def load_symbols_config():
     """从配置文件加载品种信息"""
@@ -42,6 +37,7 @@ def load_symbols_config():
         print(f"加载配置文件失败: {e}")
         return {"symbols": {}}
 
+
 # 加载配置
 SYMBOLS_CONFIG = load_symbols_config()
 
@@ -49,17 +45,23 @@ SYMBOLS_CONFIG = load_symbols_config()
 COMMON_SYMBOLS = {name: info["code"] for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
 TICK_VALUES = {name: info["tick_value"] for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
 
-# 数据权限范围：最近180天，最早不早于 2025-10-10
-DATA_START = "2025-10-10"
+# mootdx 映射
+MOOTDX_MARKETS = {name: info.get("mootdx_market") for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
+MOOTDX_CODES = {name: info.get("mootdx_code") for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
 
 
-def resolve_symbol(symbol: str) -> str:
-    """解析品种代码，支持中文名或直接代码"""
+def resolve_symbol(symbol: str) -> tuple:
+    """
+    解析品种代码，支持中文名。
+    返回: (mootdx_market, mootdx_code, display_name) 或 (None, None, None)
+    """
     if symbol in COMMON_SYMBOLS:
-        return COMMON_SYMBOLS[symbol]
-    if "." in symbol:
-        return symbol
-    return None
+        return (
+            MOOTDX_MARKETS.get(symbol),
+            MOOTDX_CODES.get(symbol),
+            symbol,
+        )
+    return None, None, None
 
 
 def calculate_ema(closes, period):
@@ -69,24 +71,12 @@ def calculate_ema(closes, period):
     return closes.ewm(span=period, adjust=False).mean()
 
 
-def parse_range_timestamps(range_start: str, range_end: str, bob_ref: pd.Series):
-    """
-    将 range 字符串解析为可与掘金 bob 列比较的时间戳。
-    bob 常为 tz-aware（如 Asia/Shanghai）， naive 的 pd.Timestamp 会触发比较错误。
-    """
-    ref = bob_ref.iloc[0]
-    if isinstance(ref, pd.Timestamp) and ref.tzinfo is not None:
-        tz = ref.tz
-        return pd.Timestamp(range_start, tz=tz), pd.Timestamp(range_end, tz=tz)
-    return pd.Timestamp(range_start), pd.Timestamp(range_end)
-
-
 @app.get("/symbols")
 async def get_symbols():
     """返回支持的品种列表"""
     return {
         "symbols": SYMBOLS_CONFIG.get("symbols", {}),
-        "usage": "可以使用中文名或直接使用代码",
+        "usage": "可以使用中文名",
     }
 
 
@@ -98,13 +88,17 @@ async def search_symbols(q: str = Query("", description="搜索关键词")):
     for name, info in SYMBOLS_CONFIG.get("symbols", {}).items():
         code = info["code"]
         if q in name.lower() or q in code.lower():
-            results.append({"name": name, "code": code, "tick_value": info.get("tick_value", 10)})
+            results.append({
+                "name": name,
+                "code": code,
+                "tick_value": info.get("tick_value", 10),
+            })
     return {"results": results}
 
 
 @app.get("/replay_data")
 async def get_replay_data(
-    symbol: str = Query(..., description="品种名称或代码，如：螺纹钢、SHFE.rb2610"),
+    symbol: str = Query(..., description="品种名称，如：螺纹钢、PVC"),
     display_period: str = Query("5m", description="显示周期"),
     step_period: str = Query("1m", description="步进周期（回放用）"),
     count: int = Query(2000, description="K线数量，最大2000"),
@@ -113,101 +107,44 @@ async def get_replay_data(
     end_date: str = Query(None, description="结束日期，如2026-04-01"),
     range_start: str = Query(
         None,
-        description="与 range_end 同时传入时按显示 K 线 bob 时间窗截取，用于切换周期时保持起止时间一致，格式 2026-03-25 13:35:00",
+        description="与 range_end 同时传入时按显示 K 线 bob 时间窗截取，格式 2026-03-25 13:35:00",
     ),
     range_end: str = Query(None, description="显示周期 K 线 bob 上界（含）"),
 ):
     """
-    获取回放数据：5分钟显示K线 + 1分钟步进数据
-    用于支持"按1分钟走，但显示5分钟K线结构"的回放
+    获取回放数据：显示周期K线 + 步进周期数据
     """
-    # 解析品种代码
-    symbol_code = resolve_symbol(symbol)
-    if symbol_code is None:
-        return {"error": f"未知品种: {symbol}，请使用中文名或代码格式（如 SHFE.rb2610）"}
-
-    period_map = {
-        "1m": "1m", "5m": "5m", "15m": "15m",
-        "30m": "30m", "60m": "60m", "1h": "60m", "4h": "240m", "1d": "1d",
-    }
-
-    display_gm = period_map.get(display_period, "5m")
-    step_gm = period_map.get(step_period, "1m")
+    market_id, mootdx_code, display_name = resolve_symbol(symbol)
+    if market_id is None or mootdx_code is None:
+        return {"error": f"未知品种: {symbol}，请使用中文名（如 螺纹钢、PVC）"}
 
     try:
-        # 确定日期范围
-        start_time = start_date if start_date else DATA_START
-        end_time = end_date if end_date else "2030-12-31"
-
-        # 获取显示周期K线（用于结构）
-        display_bars = history(
-            symbol=symbol_code,
-            start_time=start_time,
-            end_time=end_time,
-            df=True,
-            adjust=1,
-            frequency=display_gm,
-            fields="bob,open,high,low,close,volume",
+        result = fetch_replay_data(
+            market=market_id,
+            symbol=mootdx_code,
+            display_period=display_period,
+            step_period=step_period,
+            count=count,
+            start_date=start_date,
+            end_date=end_date,
+            range_start=range_start,
+            range_end=range_end,
         )
 
-        # 获取步进周期K线（用于回放）
-        step_bars = history(
-            symbol=symbol_code,
-            start_time=start_time,
-            end_time=end_time,
-            df=True,
-            adjust=1,
-            frequency=step_gm,
-            fields="bob,open,high,low,close,volume",
-        )
+        if "error" in result:
+            return result
 
-        if display_bars is None or display_bars.empty:
+        display_bars = result["display"]
+        step_bars = result["step"]
+
+        if display_bars.empty:
             return {"error": "No display period data"}
-        if step_bars is None or step_bars.empty:
+        if step_bars.empty:
             return {"error": "No step period data"}
 
         # 计算显示周期EMA
         display_bars["ema"] = calculate_ema(display_bars["close"], ma_period)
         display_bars["time"] = display_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        period_minutes = {
-            "1m": 1,
-            "5m": 5,
-            "15m": 15,
-            "30m": 30,
-            "60m": 60,
-            "1h": 60,
-            "4h": 240,
-            "1d": 1440,
-        }
-        display_minutes = period_minutes.get(display_period, 5)
-        step_minutes = period_minutes.get(step_period, 1)
-
-        if range_start and range_end:
-            rs, re = parse_range_timestamps(range_start, range_end, display_bars["bob"])
-            if rs > re:
-                return {"error": "range_start 不能晚于 range_end"}
-            display_bars = display_bars[
-                (display_bars["bob"] >= rs) & (display_bars["bob"] <= re)
-            ].copy()
-            if display_bars.empty:
-                return {"error": "指定时间范围内无显示周期数据"}
-            step_upper = re + pd.Timedelta(minutes=display_minutes)
-            step_bars = step_bars[
-                (step_bars["bob"] >= rs) & (step_bars["bob"] < step_upper)
-            ].copy()
-            if step_bars.empty:
-                return {"error": "指定时间范围内无步进周期数据"}
-        else:
-            display_bars = display_bars.tail(count)
-            multiplier = max(1, display_minutes // step_minutes)
-            step_bars = step_bars.tail(count * multiplier)
-
-        # 按时间升序排序（从旧到新）
-        display_bars = display_bars.sort_values("bob")
-        step_bars = step_bars.sort_values("bob")
-
-        # 步进数据：1分钟K线
         step_bars["time"] = step_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
         # 构建显示K线列表
@@ -222,7 +159,7 @@ async def get_replay_data(
                 "ema": float(row["ema"]) if pd.notna(row["ema"]) else None,
             })
 
-        # 构建步进K线列表（1分钟）
+        # 构建步进K线列表
         step_data = []
         for _, row in step_bars.iterrows():
             step_data.append({
@@ -235,7 +172,7 @@ async def get_replay_data(
 
         return {
             "symbol": symbol,
-            "symbol_code": symbol_code,
+            "symbol_code": COMMON_SYMBOLS.get(symbol, symbol),
             "display": display_data,
             "step": step_data,
             "displayPeriod": display_period,
