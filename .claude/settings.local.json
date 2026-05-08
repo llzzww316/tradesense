@@ -12,7 +12,27 @@
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_click",
       "mcp__playwright__browser_handle_dialog",
-      "mcp__playwright__browser_fill_form"
+      "mcp__playwright__browser_fill_form",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat\\(mootdx\\): migrate data source from gm.api to mootdx *)",
+      "Bash(timeout 10 uv run python server.py)",
+      "Bash(uv pip *)",
+      "Bash(timeout 15 uv run python server.py)",
+      "Bash(curl -s http://localhost:8765/symbols)",
+      "Bash(curl -s \"http://localhost:8765/replay_data?symbol=螺纹钢&display_period=5m&step_period=1m&count=100\")",
+      "Bash(python -m json.tool)",
+      "Bash(uv run *)",
+      "Read(//c/new_tdx/vipdoc/**)",
+      "Read(//c/tdx/**)",
+      "Read(//c/通达信/**)",
+      "Bash(python *)",
+      "Bash(curl -s \"http://localhost:8765/replay_data?symbol=螺纹钢&display_period=5m&step_period=1m&count=50\")",
+      "Bash(curl -s \"http://localhost:8765/replay_data?symbol=%E8%9E%BA%E7%BA%B9%E9%92%A2&display_period=5m&step_period=1m&count=50\")",
+      "Bash(curl *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(git commit -m 'fix\\(data_provider\\): switch from mootdx ExtQuotes network to local tdx file reader *)"
     ]
   }
 }

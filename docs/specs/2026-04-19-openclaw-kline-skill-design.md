@@ -15,8 +15,8 @@
 
 ## 2. 背景与现状
 
-- **HTTP API**：`server.py`（FastAPI）默认监听 `http://127.0.0.1:8765`，数据源为掘金 SDK。
-- **MCP**：`mcp_server.py` 为 stdio MCP，工具包括 `get_symbols`、`get_klines`、`get_latest_price`，内部用 HTTP 访问 `API_BASE`（当前为 `http://127.0.0.1:8765`）。
+- **HTTP API**：`server.py`（FastAPI）默认监听 `http://127.0.0.1:8765`，业务路径前缀 **`/api`**；同上托管静态前端于站点根 `/`。K 线由 `data_provider.py` 读取本机 **通达信 VIPDOC**。
+- **MCP**：`mcp_server.py` stdio MCP，HTTP 基底 `API_BASE` = `http://127.0.0.1:8765/api`。
 - **OpenClaw**：技能为工作区内的 `SKILL.md`；出站 MCP 在配置 `mcp.servers` 中登记（见 OpenClaw 文档 *mcp* CLI / `mcp.servers`）。
 
 ## 3. 架构
@@ -28,7 +28,7 @@
 | OpenClaw `mcp.servers` | 仅存在于用户本机 `openclaw.json`（或通过 `openclaw mcp set` 写入），**不属于 TradeSense  git 树**。 |
 | TradeSense 内 `skills/<id>/SKILL.md` | 教模型：**何时**用 MCP、**调用顺序**、**前置条件**与 **uv** 启动方式。 |
 
-**数据流**：用户提问 → OpenClaw 注入技能说明 → 模型调用 MCP `get_klines` → stdio `mcp_server.py` → HTTP `127.0.0.1:8765` → FastAPI → 掘金。
+**数据流**：OpenClaw → MCP `get_klines` → `mcp_server.py` → `http://127.0.0.1:8765/api/…` → FastAPI → `data_provider` → 通达信 VIPDOC。
 
 ## 4. TradeSense 仓库内交付物（实现阶段落地）
 
@@ -83,10 +83,10 @@ openclaw mcp set tradesense "{\"command\":\"uv\",\"args\":[\"run\",\"python\",\"
 ## 6. 技能内容要求（写入 `SKILL.md` 时遵守）
 
 - **name**：唯一、snake_case（例如 `tradesense_kline`）。  
-- **description**：一行说明「掘金 K 线经 TradeSense MCP」。  
+- **description**：一行说明「经 TradeSense MCP 调用本机后端 K 线 API（通达信离线数据）」。  
 - **触发**：用户要 K 线、蜡烛图、OHLC、某合约历史行情、复盘用历史数据等 → 使用 MCP `get_klines`；不确定代码 → 先用 `get_symbols`。  
 - **Python / 环境**：明确写「在本项目中启动服务或调试脚本时使用 `uv run …`，不要使用裸 `python`」。  
-- **错误处理**：连接失败 / 空数据 → 提示检查 `server.py` 是否已用 `uv run` 启动、端口是否与 `mcp_server.py` 中 `API_BASE` 一致、掘金凭证是否正常（细节指向 TradeSense README）。
+- **错误处理**：连接失败 / 空数据 → 提示检查 `server.py` 是否已用 `uv run` 启动、端口是否与 `mcp_server.py` 中 `API_BASE` 一致、通达信数据与 `symbols.json` / `TDX_DIR`（见 README、`data_provider.py`）。
 
 ## 7. 测试建议（验收清单）
 
@@ -99,10 +99,11 @@ openclaw mcp set tradesense "{\"command\":\"uv\",\"args\":[\"run\",\"python\",\"
 
 - 不修改 OpenClaw 上游仓库。  
 - 不在本设计内规定前端回放 UI 的改动。  
-- 不把用户密钥写入本仓库；掘金相关 secret 仍按现有 TradeSense 部署方式处理。
+- 不把用户密钥写入本仓库；本项目 K 线路径不经过第三方行情账号（依赖本机通达信数据文件）。
 
 ## 9. 修订记录
 
 | 日期 | 说明 |
 |------|------|
 | 2026-04-19 | 初版：A 模式、MCP + SKILL、仅 TradeSense 仓库存档、**uv** 约束。 |
+| 2026-05-01 | 修订：数据源由「掘金 SDK」更正为通达信 VIPDOC（`tdxpy`）；与当前 `README` / `skills` 一致。 |

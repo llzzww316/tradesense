@@ -1,104 +1,99 @@
 """
-TradeSense Backend - mootdx K线数据服务
-支持5分钟K线显示 + 1分钟步进回放
+TradeSense Backend — FastAPI K 线回放服务
+数据：`data_provider`（tdxpy 读取本机通达信 VIPDOC）。
+同源交付：REST 在 `/api`，`frontend/` 静态页由本进程提供；`uv run python server.py` 后访问 http://localhost:8765/ 即可。
 """
-import json
-import traceback
-import pandas as pd
+import logging
 from pathlib import Path
-from fastapi import FastAPI, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
-from data_provider import fetch_replay_data, PERIOD_MINUTES
+from config import get_symbols_config
+import kline_service as svc
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
 
-# 允许前端访问
+app = FastAPI(
+    title="TradeSense",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url=None,
+)
+
+FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
+
+# 允许前端访问（本地工具场景：通配源但不带凭据，避开浏览器的 * + credentials 限制）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 配置文件路径
-CONFIG_FILE = Path(__file__).parent / "symbols.json"
+
+# ---- 业务异常 → HTTP 状态码 映射 ----
+_ERROR_STATUS = {
+    svc.UnknownSymbolError: 404,
+    svc.ContractNotFoundError: 404,
+    svc.NoDataError: 404,
+    svc.ContractMismatchError: 400,
+    svc.InvalidRequestError: 400,
+}
 
 
-def load_symbols_config():
-    """从配置文件加载品种信息"""
-    try:
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        return config
-    except Exception as e:
-        print(f"加载配置文件失败: {e}")
-        return {"symbols": {}}
+def _raise_http(exc: svc.ServiceError) -> None:
+    status = _ERROR_STATUS.get(type(exc), 500)
+    raise HTTPException(status_code=status, detail=str(exc))
 
 
-# 加载配置
-SYMBOLS_CONFIG = load_symbols_config()
-
-# 常用品种代码（从配置文件读取）
-COMMON_SYMBOLS = {name: info["code"] for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
-TICK_VALUES = {name: info["tick_value"] for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
-
-# mootdx 映射
-MOOTDX_MARKETS = {name: info.get("mootdx_market") for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
-MOOTDX_CODES = {name: info.get("mootdx_code") for name, info in SYMBOLS_CONFIG.get("symbols", {}).items()}
+api_router = APIRouter(prefix="/api", tags=["api"])
 
 
-def resolve_symbol(symbol: str) -> tuple:
-    """
-    解析品种代码，支持中文名。
-    返回: (mootdx_market, mootdx_code, display_name) 或 (None, None, None)
-    """
-    if symbol in COMMON_SYMBOLS:
-        return (
-            MOOTDX_MARKETS.get(symbol),
-            MOOTDX_CODES.get(symbol),
-            symbol,
-        )
-    return None, None, None
-
-
-def calculate_ema(closes, period):
-    """计算EMA"""
-    if len(closes) < period:
-        return pd.Series([None] * len(closes), index=closes.index)
-    return closes.ewm(span=period, adjust=False).mean()
-
-
-@app.get("/symbols")
+@api_router.get("/symbols")
 async def get_symbols():
     """返回支持的品种列表"""
     return {
-        "symbols": SYMBOLS_CONFIG.get("symbols", {}),
+        "symbols": get_symbols_config().get("symbols", {}),
         "usage": "可以使用中文名",
     }
 
 
-@app.get("/search_symbols")
+@api_router.post("/reload_symbols")
+async def reload_symbols():
+    """强制从磁盘重载 symbols.json（平时会按 mtime 自动热加载，手动接口仅用于立即兜底）。"""
+    cfg = get_symbols_config(force=True)
+    return {
+        "reloaded": True,
+        "count": len(cfg.get("symbols", {})),
+        "updated_at": cfg.get("updated_at"),
+    }
+
+
+@api_router.get("/contracts")
+async def list_contracts(symbol: str = Query(..., description="品种中文名，如：螺纹钢")):
+    """扫描本机 vipdoc，返回该品种下可选的通达信合约代码。"""
+    try:
+        return svc.list_contracts(symbol)
+    except svc.ServiceError as e:
+        _raise_http(e)
+
+
+@api_router.get("/search_symbols")
 async def search_symbols(q: str = Query("", description="搜索关键词")):
     """模糊搜索品种"""
-    q = q.lower()
-    results = []
-    for name, info in SYMBOLS_CONFIG.get("symbols", {}).items():
-        code = info["code"]
-        if q in name.lower() or q in code.lower():
-            results.append({
-                "name": name,
-                "code": code,
-                "tick_value": info.get("tick_value", 10),
-            })
-    return {"results": results}
+    return {"results": svc.search_symbols(q)}
 
 
-@app.get("/replay_data")
+@api_router.get("/replay_data")
 async def get_replay_data(
     symbol: str = Query(..., description="品种名称，如：螺纹钢、PVC"),
+    contract: str = Query(
+        None,
+        description="可选；具体合约代码（如 RB2605）。不传则使用 symbols.json 中该品种的默认 mootdx_code",
+    ),
     display_period: str = Query("5m", description="显示周期"),
     step_period: str = Query("1m", description="步进周期（回放用）"),
     count: int = Query(2000, description="K线数量，最大2000"),
@@ -111,80 +106,50 @@ async def get_replay_data(
     ),
     range_end: str = Query(None, description="显示周期 K 线 bob 上界（含）"),
 ):
-    """
-    获取回放数据：显示周期K线 + 步进周期数据
-    """
-    market_id, mootdx_code, display_name = resolve_symbol(symbol)
-    if market_id is None or mootdx_code is None:
-        return {"error": f"未知品种: {symbol}，请使用中文名（如 螺纹钢、PVC）"}
-
+    """获取回放数据：显示周期K线 + 步进周期数据"""
     try:
-        result = fetch_replay_data(
-            market=market_id,
-            symbol=mootdx_code,
+        return svc.get_replay_payload(
+            symbol=symbol,
+            contract=contract,
             display_period=display_period,
             step_period=step_period,
             count=count,
+            ma_period=ma_period,
             start_date=start_date,
             end_date=end_date,
             range_start=range_start,
             range_end=range_end,
         )
-
-        if "error" in result:
-            return result
-
-        display_bars = result["display"]
-        step_bars = result["step"]
-
-        if display_bars.empty:
-            return {"error": "No display period data"}
-        if step_bars.empty:
-            return {"error": "No step period data"}
-
-        # 计算显示周期EMA
-        display_bars["ema"] = calculate_ema(display_bars["close"], ma_period)
-        display_bars["time"] = display_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        step_bars["time"] = step_bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        # 构建显示K线列表
-        display_data = []
-        for _, row in display_bars.iterrows():
-            display_data.append({
-                "time": row["time"],
-                "open": float(row["open"]),
-                "high": float(row["high"]),
-                "low": float(row["low"]),
-                "close": float(row["close"]),
-                "ema": float(row["ema"]) if pd.notna(row["ema"]) else None,
-            })
-
-        # 构建步进K线列表
-        step_data = []
-        for _, row in step_bars.iterrows():
-            step_data.append({
-                "time": row["time"],
-                "open": float(row["open"]),
-                "high": float(row["high"]),
-                "low": float(row["low"]),
-                "close": float(row["close"]),
-            })
-
-        return {
-            "symbol": symbol,
-            "symbol_code": COMMON_SYMBOLS.get(symbol, symbol),
-            "display": display_data,
-            "step": step_data,
-            "displayPeriod": display_period,
-            "stepPeriod": step_period,
-            "maPeriod": ma_period,
-        }
-
+    except svc.ServiceError as e:
+        _raise_http(e)
     except Exception as e:
-        traceback.print_exc()
-        return {"error": f"Internal server error: {str(e)}"}
+        logger.exception("replay_data 处理失败: symbol=%s contract=%s", symbol, contract)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+app.include_router(api_router)
+
+
+def _serve_frontend() -> None:
+    """把 frontend/ 挂到根路径。/api/* 由 api_router 拦截，StaticFiles 只接管其余请求。"""
+    if not FRONTEND_DIR.is_dir():
+        logger.warning("frontend directory missing: %s — only /api routes available", FRONTEND_DIR)
+        return
+
+    # html=True 会把 "/" 映射到 index.html，同时直接暴露 app.js / styles.css / favicon 等资源。
+    # 必须在 include_router 之后 mount，/api/* 才能走 API，否则会被静态回退吞掉。
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
+
+_serve_frontend()
 
 
 if __name__ == "__main__":
-    print("TradeSense Backend starting on http://localhost:8765")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+    logger.info(
+        "TradeSense: http://127.0.0.1:8765/  |  API Swagger: http://127.0.0.1:8765/api/docs"
+    )
     uvicorn.run(app, host="0.0.0.0", port=8765)

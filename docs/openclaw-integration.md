@@ -16,29 +16,37 @@ uv pip install -r requirements.txt
 
 若项目后续改为 `uv sync` + `pyproject.toml`，以仓库 README 为准，但必须通过 `uv` 管理环境。
 
-## 3. 启动 HTTP 服务（终端保持运行）
+## 2.1 K 线与通达信（必读）
+
+MCP 直接从本机通达信扩展行情目录读取 K 线（`data_provider.py` 中 `TDX_DIR` / `VIPDOC`，默认 `C:/new_tdx/vipdoc/ds`，可用 `TRADESENSE_TDX_DIR` 环境变量覆盖）。**无对应 lc1/lc5/日线文件则 MCP 工具返回 `{"error": ...}`**。不涉及独立行情账号。
+
+## 3. 启动方式
+
+**MCP 独立运行，无需先起 HTTP 后端**。OpenClaw Gateway 会把 `mcp_server.py` 当子进程拉起来（见第 4 步配置），不需要你手动保持一个 `server.py` 终端。
+
+如果还想同时用浏览器回放界面，在另一终端起：
 
 ```bash
 cd TRADESENSE_REPO_ROOT
 uv run python server.py
 ```
 
-确认 `http://127.0.0.1:8765` 可访问（具体 health 路径以 `server.py` 为准）。
+首页 `http://127.0.0.1:8765/`；和 MCP 共用同一份 `kline_service`，不会冲突。
 
 ## 4. 注册 MCP（OpenClaw）
 
 将 `TRADESENSE_REPO_ROOT` 替换为**本机绝对路径**（Windows 示例：`C:/1/projects/claw-projects/tradesense`，注意 JSON 里反斜杠需转义或改用正斜杠）。
 
-**PowerShell：**
-
-```powershell
-openclaw mcp set tradesense '{"command":"uv","args":["run","python","mcp_server.py"],"cwd":"TRADESENSE_REPO_ROOT"}'
-```
-
-**Bash：**
+**PowerShell / Bash：**
 
 ```bash
 openclaw mcp set tradesense '{"command":"uv","args":["run","python","mcp_server.py"],"cwd":"TRADESENSE_REPO_ROOT"}'
+```
+
+**WSL（在 Linux shell 里）：**
+
+```bash
+openclaw mcp set tradesense '{"command":"python3","args":["/home/you/tradesense/mcp_server.py"],"env":{"TRADESENSE_TDX_DIR":"/mnt/c/new_tdx"}}'
 ```
 
 验证：

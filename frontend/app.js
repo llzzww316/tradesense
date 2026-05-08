@@ -17,11 +17,13 @@ let replayWindowEnd = null;
 let pendingPreserveWindow = false;
 
 /**
- * API 根地址（无尾部斜杠）。优先级：
- * 1) html 根节点 data-api-base — 空字符串表示与页面同源（相对路径 /symbols、/replay_data）
- * 2) localStorage.tradesense_api_base
- * 3) 本机非 8765 端口（如用 http-server 开前端）→ 默认连 http(s)://同主机:8765
- * 4) 否则 ""（同源，适合后端托管静态页或反向代理）
+ * API 根地址（无尾部斜杠）。REST 挂载在服务端 `/api` 下。
+ * 优先级：
+ * 1) html 根节点 data-api-base — 形如 http://主机:8765/api；空字符串可与页面同源拼接 /api（极少用）
+ * 2) localStorage tradesense_api_base
+ * 3) 页面为 http(s) 且端口为 8765 — 同源整合模式，默认 /api（`uv run python server.py` 场景）
+ * 4) localhost / 127.0.0.1 且非 8765（如 npm http-server）— 指向本机 http(s)://:8765/api
+ * 5) 否则 "" — 同源相对路径；仅当外层反向代理也把 API 暴露在 /api 时适用
  */
 function resolveApiBase() {
     if (document.documentElement.hasAttribute("data-api-base")) {
@@ -37,11 +39,18 @@ function resolveApiBase() {
     }
     const { protocol, hostname, port } = window.location;
     const effectivePort = port || (protocol === "https:" ? "443" : "80");
+
+    const onHttp =
+        typeof protocol === "string" &&
+        (protocol === "http:" || protocol === "https:");
+    if (onHttp && effectivePort === "8765") {
+        return "/api";
+    }
     if (
         (hostname === "localhost" || hostname === "127.0.0.1") &&
         effectivePort !== "8765"
     ) {
-        return `${protocol}//${hostname}:8765`.replace(/\/$/, "");
+        return `${protocol}//${hostname}:8765/api`.replace(/\/$/, "");
     }
     return "";
 }
@@ -54,6 +63,7 @@ const el = {};
 (function cacheDom() {
     const ids = [
         "chart", "status", "ohlcDisplay", "startDate", "endDate", "symbolSelect",
+        "contractSelect",
         "displayPeriod", "stepPeriod", "emaPeriod", "startPosition", "loadBtn",
         "modeTag", "prevBtn", "playBtn", "nextBtn", "tradeBtn", "barInfo",
         "progressBar", "progressFill", "speedSelect", "simEquity", "simAvailable",
@@ -213,6 +223,8 @@ async function initSymbolList() {
         `;
         TICK_VALUE = {"螺纹钢": 10, "热卷": 10, "PVC": 5, "纯碱": 20};
     }
+
+    await refreshContractList();
 }
 
 // 加载回放数据（显示周期 + 步进周期）
@@ -240,6 +252,11 @@ async function loadData() {
             `&display_period=${displayPeriod}&step_period=${stepPeriod}` +
             `&count=2000&ma_period=${emaPeriod}`;
 
+        const contract = el.contractSelect.value.trim();
+        if (contract) {
+            url += `&contract=${encodeURIComponent(contract)}`;
+        }
+
         if (useRange) {
             url +=
                 `&range_start=${encodeURIComponent(replayWindowStart)}` +
@@ -251,9 +268,9 @@ async function loadData() {
         
         const res = await fetch(url);
         const data = await res.json();
-        
-        if (data.error) {
-            throw new Error(data.error);
+
+        if (!res.ok || data.error) {
+            throw new Error(data.detail || data.error || `HTTP ${res.status}`);
         }
         
         displayBars = data.display;
@@ -564,6 +581,54 @@ function getCurrentSymbol() {
     return symbol || "螺纹钢";
 }
 
+/** 下拉展示用：中文名 + 空格 + 合约代码（若有） */
+function formatTradingSymbolLabel() {
+    const name = getCurrentSymbol();
+    const code = el.contractSelect && el.contractSelect.value
+        ? el.contractSelect.value.trim()
+        : "";
+    return code ? `${name} ${code}` : name;
+}
+
+async function refreshContractList() {
+    const select = el.contractSelect;
+    const sym = el.symbolSelect.value.trim();
+    select.innerHTML = "";
+    select.disabled = true;
+
+    if (!sym) {
+        select.appendChild(new Option("先选品种", ""));
+        return;
+    }
+
+    select.appendChild(new Option("加载合约…", ""));
+    try {
+        const res = await fetch(`${API_BASE}/contracts?symbol=${encodeURIComponent(sym)}`);
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+        }
+        select.innerHTML = "";
+        const contracts = data.contracts || [];
+        for (let i = 0; i < contracts.length; i++) {
+            const c = contracts[i];
+            select.appendChild(new Option(c, c));
+        }
+        const def = data.default_contract && contracts.includes(data.default_contract)
+            ? data.default_contract
+            : (contracts.length ? contracts[contracts.length - 1] : "");
+        if (def) {
+            select.value = def;
+        }
+    } catch (e) {
+        console.warn("加载合约列表失败:", e);
+        select.innerHTML = "";
+        select.appendChild(new Option("合约列表失败", ""));
+    }
+
+    select.disabled = false;
+}
+
 // 计算浮盈
 function calculateUnrealizedPnl() {
     if (!simAccount.position) return 0;
@@ -606,7 +671,7 @@ function updateSimAccountBar() {
 
 // 记录交易日志
 function addTradeLog(action, price, qty, fee, netPnl) {
-    const symbol = getCurrentSymbol();
+    const symbol = formatTradingSymbolLabel();
     const time = stepBars.length > 0 ? stepBars[currentStepIndex].time : new Date().toLocaleString();
     simAccount.tradeLogs.unshift({
         time,
@@ -712,10 +777,9 @@ function exportTradeLogToTxt() {
 
 // 交易模态框
 function openTradeModal() {
-    const symbol = getCurrentSymbol();
     const price = getCurrentPrice();
     const pos = simAccount.position;
-    el.tradeSymbolText.textContent = symbol;
+    el.tradeSymbolText.textContent = formatTradingSymbolLabel();
     el.tradePriceText.textContent = price !== null ? price.toFixed(1) : "-";
     el.tradeQty.value = 1;
     el.tradeStopLoss.value = "";
@@ -916,6 +980,24 @@ el.loadBtn.addEventListener("click", () => {
 });
 el.displayPeriod.addEventListener("change", scheduleReloadOnPeriodChange);
 el.stepPeriod.addEventListener("change", scheduleReloadOnPeriodChange);
+
+function scheduleReloadAfterContractChange() {
+    if (!sessionHasLoadedReplay) return;
+    clearTimeout(periodReloadTimer);
+    periodReloadTimer = setTimeout(() => {
+        periodReloadTimer = null;
+        stopPlay();
+        pendingPreserveWindow = false;
+        loadData().then(() => {
+            el.tradeBtn.disabled = false;
+        });
+    }, 250);
+}
+
+el.contractSelect.addEventListener("change", scheduleReloadAfterContractChange);
+el.symbolSelect.addEventListener("change", () => {
+    refreshContractList();
+});
 el.prevBtn.addEventListener("click", prevStep);
 el.nextBtn.addEventListener("click", nextStep);
 el.playBtn.addEventListener("click", play);
