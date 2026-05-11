@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易 · 新手实战指南</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易 · 新手实战指南</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">先搞懂这张地图：你到底在学什么</a></li>
+    <li><a href="#s2">开盘三问：当前处于哪种状态</a></li>
+    <li><a href="#s3">锁定 Always In 方向：强制二选一</a></li>
+    <li><a href="#s4">四棒序列：每笔交易都这样拆</a></li>
+    <li><a href="#s5">三种入场方式：Stop / Close / Limit</a></li>
+    <li><a href="#s6">止损的三条铁律</a></li>
+    <li><a href="#s7">交易区间的 80% 法则</a></li>
+    <li><a href="#s8">反转要 TBTL：别抢顶底</a></li>
+    <li><a href="#s9">新手十大陷阱速查表</a></li>
+    <li><a href="#s10">阶梯学习路线：从不会到能打</a></li>
+    <li><a href="#s11">每日开盘前的 8 问检查表</a></li>
+    <li><a href="#s12">30 篇手册推荐阅读顺序</a></li>
+    <li><a href="#s13">一句话总结</a></li>
+    <li><a href="#s14">附：术语速查</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>基于 <code>price-action/</code> 目录下 30 篇 Al Brooks 价格行为学手册提炼整合 × Qdrant <code>price-action</code> 向量库原著交叉校验</p></blockquote>
+
+  <blockquote><p>核心命题：<strong>价格行为不是背形态，而是建立一套"先看背景、再看信号、最后看位置"的通用判别顺序。</strong></p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 先搞懂这张地图：你到底在学什么</h2>
+
+  <p>市场每一刻只有三种形态，任何一根 K 线都必须被归到其中之一：</p>
+
+  <table>
+<thead><tr><th>状态</th><th>英文</th><th>时间占比</th><th>K 线特征</th><th>直觉</th></tr></thead>
+<tbody>
+<tr><td>突破</td><td>Spike / Breakout</td><td>~10%</td><td>连续大实体趋势 K，几乎无重叠，无回调</td><td>冲！别问</td></tr>
+<tr><td>通道</td><td>Channel</td><td>~20%</td><td>有方向但有重叠，每次回调不深</td><td>顺势，但别追</td></tr>
+<tr><td>区间</td><td>Trading Range</td><td>~70%</td><td>K 线大量重叠，十字星/长影多，走 2-3 根就反转</td><td>高抛低吸</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p><strong>最重要的一条规则</strong>：80% 的时间里，市场在区间或弱通道中来回扫新手的止损。真正值得重仓追的「突破」只占 10%。所以你要学的不是「抓住每一波行情」，而是<strong>识别出那 10% 并放过剩下的 70%</strong>。</p></blockquote>
+
+  <h3>价格行为三要素（判断顺序不能乱）</h3>
+
+  <pre>背景 (Regime)  →  形态 (Pattern)  →  位置 (Location)
+ 最复杂            信号 K 线            支撑/阻力/均线
+ 趋势还是区间？    什么类型的信号？      信号出现在哪里？</pre>
+
+  <p>三个中<strong>背景永远排第一</strong>。同一根大阳线，在强趋势里是续势入场信号，在区间顶部却是 Vacuum Test（真空测试，大概率是陷阱）。先搞清楚背景，一切后续判断才有意义。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 开盘三问：当前处于哪种状态</h2>
+
+  <p>每次打开图表，先问自己三个问题。</p>
+
+  <h3>问题 1：是突破吗？</h3>
+
+  <p>满足下面任意一条即判为 Spike：</p>
+
+  <ul>
+
+    <li>连续 2-3 根大实体同向趋势 K，几乎无重叠，收盘接近极值</li>
+
+    <li>单根超大 K（Surprise Bar），突破前 14 根 K 的高/低点</li>
+
+    <li>一根大 K 突破并收盘在 20EMA 另一侧，下一根跟进同向</li>
+
+  </ul>
+
+  <h3>问题 2：是通道吗？</h3>
+
+  <p>突破之后出现第一次回调，就进入通道：</p>
+
+  <table>
+<thead><tr><th>子类型</th><th>回调深度</th><th>持续 K 数</th><th>策略</th></tr></thead>
+<tbody>
+<tr><td>紧密通道（Tight）</td><td>< 2 倍平均 K 高</td><td>1-3 根</td><td><strong>只顺势</strong>，逆势者停手</td></tr>
+<tr><td>宽幅通道（Broad）</td><td>> 2-3 倍平均 K 高</td><td>5-30 根</td><td>顺势做波段，允许逆势小 scalp</td></tr>
+</tbody>
+</table>
+
+  <h3>问题 3：是交易区间吗？</h3>
+
+  <p><strong>Al Brooks 的硬门槛</strong>：<strong>横盘 ≥ 20 根 K + 至少 3 个波段</strong> → 正式 Trading Range。</p>
+
+  <p>区间的几个"困惑体验"信号：</p>
+
+  <ul>
+
+    <li>你看着图，感觉做多做空都很合理</li>
+
+    <li>突破后马上反转</li>
+
+    <li>缺口被快速回补</li>
+
+    <li>十字星、长影线密集</li>
+
+  </ul>
+
+  <blockquote><p><strong>默认规则（新手记死）</strong>：当你分不清是趋势还是区间，<strong>先假设是交易区间</strong>。这是最安全的默认值——它保护你不在区间中追突破，也阻止你在趋势中抄底摸顶。</p></blockquote>
+
+  <h3>层级区分：别把局部震荡当 Regime 切换</h3>
+
+  <table>
+<thead><tr><th>层级</th><th>特征</th><th>影响</th></tr></thead>
+<tbody>
+<tr><td>局部 BOM（Break-Out Mode）</td><td>3-5 根重叠 K</td><td>只影响眼前几根 K 的操作</td></tr>
+<tr><td>Regime 级 TR</td><td>≥ 20 根 K 横盘</td><td>改变整个交易框架</td></tr>
+</tbody>
+</table>
+
+  <p>3 根重叠 K 不代表趋势结束。动不动就切换思维，你会被市场反复摩擦。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 锁定 Always In 方向：强制二选一</h2>
+
+  <p><strong>Always In 定义</strong>：如果此刻你必须持仓、不能空仓，凭理性与概率会选哪个方向？</p>
+
+  <p>这个概念的价值：</p>
+
+  <ul>
+
+    <li><strong>过滤反向</strong>：Always In Long 时，把"做空"选项从脑子里删掉</li>
+
+    <li><strong>消除犹豫</strong>：哪怕感觉"涨太高了"，也只做多</li>
+
+    <li><strong>持仓依据</strong>：Always In 方向不变就继续持有</li>
+
+  </ul>
+
+  <h3>确认 Always In 的 5 项检查清单</h3>
+
+  <table>
+<thead><tr><th>#</th><th>检查项</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>是否有大实体趋势 K（收盘接近极值）？</td></tr>
+<tr><td>2</td><td>下一根 K 是否同向（非十字星/反向）？</td></tr>
+<tr><td>3</td><td>K 线是否收在 20EMA 的一侧？</td></tr>
+<tr><td>4</td><td>是否突破了关键位（区间边界/前高低点）？</td></tr>
+<tr><td>5</td><td>逆势者是否被套（没有回调让他们保本）？</td></tr>
+</tbody>
+</table>
+
+  <p><strong>≥ 4 项满足 → Always In 确立。</strong></p>
+
+  <h3>所需 K 线数</h3>
+
+  <table>
+<thead><tr><th>场景</th><th>所需 K 数</th></tr></thead>
+<tbody>
+<tr><td>标准确认</td><td>2 根：突破 K + 跟随 K</td></tr>
+<tr><td>稳妥确认</td><td>3 根连续同向</td></tr>
+<tr><td>高度确认</td><td>4 根同向且收在 EMA 一侧</td></tr>
+<tr><td>极端惊喜 K</td><td>1 根即可判（但建议仍等跟进）</td></tr>
+</tbody>
+</table>
+
+  <h3>Always In 翻转后的铁律</h3>
+
+  <blockquote><p><strong>翻转立即平仓，不等止损被打。</strong></p></blockquote>
+
+  <p>这是价格行为纪律里最硬的一条。不要让市场证明你错，要在方向改变那一刻主动承认。</p>
+
+  <h3>强 AI vs 弱 AI</h3>
+
+  <table>
+<thead><tr><th>类型</th><th>特征</th><th>入场规则</th></tr></thead>
+<tbody>
+<tr><td>强 AI</td><td>多根大实体连续收极值，紧迫感强</td><td>直接买/卖收盘价，不等深回调</td></tr>
+<tr><td>弱 AI</td><td>跟进 K 是十字星或小实体</td><td>等 H1/H2 回调 setup，或只 scalp</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 四棒序列：每笔交易都这样拆</h2>
+
+  <p>每笔交易都能拆成 4 个阶段的 K 线角色。记住它，你的入场动作就有了结构。</p>
+
+  <pre>设置棒 (Setup)  →  信号棒 (Signal)  →  入场棒 (Entry)  →  跟随棒 (Follow-through)
+   创造前提        触发入场的 K       订单成交的 K        判断是否持有</pre>
+
+  <h3>信号棒质量分级</h3>
+
+  <table>
+<thead><tr><th>类型</th><th>特征</th><th>胜率（作信号时）</th></tr></thead>
+<tbody>
+<tr><td>趋势棒（Trend Bar）</td><td>大实体、小影、收盘接近极值</td><td>最高</td></tr>
+<tr><td>反转棒（Reversal Bar）</td><td>先冲一方向、收盘在反方向极值</td><td>需结合背景，位置好就最强</td></tr>
+<tr><td>双 K 反转（Two-Bar）</td><td>一根逆势 K + 更大的顺势 K</td><td>强于单 K 反转</td></tr>
+<tr><td>外包 K（Outside）</td><td>完全包住前一根 K</td><td>方向未定，看跟随</td></tr>
+<tr><td>内包 K / ii</td><td>完全在前一根 K 范围内</td><td>等破方向</td></tr>
+<tr><td>十字星（Doji）</td><td>几乎无实体</td><td>~40%，<strong>作为单独入场信号很弱</strong></td></tr>
+</tbody>
+</table>
+
+  <h3>顺势 vs 逆势的信号要求</h3>
+
+  <blockquote><p>顺势可以接受低质量信号，逆势必须近乎完美的反转棒。</p></blockquote>
+
+  <p>简单说：Always In Long 时的回调做多，信号 K 差一点没关系；Always In Long 时你要做空，信号 K 必须完美到没借口。</p>
+
+  <h3>跟随棒：最后一道闸门</h3>
+
+  <ul>
+
+    <li>入场棒后出现同向跟进 K → 持有</li>
+
+    <li>跟进 K 反向/十字星 → <strong>立即离场</strong>，别死等止损</li>
+
+    <li>跟进 K 收盘不得违背方向（做多时跟进 K 不能是阴线收盘）</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 三种入场方式：Stop / Close / Limit</h2>
+
+  <table>
+<thead><tr><th>方式</th><th>时机</th><th>价格</th><th>胜率</th><th>风报比</th><th>新手推荐度</th></tr></thead>
+<tbody>
+<tr><td>突破单 Stop</td><td>价格破信号棒极值</td><td>较差</td><td>最高</td><td>一般</td><td>⭐⭐⭐⭐⭐</td></tr>
+<tr><td>收盘价 Close</td><td>强趋势棒收盘时</td><td>中间</td><td>中高</td><td>一般</td><td>⭐⭐（情绪稳才能用）</td></tr>
+<tr><td>限价单 Limit</td><td>回调到预设位置</td><td>最好</td><td>较低</td><td>最高</td><td>⭐（逆小势，慎用）</td></tr>
+</tbody>
+</table>
+
+  <h3>Stop 单是新手的主食</h3>
+
+  <p><strong>在信号棒极值外 1 tick 挂止损买/卖单</strong>。方向确认了才成交，不成交就说明方向没确认——<strong>市场会替你过滤错误的交易</strong>。</p>
+
+  <p>Al Brooks 原话：</p>
+
+  <blockquote><p>"One of the best ways to trade using price action is to enter on a stop, because you are being carried into the trade by the momentum."</p></blockquote>
+
+  <h3>什么时候可以用 Close</h3>
+
+  <p>只有当<strong>出现超大实体趋势棒（Surprise Bar）+ 趋势方向明确 + 你情绪稳定</strong>时，才在该 K 线收盘时直接市价入场。</p>
+
+  <p>不适合用 Close 的情况：</p>
+
+  <ul>
+
+    <li>十字星/小实体</li>
+
+    <li>区间行情</li>
+
+    <li>情绪激动时</li>
+
+  </ul>
+
+  <h3>限价单的"好价格陷阱"</h3>
+
+  <blockquote><p><strong>好的成交价，往往是坏的交易。</strong></p></blockquote>
+
+  <p>当你能在"便宜价格"入场时，通常意味着回调已经太深、趋势已被破坏。所以限价单的规则是：</p>
+
+  <ul>
+
+    <li>只在<strong>明确 Always In 方向</strong>的浅回调做</li>
+
+    <li><strong>绝不在弱势/区间中"抄底"</strong></li>
+
+    <li>优先在 20EMA、突破点回测、前高低点这类磁吸位置挂</li>
+
+  </ul>
+
+  <h3>入场方式决策树</h3>
+
+  <pre>判断当前状态
+├── 强趋势 (Always In 明确)
+│   ├── 浅回调 → 限价单（均线/回撤 50%/回测突破点）
+│   ├── 加速中 → 收盘价入场（惊喜 K 收盘）
+│   └── 信号棒成型 → Stop 单（信号棒极值 + 1 tick）
+├── 弱趋势/通道
+│   ├── 通道边界 → 限价单（谨慎，小仓）
+│   └── 旗形突破 → Stop 单
+├── 交易区间
+│   ├── 区间边界 → 限价单高抛低吸
+│   ├── 假突破后 → 反向 Stop 单（陷阱策略）
+│   └── 区间中间 → 不做！
+└── 明确突破后
+    ├── 2 根跟进确认 → Stop 单追入
+    └── 回测突破点 → 限价单</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 止损的三条铁律</h2>
+
+  <h3>铁律 1：止损必须挂在市场里</h3>
+
+  <p>不是放脑子里。原因：</p>
+
+  <ul>
+
+    <li>突发事件让你手动平仓来不及</li>
+
+    <li>没有预设止损时，亏损中你会持续说服自己"再等等"</li>
+
+  </ul>
+
+  <h3>铁律 2：止损要放在"重要点"之外</h3>
+
+  <table>
+<thead><tr><th>做多</th><th>做空</th></tr></thead>
+<tbody>
+<tr><td>止损设在<strong>最近的重要低点</strong>下方</td><td>止损设在<strong>最近的重要高点</strong>上方</td></tr>
+<tr><td>次要低点下方会被震出</td><td>次要高点上方会被震出</td></tr>
+</tbody>
+</table>
+
+  <p><strong>重要低点 = 后续有强势多头突破且通常创新高的低点</strong>；次要低点是"就是一个小拐点"。区分不清时，宁可止损远一点也别放在次要点。</p>
+
+  <h3>铁律 3：交易者方程必须成立</h3>
+
+  <pre>胜率 × 潜在利润 &gt; (1 − 胜率) × 风险</pre>
+
+  <p>如果止损太远，导致即使胜率高也不满足上式——<strong>这笔交易根本不该做</strong>。不是重新找止损，而是放弃这笔。</p>
+
+  <h3>持仓 = 新建仓原则</h3>
+
+  <p>有浮盈的仓位，每一刻都要问自己：</p>
+
+  <blockquote><p><strong>我现在愿意在当前价、用当前止损、新开一笔同向仓吗？</strong></p></blockquote>
+
+  <p>不愿意就平仓。这条消除"舍不得"的心理锚，把每一刻都变成独立决策。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 交易区间的 80% 法则</h2>
+
+  <blockquote><p>区间中，<strong>80% 的突破尝试会失败</strong>。</p></blockquote>
+
+  <p>这是区间最重要的概率。它意味着：</p>
+
+  <ul>
+
+    <li>区间内追突破 → 胜率 20%</li>
+
+    <li>区间内高抛低吸 → 胜率 80%</li>
+
+    <li>风险：真正的突破来临时会一次亏掉多次的盈利</li>
+
+  </ul>
+
+  <h3>区间策略清单</h3>
+
+  <pre>区间上三分之一 → 卖出区
+区间中三分之一 → 观望区（新手不做！）
+区间下三分之一 → 买入区</pre>
+
+  <h3>第二段陷阱（Second Leg Trap）</h3>
+
+  <p>区间内最经典的绞肉机：</p>
+
+  <pre>第 1 次突破 → 失败 → 反转
+第 2 次突破 → 看起来超级强势
+新手追进 → 突破再次失败 → 被套
+新手割肉 → 加速反向</pre>
+
+  <p><strong>应对</strong>：看到"非常强"的第 2 段突破时，先往左看是不是区间。是区间，坐着看。</p>
+
+  <h3>区间里的"看似强趋势"</h3>
+
+  <p>这是 Brooks 体系里的五大反例之一：<strong>TR 顶部出现超大涨 K，和真突破一模一样</strong>。真相是 Vacuum Test——新手追进，职业选手反向 Fade。</p>
+
+  <p>判别标准：</p>
+
+  <ul>
+
+    <li>只有 1 根大 K，没有 2-3 根跟进</li>
+
+    <li>出现在区间已成立的极值处</li>
+
+    <li>前面没有动能累积（区间刚结束不是高潮）</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 反转要 TBTL：别抢顶底</h2>
+
+  <h3>TBTL 原则</h3>
+
+  <blockquote><p>合理的反转至少需要 <strong>10 根 K 线 + 2 段结构</strong>（Ten Bars Two Legs）。</p></blockquote>
+
+  <p>翻译：你看到一根大阴线就觉得牛市结束了？大概率 80% 会失败，趋势继续。</p>
+
+  <h3>第一次反转 80% 失败</h3>
+
+  <p>强趋势中第一次反转尝试的失败率约 80%。所以：</p>
+
+  <ul>
+
+    <li>顺势者：第一次反转尝试时继续持有甚至加仓</li>
+
+    <li>逆势者：等第二次反转尝试确认</li>
+
+  </ul>
+
+  <h3>反转信号的完整条件</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>要求</th></tr></thead>
+<tbody>
+<tr><td>趋势衰竭证据</td><td>收缩楼梯 / 高潮 / 三推</td></tr>
+<tr><td>关键位置</td><td>支撑/阻力、均线、通道边界、前高低</td></tr>
+<tr><td>反转信号 K</td><td>大实体、小影线、收盘在极值</td></tr>
+<tr><td>跟随确认</td><td>下一根 K 同向</td></tr>
+<tr><td>第二个理由</td><td>均线回调 / 二次信号 / 测量位</td></tr>
+</tbody>
+</table>
+
+  <h3>收缩楼梯（Shrinking Stairs）</h3>
+
+  <pre>第一次突破：幅度大  ━━━━━━━━
+第二次突破：幅度小  ━━━━━
+第三次突破：幅度更小 ━━
+           动能正在衰竭</pre>
+
+  <p>这是反转前的重要预警。出现收缩楼梯时，反转交易的成功率和盈利空间都会明显提升。</p>
+
+  <h3>回调 vs 反转</h3>
+
+  <table>
+<thead><tr><th>问题</th><th>回调</th><th>反转</th></tr></thead>
+<tbody>
+<tr><td>Always In</td><td>方向不变</td><td>方向已变</td></tr>
+<tr><td>持续时间</td><td>< 20 根 K</td><td>> 20 根 K + 2 段</td></tr>
+<tr><td>后续</td><td>趋势恢复</td><td>趋势不恢复</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p>分不清时，默认假设是回调。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 新手十大陷阱速查表</h2>
+
+  <table>
+<thead><tr><th>#</th><th>陷阱</th><th>典型表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>逆 Always In 方向交易</td><td>AI Long 时做空"因为涨太多了"</td><td>严守 AI 方向过滤</td></tr>
+<tr><td>2</td><td>单一理由入场</td><td>看到一个信号 K 就冲</td><td>至少 2 个理由（形态 + 位置）</td></tr>
+<tr><td>3</td><td>区间当趋势追</td><td>区间顶部追大阳线</td><td>先判断背景再动手</td></tr>
+<tr><td>4</td><td>好位置 + 烂信号</td><td>位置对但信号 K 差</td><td>逆势必须近乎完美信号</td></tr>
+<tr><td>5</td><td>不等跟随棒</td><td>信号 K 一出就入场</td><td>至少等 1 根跟进 K</td></tr>
+<tr><td>6</td><td>止损放次要点</td><td>前一根 K 低点下方</td><td>放重要低点下方</td></tr>
+<tr><td>7</td><td>心里止损</td><td>"等下一根看看"</td><td>必须挂单</td></tr>
+<tr><td>8</td><td>止损后立即反手</td><td>刚被止损就反方向做</td><td>空仓等下一个清晰 AI 信号</td></tr>
+<tr><td>9</td><td>抢第一次反转</td><td>趋势中一根反向大 K 就做反转</td><td>等 TBTL（10 根 + 2 段）</td></tr>
+<tr><td>10</td><td>分批"越亏越加"</td><td>把 scaling in 当救命稻草</td><td>只有高阶交易者才能分批</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s10">
+
+  <h2><span class="section-num">十</span> 阶梯学习路线：从不会到能打</h2>
+
+  <p>借用原作者的"鲤鱼打挺 10 步"理念——<strong>学习失败的本质就是跳步骤</strong>。</p>
+
+  <pre>Level 1  ▸  会识别 Spike / Channel / TR（区分背景）
+   ↓
+Level 2  ▸  会在每一刻标出 Always In 方向
+   ↓
+Level 3  ▸  会判断&quot;何时不做&quot;（区间中、高潮后、无信号）
+   ↓
+Level 4  ▸  会用 Stop 单在信号棒极值入场
+   ↓
+Level 5  ▸  会在关键位挂限价单（浅回调顺势）
+   ↓
+Level 6  ▸  会识别陷阱（第二段、Vacuum Test、失败突破）
+   ↓
+Level 7  ▸  会做反转交易（TBTL + 收缩楼梯 + 关键位）
+   ↓
+Level 8  ▸  会分批管理仓位（仅在纪律完善后）</pre>
+
+  <p><strong>每一级必须在回放训练中稳定执行再进下一级。</strong> 不要跳。</p>
+
+  <h3>推荐训练方法</h3>
+
+  <ol>
+
+    <li><strong>回放练习</strong>：本项目的 K 线回放就是为此而生。每天挑 1-2 个品种从一根 K 线开始逐根推演</li>
+
+    <li><strong>只标不做</strong>：前两周只做一件事——在图上标出每一刻的 AI 方向</li>
+
+    <li><strong>记录 5 项清单</strong>：每笔交易后复盘是否同时满足 5 项 Always In 检查</li>
+
+    <li><strong>记亏损单</strong>：每笔亏损写一句"我违反了哪一条纪律"——95% 的亏损都是违纪而不是运气</li>
+
+  </ol>
+
+<hr>
+
+</div>
+
+<div class="section" id="s11">
+
+  <h2><span class="section-num">十一</span> 每日开盘前的 8 问检查表</h2>
+
+  <ul>
+
+    <li>[ ] 昨日最后一根 K 线的 Always In 方向是什么？</li>
+
+    <li>[ ] 昨日价格是区间、通道还是趋势末端？</li>
+
+    <li>[ ] 今天我只做 Always In 同向的回调入场吗？</li>
+
+    <li>[ ] 我识别出了左侧最近的重要高低点（止损参考位）吗？</li>
+
+    <li>[ ] 我知道今天的三个关键位（EMA、前高低、突破点）在哪里吗？</li>
+
+    <li>[ ] 我的仓位允许的最大单笔亏损是多少？（严守 1% 规则）</li>
+
+    <li>[ ] 我今天愿意接受连续 3 次止损吗？不接受就不要开仓</li>
+
+    <li>[ ] 我能清晰说出"什么情况下我今天不交易"吗？</li>
+
+  </ul>
+
+  <p>能答完 8 问才开始，否则关电脑。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s12">
+
+  <h2><span class="section-num">十二</span> 30 篇手册推荐阅读顺序</h2>
+
+  <p>这份指南把原 30 篇的精华串成了一条主线，但真正建立盘感还得回原文。推荐顺序：</p>
+
+  <h3>第一轮（1 周）：框架</h3>
+
+  <ol>
+
+    <li><code>价格行为交易手册：概述.md</code> — 五层学习框架总纲</li>
+
+    <li><code>Regime.md</code> — 三种市场状态 + 五大反例（最重要）</li>
+
+    <li><code>价格行为交易系统手册（1）.md</code> — 三要素 + Always In 5 项清单</li>
+
+    <li><code>市场结构判断01.md</code> — Always In 精确翻转规则</li>
+
+  </ol>
+
+  <h3>第二轮（2 周）：K 线与入场</h3>
+
+  <ol>
+
+    <li><code>价格行为交易系统手册（6）.md</code> — 四棒序列，K 线分类</li>
+
+    <li><code>价格行为交易系统手册（7）.md</code> — 惊喜 K 线/超大 K 线</li>
+
+    <li><code>价格行为交易系统手册（10）.md</code> — Stop / Close / Limit 三入场</li>
+
+    <li><code>价格行为交易系统手册（15）.md</code> — 趋势类型 + 止损管理</li>
+
+  </ol>
+
+  <h3>第三轮（2 周）：通道与区间</h3>
+
+  <ol>
+
+    <li><code>价格行为交易系统手册（11）.md</code> — 窄宽通道策略</li>
+
+    <li><code>价格行为交易系统手册（12）.md</code> — 微通道 + 四阶段周期</li>
+
+    <li><code>价格行为交易系统手册（13）.md</code> — 区间 + 80% 法则 + 真空区</li>
+
+    <li><code>价格行为交易系统手册（5）.md</code> — 突破→通道→区间循环</li>
+
+    <li><code>Regime-§1.1a-1.md</code> ~ <code>Regime-§1.1a-7.md</code> — Spike→Channel→TR 全生命周期</li>
+
+  </ol>
+
+  <h3>第四轮（2 周）：反转与进阶</h3>
+
+  <ol>
+
+    <li><code>价格行为交易系统手册（3）.md</code> — 楔形 / 三推 / 75% 规则</li>
+
+    <li><code>价格行为交易系统手册（4）.md</code> — 双顶双底 / 失败的失败</li>
+
+    <li><code>价格行为交易系统手册（16）.md</code> — 反转 + TBTL + 高潮</li>
+
+    <li><code>价格行为交易系统手册（17）.md</code> — 主要趋势反转三阶段</li>
+
+    <li><code>价格行为交易系统手册（14）.md</code> — 突破缺口 / 真假突破</li>
+
+  </ol>
+
+  <h3>第五轮（终身复习）：专题</h3>
+
+  <ul>
+
+    <li><code>市场结构判断02/03/04.md</code> — Always-In 精确判标、回调 vs 反转量化阈值</li>
+
+    <li><code>价格行为交易系统手册（2/8/9）.md</code> — 判断顺序、市场周期、信噪比</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s13">
+
+  <h2><span class="section-num">十三</span> 一句话总结</h2>
+
+  <blockquote><p><strong>先看背景，再看信号，最后看位置。Always In 方向不明不入场。Stop 单顺势，挂好止损，守住纪律。</strong></p></blockquote>
+
+  <p>价格行为交易不是拼天赋，而是拼<strong>判断顺序的稳定性</strong>。你不需要每笔都赚，你只需要在那 10% 的 Spike 和 20% 的 Channel 里不错过，同时在 70% 的 Range 里不乱来。</p>
+
+  <p>剩下的，交给屏幕时间。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s14">
+
+  <h2><span class="section-num">14</span> 附：术语速查</h2>
+
+  <table>
+<thead><tr><th>中文</th><th>英文</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>始终在场方向</td><td>Always In Direction</td><td>强制持仓时的最优方向</td></tr>
+<tr><td>信号棒</td><td>Signal Bar</td><td>触发入场的 K 线</td></tr>
+<tr><td>入场棒</td><td>Entry Bar</td><td>订单成交的 K 线</td></tr>
+<tr><td>跟随棒</td><td>Follow-through Bar</td><td>入场后的确认 K 线</td></tr>
+<tr><td>H2 / L2</td><td>High/Low 2</td><td>趋势中第二次回调突破入场</td></tr>
+<tr><td>MTR</td><td>Major Trend Reversal</td><td>主要趋势反转（胜率 40%，盈亏比 ≥ 2:1）</td></tr>
+<tr><td>TBTL</td><td>Ten Bars Two Legs</td><td>10 根 K + 2 段结构，反转最低门槛</td></tr>
+<tr><td>BLSHS</td><td>Buy Low Sell High Scalp</td><td>区间高抛低吸剥头皮</td></tr>
+<tr><td>交易者方程</td><td>Trader's Equation</td><td>胜率 × 利润 > (1−胜率) × 风险</td></tr>
+<tr><td>80% 规则</td><td>80% Rule</td><td>区间中 80% 突破失败</td></tr>
+<tr><td>测量运动</td><td>Measured Move</td><td>AB=CD 等距目标</td></tr>
+<tr><td>真空区</td><td>Vacuum Area</td><td>价格被"吸向"关键位的现象</td></tr>
+<tr><td>惊喜 K 线</td><td>Surprise Bar</td><td>异常大实体的趋势 K 线</td></tr>
+<tr><td>收缩楼梯</td><td>Shrinking Stairs</td><td>每次突破幅度递减，动能衰竭预警</td></tr>
+<tr><td>分批入场</td><td>Scaling In</td><td>拆仓位入场，<strong>仅限高阶</strong></td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

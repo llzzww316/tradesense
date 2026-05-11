@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易系统手册（8）：市场周期与趋势判断</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易系统手册（8）：市场周期与趋势判断</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">核心框架：四个关键问题</a></li>
+    <li><a href="#s2">市场周期的本质</a></li>
+    <li><a href="#s3">趋势开始的判定（四步法）</a></li>
+    <li><a href="#s4">趋势强度的评估（五维检查清单）</a></li>
+    <li><a href="#s5">趋势失效的判定</a></li>
+    <li><a href="#s6">交易区间的识别</a></li>
+    <li><a href="#s7">完整决策流程图</a></li>
+    <li><a href="#s8">Brooks 体系深化</a></li>
+    <li><a href="#s9">关键检查清单</a></li>
+    <li><a href="#s10">一句话总结</a></li>
+    <li><a href="#s11">知识索引</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为交易系统手册（8）](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247485839&idx=1&sn=e23677dd3fd434602b1f1cf99edca9e6) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>核心问题：<strong>如何判断市场是否真的进入了趋势？趋势有多强？回调何时变成区间？</strong></p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 核心框架：四个关键问题</h2>
+
+  <p>学委提炼了一个完整的决策链条，回答四个新手的核心困惑：</p>
+
+  <pre>判断有无趋势 → 评估趋势强弱 → 识别回调买点 → 判定趋势失效/区间边界</pre>
+
+  <p>这四个问题构成了从市场识别到交易执行的全流程。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 市场周期的本质</h2>
+
+  <h3>2.1 市场的两种状态</h3>
+
+  <p>Brooks（<em>Reversals</em> #128 片段，得分 0.697）明确指出：</p>
+
+  <blockquote><p>"The market is either trending or in a trading range. That is true of every time frame down to even an individual bar."</p></blockquote>
+
+  <p><strong>市场在任何时候要么在趋势中，要么在交易区间中。</strong> 看图表时感到困惑、不清楚方向，就是交易区间。</p>
+
+  <h3>2.2 趋势的两种形式</h3>
+
+  <table>
+<thead><tr><th>形式</th><th>特征</th><th>参与方式</th></tr></thead>
+<tbody>
+<tr><td><strong>突破（Breakout）</strong></td><td>最强的趋势，价格快速脱离原区间</td><td>只能小仓位追</td></tr>
+<tr><td><strong>通道（Channel）</strong></td><td>有斜率的稳定运行，有回调</td><td>在回调时买入/卖出</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 趋势开始的判定（四步法）</h2>
+
+  <h3>步骤 1：寻找突破</h3>
+
+  <table>
+<thead><tr><th>信号</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td>惊喜 K 线</td><td>一根巨大的惊喜 K 线，收盘远超过去 20-30 根高低点</td></tr>
+<tr><td>中等 K 线组合</td><td>2-3 根中等强度的趋势 K 线连续出现</td></tr>
+<tr><td>小 K 线组合</td><td>4-5 根小趋势 K 线连续出现</td></tr>
+</tbody>
+</table>
+
+  <p><strong>核心原则</strong>：<strong>连续性（Consecutive Bars）比单根 K 线的大小更重要。</strong></p>
+
+  <h3>步骤 2：检查跟随</h3>
+
+  <table>
+<thead><tr><th>检查项</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td>同向 K 线</td><td>突破 K 线后，是否有第 2 根、第 3 根同向强趋势 K 线？</td></tr>
+<tr><td>收盘位置</td><td>跟随 K 线的收盘价是否在极值附近？</td></tr>
+<tr><td>避免"坏跟随"</td><td>是否避免了反向 K 线、长影线、十字星？</td></tr>
+</tbody>
+</table>
+
+  <h3>步骤 3：确认 Always In</h3>
+
+  <table>
+<thead><tr><th>问题</th><th>判断</th></tr></thead>
+<tbody>
+<tr><td>"如果现在必须持有仓位，会选择多还是空？"</td><td>答案明确 → Always In 确立</td></tr>
+<tr><td>答案犹豫 → 可能是区间</td></tr>
+</tbody>
+</table>
+
+  <h3>步骤 4：排除区间假象</h3>
+
+  <table>
+<thead><tr><th>检查项</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>"大涨大跌"模式？</td><td>否 → 不是困惑区间</td></tr>
+<tr><td>突破主要结构点（Major High/Low）？</td><td>是 → 不只是次要点突破</td></tr>
+<tr><td>突破后保持动能？</td><td>是 → 没有立即回到区间</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 趋势强度的评估（五维检查清单）</h2>
+
+  <h3>维度 1：回调深度</h3>
+
+  <table>
+<thead><tr><th>深度</th><th>判断</th><th>趋势强度</th></tr></thead>
+<tbody>
+<tr><td>小于平均 K 线高度的一半</td><td>浅回调</td><td><strong>强趋势</strong></td></tr>
+<tr><td>回撤 50% 或更多</td><td>深回调</td><td>弱趋势</td></tr>
+</tbody>
+</table>
+
+  <h3>维度 2：缺口状态</h3>
+
+  <table>
+<thead><tr><th>缺口</th><th>判断</th><th>趋势强度</th></tr></thead>
+<tbody>
+<tr><td>回调 K 线保持在突破点之上</td><td>有缺口</td><td><strong>强趋势</strong></td></tr>
+<tr><td>回调跌破突破点、封闭缺口、重叠多</td><td>无缺口</td><td>弱趋势</td></tr>
+</tbody>
+</table>
+
+  <h3>维度 3：回调的组织性</h3>
+
+  <table>
+<thead><tr><th>回调形态</th><th>判断</th><th>趋势强度</th></tr></thead>
+<tbody>
+<tr><td>杂乱无章，无连续推进</td><td>对手无力</td><td><strong>强趋势</strong></td></tr>
+<tr><td>形成微通道或清晰的反向趋势</td><td>对手有组织</td><td>弱趋势（危险！）</td></tr>
+</tbody>
+</table>
+
+  <h3>维度 4：回调时间</h3>
+
+  <table>
+<thead><tr><th>回调长度</th><th>判断</th></tr></thead>
+<tbody>
+<tr><td>1-3 根 K 线</td><td><strong>强趋势</strong></td></tr>
+<tr><td>5-10 根 K 线</td><td>弱趋势</td></tr>
+<tr><td>超过 20 根 K 线</td><td>已演变成区间！</td></tr>
+</tbody>
+</table>
+
+  <h3>维度 5：买方/卖方的迫切性</h3>
+
+  <table>
+<thead><tr><th>行为</th><th>判断</th><th>趋势强度</th></tr></thead>
+<tbody>
+<tr><td>1 根 K 线回调后就积极入场</td><td>迫切</td><td><strong>强趋势</strong></td></tr>
+<tr><td>需要等待深度回调才进场</td><td>犹豫</td><td>弱趋势</td></tr>
+</tbody>
+</table>
+
+  <h3>综合判定</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>操作</th></tr></thead>
+<tbody>
+<tr><td>大多数信号指向"强趋势"</td><td>顺势交易，买回调</td></tr>
+<tr><td>3 个或以上"弱趋势"特征</td><td>保守交易，低买高卖</td></tr>
+<tr><td>新手建议</td><td><strong>只做强趋势，趋势走弱就不做了</strong></td></tr>
+<tr><td>危险信号</td><td>不希望看到反向连续趋势 K 线</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 趋势失效的判定</h2>
+
+  <h3>回调变成新趋势</h3>
+
+  <table>
+<thead><tr><th>信号</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>回调表现出极强动能（连续大阴线/大阳线）</td><td>原本的"回调"已变成新趋势</td></tr>
+<tr><td>反向连续趋势 K 线</td><td>趋势方向可能已经改变</td></tr>
+</tbody>
+</table>
+
+  <h3>回调变成交易区间</h3>
+
+  <table>
+<thead><tr><th>信号</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>回调持续了 20 根 K 线或更久</td><td>不再是回调，是交易区间</td></tr>
+<tr><td>强力突破收盘在主要更高低点之上</td><td>如果只是测试前高但无法有效突破，仍是区间</td></tr>
+</tbody>
+</table>
+
+  <h3>Brooks 的确证</h3>
+
+  <p>Brooks（<em>Reversals</em> #790 片段，得分 0.768）描述了一个关键场景：</p>
+
+  <blockquote><p>"Sometimes the market goes only a few bars beyond the breakout bar and then quietly reverses in a channel against the direction of the breakout without ever clearly confirming that the breakout has failed."</p></blockquote>
+
+  <p>即市场突破后静默反转，始终没有明确确认突破失败，但 Always In 方向可能已经翻转。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 交易区间的识别</h2>
+
+  <h3>第一步：四个确认测试</h3>
+
+  <table>
+<thead><tr><th>测试</th><th>问题</th><th>区间判断</th></tr></thead>
+<tbody>
+<tr><td><strong>困惑测试</strong></td><td>看图表时是否感到困惑，不清楚方向？</td><td>是 → 区间</td></tr>
+<tr><td><strong>失望测试</strong></td><td>强力 K 线后的走势是否令人失望？看起来强劲的突破是否迅速失败？</td><td>是 → 区间</td></tr>
+<tr><td><strong>20 根 K 线测试</strong></td><td>市场是否横盘震荡了 20 根 K 线或更久？</td><td>是 → 区间</td></tr>
+<tr><td><strong>双向交易测试</strong></td><td>多空双方是否都能赚钱？是否没有明确的 Always In 状态？</td><td>是 → 区间</td></tr>
+</tbody>
+</table>
+
+  <h3>第二步：识别区间边界</h3>
+
+  <p><strong>顶部区域</strong>：</p>
+
+  <ul>
+
+    <li>连接最近的摆动高点</li>
+
+    <li>观察是否有带上影线的 K 线（卖压）</li>
+
+    <li>价格是否反复在此反转下跌？</li>
+
+  </ul>
+
+  <p><strong>底部区域</strong>：</p>
+
+  <ul>
+
+    <li>连接最近的摆动低点</li>
+
+    <li>观察是否有带下影线的 K 线（买压）</li>
+
+    <li>价格是否反复在此反转上涨？</li>
+
+  </ul>
+
+  <p><strong>确认边界有效性</strong>：</p>
+
+  <ul>
+
+    <li>之前的"突破"是否迅速失败并回到区间内？</li>
+
+  </ul>
+
+  <h3>第二步陷阱</h3>
+
+  <blockquote><p>"在交易区间中，经常出现非常强劲的第二段推升：看起来像趋势开始，实际上是陷阱，随后会反转下跌。"</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 完整决策流程图</h2>
+
+  <pre>观察市场
+    ↓
+Step 1: 有无趋势？（寻找突破）
+    ├── 有惊喜 K 线 / 2-3 根中等趋势 K / 4-5 根小趋势 K？
+    │       ↓ 是
+    │   Step 2: 检查跟随
+    │       ├── 有第 2/3 根同向 K 线，收盘在极值？→ 进入 Step 3
+    │       └── 无跟随、反向 K 线、十字星？→ 不是趋势
+    │               ↓
+    │   Step 3: 确认 Always In
+    │       必须持仓的话选哪边？答案明确 → Always In 确立
+    │               ↓
+    │   Step 4: 评估趋势强度（五维检查列表）
+    │       大多数&quot;强&quot;→ 顺势交易，买回调
+    │       3+ 个&quot;弱&quot;→ 保守交易
+    │               ↓
+    │   Step 5: 持续监控趋势健康度
+    │       回调深度增加？→ 趋势减弱
+    │       回调 &gt; 20 根 K 线？→ 变成区间
+    │       反向连续趋势 K？→ 趋势可能反转
+    │
+    └── 无突破 → 交易区间
+            ↓
+        困惑测试 + 失望测试 + 20 根 K 测试 + 双向交易测试
+            ↓
+        识别上下边界 → 高抛低吸 / 等待突破</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> Brooks 体系深化</h2>
+
+  <h3>8.1 Always In 的精确判定</h3>
+
+  <p>Brooks（<em>Reversals</em> #777 片段，得分 0.711）：</p>
+
+  <blockquote><p>"If there are two consecutive reasonably strong trend bars in the same direction, they probably create the new always-in direction."</p></blockquote>
+
+  <p>（#786 片段，得分 0.704）：</p>
+
+  <blockquote><p>"During the first hour, before a clear trend is established, two consecutive bull trend bars will make traders look for buy scalps, and two consecutive bear trend bars will make them look for sell scalps."</p></blockquote>
+
+  <p><strong>两连续强趋势 K 线 = Always In 的最基本确认。</strong></p>
+
+  <h3>8.2 强趋势日的特征</h3>
+
+  <p>Brooks（<em>Reading</em> #381 片段，得分 0.708）：</p>
+
+  <blockquote><p>"On a strong trend day, however, the breakouts are usually on huge volume, and there is very little pullback even on a 1-minute chart. It is clear that the trend traders are in control."</p></blockquote>
+
+  <p>强趋势日中，价格行为交易者应在突破前后用 High/Low 1 或 2 回调顺势入场，而不是在突破时入场——始终最小化风险。</p>
+
+  <h3>8.3 趋势线的多重角色</h3>
+
+  <p>Brooks（<em>Reading</em> #169 片段，得分 0.700）：</p>
+
+  <blockquote><p>"Any sideways movement over the next few bars will break the trend. Usually, those bars will be setting up a flag and then be followed by a With Trend move out of the flag, but sometimes the breakout will fail and the market will reverse."</p></blockquote>
+
+  <p>横向运动打破了趋势线后，通常形成旗形随后顺势突破，但有时突破失败导致反转。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 关键检查清单</h2>
+
+  <h3>趋势开始检查清单</h3>
+
+  <ul>
+
+    <li>[ ] 是否有惊喜 K 线或连续趋势 K 线？</li>
+
+    <li>[ ] 是否有至少 2 根同向跟随 K 线？</li>
+
+    <li>[ ] 跟随 K 线收盘是否在极值附近？</li>
+
+    <li>[ ] Always In 方向是否明确？</li>
+
+    <li>[ ] 是否突破了主要结构点？</li>
+
+  </ul>
+
+  <h3>趋势强度检查清单</h3>
+
+  <ul>
+
+    <li>[ ] 回调深度是否小于平均 K 线高度的 50%？</li>
+
+    <li>[ ] 回调是否保持在突破点之上（留有缺口）？</li>
+
+    <li>[ ] 回调是否杂乱无章（无组织）？</li>
+
+    <li>[ ] 回调是否在 1-3 根 K 线内？</li>
+
+    <li>[ ] 买方/卖方是否迫切（1 根 K 线后即入场）？</li>
+
+  </ul>
+
+  <h3>趋势失效检查清单</h3>
+
+  <ul>
+
+    <li>[ ] 回调是否超过了 20 根 K 线？</li>
+
+    <li>[ ] 回调是否形成了反向微通道或连续趋势 K 线？</li>
+
+    <li>[ ] 反向 K 线是否收盘在关键位置之外？</li>
+
+  </ul>
+
+  <h3>交易区间检查清单</h3>
+
+  <ul>
+
+    <li>[ ] 看图表是否感到困惑？</li>
+
+    <li>[ ] 强力 K 线后走势是否令人失望？</li>
+
+    <li>[ ] 市场是否横盘 20 根 K 线以上？</li>
+
+    <li>[ ] 多空双方是否都能赚钱？</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s10">
+
+  <h2><span class="section-num">十</span> 一句话总结</h2>
+
+  <blockquote><p><strong>2 根连续强趋势 K 线 + 跟随确认 + Always In 明确 = 趋势确立。20 根 K 线的回调 = 趋势失效，进入区间。</strong></p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s11">
+
+  <h2><span class="section-num">十一</span> 知识索引</h2>
+
+  <table>
+<thead><tr><th>著作</th><th>相关主题</th></tr></thead>
+<tbody>
+<tr><td><em>Reading Price Charts Bar by Bar</em></td><td>Always In 概念、趋势线、趋势日特征</td></tr>
+<tr><td><em>Trading Price Action: Trends</em></td><td>趋势强度、回调深度、突破确认</td></tr>
+<tr><td><em>Trading Price Action: Ranges</em></td><td>交易区间识别、突破失败、双向交易</td></tr>
+<tr><td><em>Trading Price Action: Reversals</em></td><td>Always In 翻转、趋势反转信号</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

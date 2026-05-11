@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为学交易手册分析：Regime §1.1a -- Channel 何时变成 TR</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为学交易手册分析：Regime §1.1a -- Channel 何时变成 TR</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">Channel → TR 的判定标准</a></li>
+    <li><a href="#s2">TR 确立后的规则覆盖</a></li>
+    <li><a href="#s3">极强趋势：小回调趋势（Small Pullback Trend）</a></li>
+    <li><a href="#s4">小回调趋势的精确入场规则</a></li>
+    <li><a href="#s5">小回调趋势的外观陷阱与心理机制</a></li>
+    <li><a href="#s6">精确识别标准汇总</a></li>
+    <li><a href="#s7">Brooks 体系深度补充</a></li>
+    <li><a href="#s8">关键洞察</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为学交易手册（专题）：Regime §1.1a (3)](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486636&idx=1&sn=c62c884b4e08ca04654d4e488a18debc) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>日期：2026年4月 | 作者：victorjia</p></blockquote>
+
+  <blockquote><p><strong>前置阅读</strong>：[Regime（市场状态）](./Regime.md) → [§1.1a (1) 趋势内部阶段总论](./Regime-§1.1a-1.md) → [§1.1a (2) Spike/Channel 阶段](./Regime-§1.1a-2.md)</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> Channel → TR 的判定标准</h2>
+
+  <h3>定量标准</h3>
+
+  <blockquote><p>"Any time the market goes sideways for 20 or more bars, I call it a Trading Range." -- Al Brooks</p></blockquote>
+
+  <p><strong>横盘 >= 20 根 K = 正式 TR。</strong></p>
+
+  <h3>TR 的概率结构</h3>
+
+  <table>
+<thead><tr><th>概率</th><th>方向</th></tr></thead>
+<tbody>
+<tr><td><strong>51-53%</strong></td><td>原趋势恢复</td></tr>
+<tr><td><strong>47-49%</strong></td><td>趋势反转</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p>即使 20+ 根 K 的 TR，原趋势仍略占优势（市场惯性）。但在执行层，成熟 TR 按 50/50 处理——因为优势太小，不足以支撑止损单追突破的数学。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> TR 确立后的规则覆盖</h2>
+
+  <h3>Channel 阶段规则完全失效</h3>
+
+  <table>
+<thead><tr><th>Channel 阶段的规则</th><th>TR 确立后</th></tr></thead>
+<tbody>
+<tr><td>止损单 H1/H2</td><td><strong>禁止止损单追突破</strong>（80% TR 突破失败）</td></tr>
+<tr><td>顺势为主</td><td><strong>切换限价单模式</strong>：买低卖高 scalp</td></tr>
+<tr><td>等回调顺势入场</td><td><strong>限价单 Fade，两端交易</strong></td></tr>
+</tbody>
+</table>
+
+  <h3>Brooks 对突破失败的确证</h3>
+
+  <p>Qdrant 检索中 Brooks 明确指出：TR 中的突破经常失败。一个典型模式是 "failed breakout from a Tight Trading Range"——在紧密 TR 中，突破后往往迅速反转回到 TR 区间。这与 80% 突破失败率的数据一致。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 极强趋势：小回调趋势（Small Pullback Trend）</h2>
+
+  <p>这是本文最具实战价值的部分——一种极其罕见但利润极高的趋势类型。</p>
+
+  <h3>特征识别</h3>
+
+  <table>
+<thead><tr><th>维度</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td><strong>回调深度</strong></td><td>每次回调只有 1-3 根 bar，随即创新高/低</td></tr>
+<tr><td><strong>EMA 关系</strong></td><td>50-60 根 K 不触及 EMA（极度偏离均线）</td></tr>
+<tr><td><strong>频率</strong></td><td>每月仅 1-2 次（极少见）</td></tr>
+<tr><td><strong>唯一操作</strong></td><td>只顺势，不做反向</td></tr>
+<tr><td><strong>禁令</strong></td><td><strong>禁止 fade 任何回调</strong>，不管看起来多像反转</td></tr>
+</tbody>
+</table>
+
+  <h3>Brooks 原著确认</h3>
+
+  <blockquote><p>"When the channel is tight, do not sell. The bull trend ignores the Wedge Tops." -- Brooks Trading Course<br>
+"Whenever the market stays away from the EMA for two hours or more, the trend is very strong." -- <em>Reading Price Charts Bar by Bar</em></p></blockquote>
+
+  <p>Qdrant 检索证实：价格持续远离 EMA 超过两小时 = 趋势极强，所有回调都是买入机会，包括两段式 EMA 回调是 "great buy"。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 小回调趋势的精确入场规则</h2>
+
+  <h3>两种入场方式</h3>
+
+  <table>
+<thead><tr><th>入场方式</th><th>规则</th></tr></thead>
+<tbody>
+<tr><td><strong>限价单</strong></td><td>在前 K 低点下方 1-2 tick 挂限价买单（禁止逆势空头止损单——机构在那里买）</td></tr>
+<tr><td><strong>止损单</strong></td><td>在回调 K 高点上方 1 tick 买（如果回调 K 是强牛 K 收盘）</td></tr>
+</tbody>
+</table>
+
+  <h3>20 Gap Bar Buy 规则</h3>
+
+  <p><strong>等第一次回调触及 EMA → 70-80% 概率之后创当日新高。</strong></p>
+
+  <p>这是小回调趋势中最可靠的入场信号之一：</p>
+
+  <ul>
+
+    <li>价格持续不碰 EMA 运行</li>
+
+    <li>第一次触及 EMA = 绝佳买入机会</li>
+
+    <li>成功率 70-80%</li>
+
+  </ul>
+
+  <h3>趋势结束信号</h3>
+
+  <table>
+<thead><tr><th>信号</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>回调幅度比之前最大回调大 50-100%</td><td>趋势前提可能失效</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 小回调趋势的外观陷阱与心理机制</h2>
+
+  <h3>外观陷阱（为什么大多数人错过）</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>现实</th></tr></thead>
+<tbody>
+<tr><td><strong>看起来很弱</strong></td><td>没有强烈的 Spike 突破，通道看似疲弱</td></tr>
+<tr><td><strong>有大量逆势趋势 K</strong></td><td>信号 K 通常很糟糕，误导性极强</td></tr>
+<tr><td><strong>核心特征</strong></td><td>开盘后持续运行数小时不碰 EMA</td></tr>
+<tr><td><strong>回调幅度极小</strong></td><td>< ADR 的 20-30%（12pt ADR 的市场 = 回调仅 2.5-3pt）</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p><strong>识别困难</strong>：正因为看起来弱，大多数人看不出来 → 等了一整天没等到好入场点。</p></blockquote>
+
+  <h3>心理机制：同时困住两类人</h3>
+
+  <table>
+<thead><tr><th>被套者</th><th>心理路径</th></tr></thead>
+<tbody>
+<tr><td><strong>逆势交易者</strong></td><td>信号 K 看起来像反转 → 不断尝试做顶/底 → 不断被止损</td></tr>
+<tr><td><strong>犹豫的顺势者</strong></td><td>等深度 10 根 K 回调 → 等不到 → 最终追市场入场 → 持续提供动力</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p>市场从不提供深度回调或干净信号 → <strong>强迫双方追价。</strong></p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 精确识别标准汇总</h2>
+
+  <table>
+<thead><tr><th>维度</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td><strong>频率</strong></td><td>每月仅 1-2 次</td></tr>
+<tr><td><strong>外观</strong></td><td>看起来很弱，无强烈 Spike</td></tr>
+<tr><td><strong>EMA</strong></td><td>持续数小时不触碰</td></tr>
+<tr><td><strong>回调深度</strong></td><td>< ADR 20-30%</td></tr>
+<tr><td><strong>信号 K 质量</strong></td><td>通常很糟糕</td></tr>
+<tr><td><strong>趋势结束</strong></td><td>回调幅度突然放大 50-100%</td></tr>
+<tr><td><strong>20 Gap Bar Buy</strong></td><td>第一次触及 EMA 后 70-80% 概率创新高</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> Brooks 体系深度补充</h2>
+
+  <h3>两段式回调与 EMA</h3>
+
+  <p>Brooks 在 <em>Reading Price Charts Bar by Bar</em> 中详细讨论了 EMA 回调：</p>
+
+  <blockquote><p>"Almost every day, there will be stocks that are trending, and they will usually have one- or two-legged pullbacks to the EMA, offering great With Trend setups and limited risk."</p></blockquote>
+
+  <p>在强趋势中，EMA 的第一段回调（one-legged pullback）是最可靠的顺势入场机会。当趋势足够强时，甚至两段式回调到 EMA 也是绝佳的买入机会。</p>
+
+  <h3>趋势越强，信号容忍度越高</h3>
+
+  <p>Brooks 有一个重要观点：在明确的强趋势中，"you should be buying every pullback"（你应该买入每个回调）。信号的完美程度要求随趋势强度降低：</p>
+
+  <table>
+<thead><tr><th>趋势强度</th><th>信号要求</th></tr></thead>
+<tbody>
+<tr><td>极强趋势（小回调趋势）</td><td>任何回调都可买，信号 K 质量不重要</td></tr>
+<tr><td>强趋势</td><td>可接受较低质量信号</td></tr>
+<tr><td>弱趋势/通道</td><td>需要较好信号 + 位置确认</td></tr>
+<tr><td>TR/逆势</td><td>必须近乎完美的信号</td></tr>
+</tbody>
+</table>
+
+  <h3>高潮后的操作规则</h3>
+
+  <p>Brooks 明确指出：高潮运动（climactic move）后，"traders should not look to enter With Trend on an EMA pullback"——即高潮后的第一次 EMA 回调不应作为顺势入场。这与小回调趋势的 "20 Gap Bar Buy" 形成互补规则。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 关键洞察</h2>
+
+  <h3>本文最大价值</h3>
+
+  <ol>
+
+    <li><strong>20 根 K 量化标准</strong>将 Channel→TR 的过渡从主观判断变成客观标尺</li>
+
+    <li><strong>小回调趋势的精确描述</strong>填补了大部分人知识库中的空白——它每月只有 1-2 次，但利润极高</li>
+
+    <li><strong>心理机制分析</strong>解释了为什么这类趋势难以识别：逆势者和犹豫顺势者同时被困</li>
+
+    <li><strong>20 Gap Bar Buy</strong> 是一个具体、可测试的高胜率入场规则</li>
+
+    <li><strong>趋势结束信号的量化</strong>（回调放大 50-100%）给了明确的离场标准</li>
+
+  </ol>
+
+  <h3>与前几节的关系</h3>
+
+  <table>
+<thead><tr><th>章节</th><th>内容</th><th>本篇补充</th></tr></thead>
+<tbody>
+<tr><td>§1.1</td><td>趋势 vs TR 判别</td><td>Channel→TR 的精确过渡标准</td></tr>
+<tr><td>§1.1a (1)</td><td>趋势三层定义</td><td>Channel 末端→TR 的概率结构</td></tr>
+<tr><td>§1.1a (2)</td><td>Spike/Channel 操作</td><td>极强趋势（小回调）的特殊操作</td></tr>
+</tbody>
+</table>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>在 TR 中追突破</td><td>Channel → TR 后还在用止损单追</td><td>TR 确立=禁用止损单突破</td></tr>
+<tr><td>错过小回调趋势</td><td>等深度回调等不到</td><td>识别 EMA 长时间不碰的特征</td></tr>
+<tr><td>小回调趋势中逆势</td><td>"看起来弱"就做反转</td><td>不碰 EMA 数小时 = 极强趋势</td></tr>
+<tr><td>回调放大信号被忽略</td><td>没注意回调深度突然翻倍</td><td>50-100% 回调放大 = 趋势可能结束</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

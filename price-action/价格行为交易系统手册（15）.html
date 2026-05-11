@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易系统手册（15）-- 趋势类型与趋势分析</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易系统手册（15）-- 趋势类型与趋势分析</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">趋势的强弱等级</a></li>
+    <li><a href="#s2">上涨趋势（Bull Trend）</a></li>
+    <li><a href="#s3">下降趋势（Bear Trend）</a></li>
+    <li><a href="#s4">保护性止损（Protective Stop）</a></li>
+    <li><a href="#s5">趋势中的突破行情</a></li>
+    <li><a href="#s6">测量运动（Measured Move）</a></li>
+    <li><a href="#s7">趋势确认流程</a></li>
+    <li><a href="#s8">趋势中的回调（Pullback）</a></li>
+    <li><a href="#s9">趋势类型交易的综合决策表</a></li>
+    <li><a href="#s10">常见错误</a></li>
+    <li><a href="#s11">知识索引</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为交易系统手册（15）](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247485994&idx=1&sn=7b65b58eb1486c1bbea6feeee423c5f7) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>对应 Al Brooks 课程第 15 章：趋势类型（Trend Types）</p></blockquote>
+
+  <blockquote><p>核心原则：<strong>趋势不是单一的，不同类型的趋势需要不同的交易策略。区分强趋势与弱趋势，是生存和盈利的关键。</strong></p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 趋势的强弱等级</h2>
+
+  <p>根据 Brooks 的价格行为市场周期理论，趋势的强弱依次为：</p>
+
+  <pre>突破（Spike）  &gt;  窄通道（Tight Channel）  &gt;  宽通道（Broad Channel）  &gt;  震荡区间（Trading Range）
+    最强              强                        弱                         方向不明</pre>
+
+  <p>趋势要么是突破，要么是通道。突破是强趋势，通道是弱趋势。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 上涨趋势（Bull Trend）</h2>
+
+  <h3>2.1 核心定义</h3>
+
+  <p><strong>上涨趋势的根本定义</strong>：低点不断抬高（特别是重要低点），这一点甚至比高点抬高更重要。</p>
+
+  <h3>2.2 重要低点 vs 次要低点</h3>
+
+  <table>
+<thead><tr><th>类型</th><th>定义</th><th>交易意义</th></tr></thead>
+<tbody>
+<tr><td><strong>重要低点</strong></td><td>后续出现强势多头突破，且通常伴随新高</td><td>趋势结束的标志位：跌破重要低点 = 上涨趋势结束</td></tr>
+<tr><td><strong>次要低点</strong></td><td>不符合上条标准的低点</td><td>跌破次要低点不一定代表趋势结束</td></tr>
+</tbody>
+</table>
+
+  <h3>2.3 止损设置（做多）</h3>
+
+  <p><strong>核心原则</strong>：做多止损必须设置在重要低点下方。如果止损设在次要低点下方，很容易被市场震荡出局，错失后续上涨机会。</p>
+
+  <p><strong>止损管理策略</strong>：</p>
+
+  <table>
+<thead><tr><th>阶段</th><th>止损位置</th></tr></thead>
+<tbody>
+<tr><td>初始入场</td><td>起涨点下方</td></tr>
+<tr><td>突破新高后</td><td>移动止损至新的重要低点下方</td></tr>
+<tr><td>持续创新高</td><td>只要市场持续形成更高的低点，就表明上涨趋势仍在延续</td></tr>
+</tbody>
+</table>
+
+  <h3>2.4 Brooks 原著补充：强势多头突破的特征</h3>
+
+  <p>根据 Brooks 原著《反转篇》，强势多头突破的特征越多，突破越可信：</p>
+
+  <ol>
+
+    <li>突破 K 线有大的阳线实体和小的影线（或无影线）-- K 线越大越好</li>
+
+    <li>趋势走了很远，突破了多个阻力位：均线、之前摆动高点、趋势线</li>
+
+    <li>每个阻力位都被突破了许多 tick</li>
+
+    <li>逆势的反转尝试（尖峰形态）没有跟随，失败并成为趋势方向的旗形</li>
+
+  </ol>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 下降趋势（Bear Trend）</h2>
+
+  <h3>3.1 核心定义</h3>
+
+  <p><strong>下降趋势的根本定义</strong>：高点不断降低（特别是重要高点），这一点甚至比低点降低更重要。</p>
+
+  <h3>3.2 重要高点 vs 次要高点</h3>
+
+  <table>
+<thead><tr><th>类型</th><th>定义</th><th>交易意义</th></tr></thead>
+<tbody>
+<tr><td><strong>重要高点</strong></td><td>后续出现强势空头突破，且通常伴随新低</td><td>趋势结束的标志位：突破重要高点 = 下降趋势结束</td></tr>
+<tr><td><strong>次要高点</strong></td><td>不符合上条标准的高点</td><td>突破次要高点不一定代表趋势结束</td></tr>
+</tbody>
+</table>
+
+  <h3>3.3 止损设置（做空）</h3>
+
+  <p><strong>核心原则</strong>：做空止损必须设置在重要高点上方。</p>
+
+  <table>
+<thead><tr><th>阶段</th><th>止损位置</th></tr></thead>
+<tbody>
+<tr><td>初始入场</td><td>起跌点上方</td></tr>
+<tr><td>突破新低后</td><td>移动止损至最近的重要高点上方</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 保护性止损（Protective Stop）</h2>
+
+  <h3>4.1 为什么必须挂止损单</h3>
+
+  <p>在任何一笔交易中，应该总是设置一个保护性止损。止损不是放在脑海中，止损单必须挂在市场中。</p>
+
+  <p>两个关键原因：</p>
+
+  <table>
+<thead><tr><th>原因</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>突发事件</td><td>市场突变时手动平仓已经来不及</td></tr>
+<tr><td>执行力</td><td>没有预设止损，亏损时会不断说服自己"再等一等"，最终导致亏损越来越大</td></tr>
+</tbody>
+</table>
+
+  <h3>4.2 Brooks 原著补充：止损与交易者方程</h3>
+
+  <p>Brooks 强调，止损的位置必须满足<strong>交易者方程</strong>（Trader's Equation）：</p>
+
+  <blockquote><p>胜率 × 潜在利润 > （1 - 胜率） × 风险</p></blockquote>
+
+  <p>如果止损太远导致风险过大，使得即使胜率高也无法满足交易者方程，那么这笔交易就不应该做。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 趋势中的突破行情</h2>
+
+  <h3>5.1 突破的定义</h3>
+
+  <p>突破是最强势的行情：一根大阳线（或大阴线），体积比之前的任何一根 K 线都要大很多。</p>
+
+  <p>不管之前什么走势，一旦看到突破 K 线，<strong>你必须立即转变为多头（或多头突破）或空头（空头突破）</strong>。</p>
+
+  <h3>5.2 突破中的两难</h3>
+
+  <table>
+<thead><tr><th>维度</th><th>新手的想法</th><th>经验者的想法</th></tr></thead>
+<tbody>
+<tr><td>风险感受</td><td>太高了，不能追</td><td>突破趋势有 80% 概率延续</td></tr>
+<tr><td>止损</td><td>想做空，止损小</td><td>顺势买入，用仓位控制风险</td></tr>
+<tr><td>超买超卖</td><td>觉得超买了会下跌</td><td>突破中没有超买概念</td></tr>
+<tr><td>回调</td><td>回调时想做空</td><td>回调是买入机会</td></tr>
+</tbody>
+</table>
+
+  <h3>5.3 Brooks 原著补充：收缩楼梯（Shrinking Stairs）</h3>
+
+  <p>突破动能衰竭的关键信号：</p>
+
+  <blockquote><p>"With shrinking stairs, the second breakout is smaller than the first, indicating loss of momentum."</p></blockquote>
+
+  <p>当出现"收缩楼梯"时（第二次突破幅度比第一次小），交易的成功率通常会更高（做反转方向）——因为动能正在衰竭。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 测量运动（Measured Move）</h2>
+
+  <h3>6.1 概念</h3>
+
+  <p>测量运动是 Brooks 体系中的关键技术工具，用于设定目标位和评估盈亏比。</p>
+
+  <p><strong>原理</strong>：将突破阶段（实体部分或尖峰）的高度，沿突破方向翻转，作为预期目标位。</p>
+
+  <h3>6.2 类型</h3>
+
+  <table>
+<thead><tr><th>类型</th><th>基于</th><th>应用</th></tr></thead>
+<tbody>
+<tr><td>突破尖峰测量</td><td>突破尖峰的高度</td><td>趋势初始目标</td></tr>
+<tr><td>交易区间测量</td><td>交易区间的高度</td><td>区间突破目标</td></tr>
+<tr><td>旗形测量</td><td>旗形的高度</td><td>旗形突破目标</td></tr>
+<tr><td>缺口测量</td><td>测量缺口的位置</td><td>趋势中段目标</td></tr>
+</tbody>
+</table>
+
+  <h3>6.3 测量运动的准确性</h3>
+
+  <p>Brooks 指出，有时投影精确到 tick，但大多数时候市场会未达到或超越目标。测量运动只是一个指南，帮助你在市场的正确一侧交易。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 趋势确认流程</h2>
+
+  <h3>7.1 趋势确认的特征</h3>
+
+  <p>根据 Brooks 原著《趋势篇》：</p>
+
+  <h4>上涨趋势确认</h4>
+
+  <table>
+<thead><tr><th>特征</th><th>权重</th></tr></thead>
+<tbody>
+<tr><td>价格连续运行在 20 EMA 之上</td><td>高</td></tr>
+<tr><td>重要低点不断抬高</td><td>最高</td></tr>
+<tr><td>回调不跌破前一个重要低点</td><td>高</td></tr>
+<tr><td>突破时有跟随 K 线</td><td>高</td></tr>
+<tr><td>逆势反转尝试失败（成为旗形）</td><td>中</td></tr>
+</tbody>
+</table>
+
+  <h4>下降趋势确认</h4>
+
+  <table>
+<thead><tr><th>特征</th><th>权重</th></tr></thead>
+<tbody>
+<tr><td>价格连续运行在 20 EMA 之下</td><td>高</td></tr>
+<tr><td>重要高点不断降低</td><td>最高</td></tr>
+<tr><td>反弹不突破前一个重要高点</td><td>高</td></tr>
+<tr><td>突破时有跟随 K 线</td><td>高</td></tr>
+<tr><td>逆势反转尝试失败（成为旗形）</td><td>中</td></tr>
+</tbody>
+</table>
+
+  <h3>7.2 趋势结束的确认</h3>
+
+  <table>
+<thead><tr><th>上涨趋势结束信号</th><th>下降趋势结束信号</th></tr></thead>
+<tbody>
+<tr><td>价格跌破上一个重要低点</td><td>价格突破上一个重要高点</td></tr>
+<tr><td>大概率进入震荡区间</td><td>大概率进入震荡区间</td></tr>
+<tr><td>小概率直接转为下跌趋势</td><td>小概率直接转为上涨趋势</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 趋势中的回调（Pullback）</h2>
+
+  <h3>8.1 回调是趋势的一部分</h3>
+
+  <ul>
+
+    <li>回调只是趋势内的震荡区间</li>
+
+    <li>只要趋势能恢复，我们就用"回调"这个词</li>
+
+    <li>回调发展为 20+ 根 K 线后，变为震荡区间</li>
+
+  </ul>
+
+  <h3>8.2 回调中的交易</h3>
+
+  <table>
+<thead><tr><th>趋势类型</th><th>回调策略</th></tr></thead>
+<tbody>
+<tr><td>突破</td><td>等待第一根回调 K 线即入场，因为第一次反转大概率失败</td></tr>
+<tr><td>窄通道</td><td>在 K 线最低点买入（多头），押注反转失败</td></tr>
+<tr><td>宽通道</td><td>耐心等回调到关键支撑/阻力位</td></tr>
+</tbody>
+</table>
+
+  <h3>8.3 Brooks 原著补充：两段回调（Two Legs）</h3>
+
+  <blockquote><p>"Two legs often complete a move and usually result in at least a protracted countertrend move of at least two smaller legs, and sometimes a new, opposite trend."</p></blockquote>
+
+  <p>两段回调常常完成一段走势。逆势运动通常会测试趋势中段的交易区间，有时甚至会演变为新的相反趋势。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 趋势类型交易的综合决策表</h2>
+
+  <table>
+<thead><tr><th>趋势类型</th><th>Always In</th><th>入场策略</th><th>止损位置</th><th>持仓方式</th></tr></thead>
+<tbody>
+<tr><td>突破</td><td>明确单向</td><td>任何方式尽快入场</td><td>突破 K 线极值</td><td>波段（让利润跑）</td></tr>
+<tr><td>窄通道</td><td>明确单向</td><td>回调入场/逆小势顺大势</td><td>通道起点</td><td>波段为主</td></tr>
+<tr><td>宽通道</td><td>偏单向</td><td>回调到支撑/阻力入场</td><td>通道起点或结构低点</td><td>波段+部分剥头皮</td></tr>
+<tr><td>震荡区间</td><td>不明确</td><td>高抛低吸</td><td>区间边界外</td><td>剥头皮</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s10">
+
+  <h2><span class="section-num">十</span> 常见错误</h2>
+
+  <table>
+<thead><tr><th>错误</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>在突破中做空</td><td>认为涨太多了</td><td>突破时无条件转变立场</td></tr>
+<tr><td>止损放在次要低点</td><td>被震荡出局</td><td>止损必须在重要低点下方</td></tr>
+<tr><td>没有预设止损</td><td>"等一等再看"</td><td>止损单必须挂入市场</td></tr>
+<tr><td>将宽通道当突破追</td><td>宽通道中追涨杀跌</td><td>区分窄通道和宽通道</td></tr>
+<tr><td>忽视趋势类型的转换</td><td>趋势已变为宽通道还在用突破策略</td><td>实时评估当前趋势强弱</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s11">
+
+  <h2><span class="section-num">十一</span> 知识索引</h2>
+
+  <p><code>price-action</code> Qdrant 向量库中包含以下相关 Al Brooks 原著内容：</p>
+
+  <table>
+<thead><tr><th>关键词</th><th>涉及概念</th></tr></thead>
+<tbody>
+<tr><td>bull trend / bear trend / trend analysis</td><td>趋势类型、上涨趋势与下跌趋势</td></tr>
+<tr><td>major high/low / minor high/low / swing point</td><td>重要高/低点与次要高/低点</td></tr>
+<tr><td>measured move / projection / magnet</td><td>测量运动与目标投影</td></tr>
+<tr><td>protective stop / trader's equation</td><td>保护性止损与交易者方程</td></tr>
+<tr><td>pullback / two legs / countertrend</td><td>回调与两段结构</td></tr>
+<tr><td>shrinking stairs / momentum loss</td><td>收缩楼梯与动能衰竭</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

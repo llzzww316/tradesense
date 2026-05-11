@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易系统手册分析（3）：楔形与三次推动</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易系统手册分析（3）：楔形与三次推动</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">核心问题：趋势末端的追涨杀跌</a></li>
+    <li><a href="#s2">楔形的本质</a></li>
+    <li><a href="#s3">通道与 75% 规则</a></li>
+    <li><a href="#s4">五种楔形变体</a></li>
+    <li><a href="#s5">楔形与其他形态的关系</a></li>
+    <li><a href="#s6">三种市场环境中的楔形策略</a></li>
+    <li><a href="#s7">均线的磁力作用</a></li>
+    <li><a href="#s8">突破失败与&quot;失败的失败&quot;</a></li>
+    <li><a href="#s9">完整交易清单</a></li>
+    <li><a href="#s10">六条核心原则</a></li>
+    <li><a href="#s11">Brooks 体系补充：楔形交易的深层逻辑</a></li>
+    <li><a href="#s12">关键洞察与常见陷阱</a></li>
+    <li><a href="#s13">知识索引</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为交易系统手册（3）](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247485764&idx=1&sn=6ad50fc80b6a9998c3699ddcd44e4a4f&chksm=cf7f92e8f8081bfe4e175eb27a46cf4d3beb1375c74efef5cceb793c68485372c5a46564d2d9&scene=178&cur_album_id=4391498936155439105#rd) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>核心问题：<strong>为什么总是在趋势末端被套？——因为你从未真正理解市场力竭的语言：三次推动。</strong></p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 核心问题：趋势末端的追涨杀跌</h2>
+
+  <h3>常见的失败模式</h3>
+
+  <table>
+<thead><tr><th>行为</th><th>结果</th><th>根本原因</th></tr></thead>
+<tbody>
+<tr><td>眼看连续创新高，终于追进去</td><td>市场立刻掉头</td><td>在第三推动浪顶部追入</td></tr>
+<tr><td>看到反转信号就入场</td><td>被继续的趋势扫损</td><td>紧密通道中 80% 反转尝试失败</td></tr>
+<tr><td>止损窄就认为是好交易</td><td>频繁小亏损耗尽账户</td><td>低风险 = 低概率</td></tr>
+<tr><td>抓住反转却过早离场</td><td>回报不足以弥补失败尝试</td><td>把波段当剥头皮做</td></tr>
+</tbody>
+</table>
+
+  <p>这些问题的核心：<strong>不知道如何识别趋势何时真正力竭。</strong></p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 楔形的本质</h2>
+
+  <h3>定义</h3>
+
+  <blockquote><p><strong>楔形（Wedge）本质上是一种倾斜的三角形（Tilted Triangle），是价格行为交易中最重要的衰竭形态。</strong></p></blockquote>
+
+  <p>只要有<strong>三次推动</strong>，通常就可以称为楔形。每次推动的动能逐渐减弱，预示趋势可能即将反转。</p>
+
+  <pre>完整的楔形 = 5 个波段 = 3 次同方向推进 + 2 次反向回调</pre>
+
+  <p>Brooks 原著明确：</p>
+
+  <blockquote><p>"Trends often end with a test of the extreme, and the test often has two legs, each reaching a greater extreme... The first extreme and then the two legs make Three Pushes, which is a well recognized reversal setup with many names."</p></blockquote>
+
+  <p>趋势通常以三次推动终结——第一次极值 + 两次延伸形成三推。</p>
+
+<hr>
+
+  <h3>动能衰减：楔形的核心信号</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>第一推</th><th>第二推</th><th>第三推</th></tr></thead>
+<tbody>
+<tr><td>K 线大小</td><td>大</td><td>中等</td><td>小</td></tr>
+<tr><td>推进幅度</td><td>大</td><td>中等</td><td>小</td></tr>
+<tr><td>趋势棒比例</td><td>高</td><td>中等</td><td>低</td></tr>
+<tr><td>影线</td><td>少</td><td>增加</td><td>明显增多</td></tr>
+</tbody>
+</table>
+
+  <p><strong>当你看到第三推的力度明显不如前两推，就是警惕反转的时候了。</strong></p>
+
+  <h3>楔形不要求完美</h3>
+
+  <p>Brooks 原著反复强调：</p>
+
+  <blockquote><p>"These patterns rarely have a perfect shape... Be flexible, and if there is a Three Push pattern at the end of a big move, even if the pattern is not perfect, trade it as if it were a Wedge."</p></blockquote>
+
+  <ul>
+
+    <li>即使形状不标准，只要包含三次推进，市场往往也会视为楔形</li>
+
+    <li>双重顶/底 + 假突破 = 功能上等于楔形</li>
+
+    <li>画趋势线时可以只看 K 线实体，忽略影线</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 通道与 75% 规则</h2>
+
+  <h3>通道即楔形</h3>
+
+  <blockquote><p>所有通道本质上都是某种形式的楔形，只要能画出两条线且包含三次推动。</p></blockquote>
+
+  <ul>
+
+    <li><strong>收敛的线</strong> → 楔形</li>
+
+    <li><strong>平行的线</strong> → 通道</li>
+
+  </ul>
+
+  <h3>75% 概率规则</h3>
+
+  <table>
+<thead><tr><th>通道类型</th><th>突破方向</th><th>概率</th></tr></thead>
+<tbody>
+<tr><td>牛市通道</td><td>向下突破</td><td><strong>75%</strong></td></tr>
+<tr><td>熊市通道</td><td>向上突破</td><td><strong>75%</strong></td></tr>
+</tbody>
+</table>
+
+  <h3>例外：紧密通道</h3>
+
+  <blockquote><p>如果楔形出现在<strong>非常紧密的通道（Strong Trend）</strong>中，反转通常只是微小的（minor），趋势会恢复。</p></blockquote>
+
+  <p>这就是<strong>背景决定一切</strong>的体现。在紧密通道中，楔形往往演变为楔形旗形（趋势延续），而非反转。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 五种楔形变体</h2>
+
+  <h3>1. 标准楔形（Standard Wedge）</h3>
+
+  <p>三次推动逐渐收敛，趋势线和通道线形成收敛三角形。</p>
+
+  <pre>第1推 ——&gt;  第2推 ——&gt; 第3推
+  \         /‾‾\       /
+   \       /    \     /
+    \     /      \   /
+     \   /        \ /
+      ──            —— 趋势衰竭</pre>
+
+  <h3>2. 嵌套楔形（Nested Wedge）</h3>
+
+  <p>大楔形内部的<strong>第 3 个推动波段自身形成了更小的楔形</strong>。</p>
+
+  <table>
+<thead><tr><th>特征</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>分形性质</td><td>大周期和小周期同时出现楔形</td></tr>
+<tr><td>概率</td><td>反转概率<strong>更高</strong>（多周期共振）</td></tr>
+<tr><td>入场时机</td><td>大楔形第 3 推内部形成小楔形反转信号时</td></tr>
+</tbody>
+</table>
+
+  <h3>3. 抛物线楔形（Parabolic Wedge）</h3>
+
+  <p>极强趋势中，连续 3 次高潮，通道线斜率越来越陡峭。</p>
+
+  <table>
+<thead><tr><th>特征</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>通道紧密</td><td>几乎只有微小回调</td></tr>
+<tr><td>情绪极端</td><td>FOMO（多头）或恐慌（空头）</td></tr>
+<tr><td>反转类型</td><td>不直接反转为相反强趋势，更可能进入交易区间或深幅回调</td></tr>
+<tr><td>目标</td><td>TBTL（至少 10 根 K 线和两段式横盘/回调）</td></tr>
+<tr><td>概率</td><td>约 50% 反转，50% 突破失败继续趋势</td></tr>
+<tr><td>大周期影响</td><td>如果大周期在均线下面，直接反转概率更大</td></tr>
+</tbody>
+</table>
+
+  <h3>4. 截断楔形（Truncated Wedge）</h3>
+
+  <p>第 3 次推动<strong>未能超过第 2 次推动的极值</strong>。</p>
+
+  <ul>
+
+    <li><strong>楔形底</strong>：第 3 个低点<strong>高于</strong>第 2 个低点</li>
+
+    <li><strong>原因</strong>：太多交易者抢跑，导致价格无法创新低</li>
+
+    <li><strong>处理</strong>：尽管形态不完美，仍应作为反转信号处理</li>
+
+  </ul>
+
+  <h3>5. 过冲楔形（Overshoot Wedge）</h3>
+
+  <p>第 3 次推动<strong>强力突破通道线</strong>。</p>
+
+  <ul>
+
+    <li>通常是高潮行为的表现</li>
+
+    <li>可能导致反转</li>
+
+    <li>Brooks 原著确认：趋势通道线超调（overshoot）+ 反转是更可靠的信号</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 楔形与其他形态的关系</h2>
+
+  <h3>楔形 = 双顶/双底 + 假突破</h3>
+
+  <table>
+<thead><tr><th>形态</th><th>等价楔形</th></tr></thead>
+<tbody>
+<tr><td>双顶 + 向上假突破（第 3 高点）</td><td>= 楔形顶</td></tr>
+<tr><td>双底 + 向下假突破（第 3 低点）</td><td>= 楔形底</td></tr>
+</tbody>
+</table>
+
+  <p>未突破的双重顶/底在功能上等同于楔形。</p>
+
+  <h3>楔形旗形（Wedge Flag）</h3>
+
+  <p>在主趋势中包含三次推动的<strong>回调形态</strong>——这是趋势延续信号，不是反转信号。</p>
+
+  <table>
+<thead><tr><th>类型</th><th>含义</th><th>预期</th></tr></thead>
+<tbody>
+<tr><td>牛市中的楔形牛市旗形</td><td>= High 3</td><td>趋势恢复向上</td></tr>
+<tr><td>熊市中的楔形熊市旗形</td><td>= Low 3</td><td>趋势恢复向下</td></tr>
+</tbody>
+</table>
+
+  <p>Brooks 原著确认：</p>
+
+  <blockquote><p>"A Wedge flag can also lead to an extended bull move or become a larger Failed Final Flag."</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 三种市场环境中的楔形策略</h2>
+
+  <table>
+<thead><tr><th>市场环境</th><th>楔形的意义</th><th>策略</th></tr></thead>
+<tbody>
+<tr><td><strong>强趋势（紧密通道）</strong></td><td>楔形反转通常<strong>失败</strong>，演变为楔形旗形</td><td>不要逆势，等待回调顺势入场</td></tr>
+<tr><td><strong>弱趋势（宽幅通道）</strong></td><td>宽幅通道本质上就是巨大楔形，双向有利可图</td><td>从通道边界寻找反转交易</td></tr>
+<tr><td><strong>交易区间</strong></td><td>楔形是区间边界常见的反转形态</td><td>底部楔形底买入，顶部楔形顶卖出</td></tr>
+</tbody>
+</table>
+
+  <h3>水平楔形 = 三角形</h3>
+
+  <ul>
+
+    <li>突破方向概率约 50/50</li>
+
+    <li>三角形<strong>假突破</strong>常演变为楔形底或楔形顶 → 强力反转信号</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 均线的磁力作用</h2>
+
+  <table>
+<thead><tr><th>情景</th><th>机制</th></tr></thead>
+<tbody>
+<tr><td>市场远离均线形成楔形</td><td>均线吸引价格回调，楔形反转的首目标往往是 20EMA</td></tr>
+<tr><td>均线缺口棒（MA Gap Bars）</td><td>完全位于均线一侧的 K 线 → 趋势极强，楔形反转后首次回调通常被买入/卖出，趋势恢复</td></tr>
+<tr><td>价格多次穿梭均线</td><td>可能演变为最终旗形，随后反转</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 突破失败与"失败的失败"</h2>
+
+  <h3>楔形突破后的两种路径</h3>
+
+  <table>
+<thead><tr><th>路径</th><th>概率</th><th>处理</th></tr></thead>
+<tbody>
+<tr><td>继续向新方向运行（测量运动）</td><td>~50%</td><td>顺势持仓</td></tr>
+<tr><td>突破失败并再次反转</td><td>~50%</td><td>止损并反向考虑</td></tr>
+</tbody>
+</table>
+
+  <h3>失败的失败（Failed Failure）—— 极高胜率入场点</h3>
+
+  <pre>楔形底向下突破失败 → 再反转向上 = 极高胜率买入信号
+楔形顶向上突破失败 → 再反转向下 = 极高胜率卖出信号</pre>
+
+  <p>如果强势突破有跟进 → 放弃反转思路，转为顺势交易。</p>
+
+  <p>Brooks 原著确认：</p>
+
+  <blockquote><p>"a failed failure is always a good setup"</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 完整交易清单</h2>
+
+  <pre>☐ 步骤 1：识别三个明显的连续高点（或低点）
+☐ 步骤 2：观察第三推的动能是否减弱（K 线变小、影线增多）
+☐ 步骤 3：寻找反转信号 K 线（强反向 K 线、十字星、长影线）
+☐ 步骤 4：在反向信号 K 线极值点挂止损单
+       楔形底 → 看涨信号棒最高点上方 +1 tick Buy Stop
+       楔形顶 → 看跌信号棒最低点下方 -1 tick Sell Stop
+☐ 步骤 5：止损放在楔形极值点之外
+       楔形底 → 楔形最低点下方
+       楔形顶 → 楔形最高点上方
+☐ 步骤 6：第一目标 = Leg 3 的起点
+☐ 步骤 7：进阶目标 = 楔形起点（Leg 1 起点）或 TBTL</pre>
+
+  <h3>更安全的入场：等待二次信号</h3>
+
+  <blockquote><p>由于楔形反转是逆势交易，第一次尝试往往失败。更安全的方法是等待<strong>第二次入场信号</strong>：<br>
+- 楔形底 → 等待 <strong>High 2</strong> 买入<br>
+- 楔形顶 → 等待 <strong>Low 2</strong> 卖出</p></blockquote>
+
+  <h3>持仓管理</h3>
+
+  <p>一旦市场向有利方向强势突破：</p>
+
+  <ul>
+
+    <li>将止损移动到最近的主要波段高点（牛市 Major Higher Low）</li>
+
+    <li>或主要波段低点（熊市 Major Lower High）</li>
+
+  </ul>
+
+  <p>出现楔形顶后，通常会看到反方向的两段式走势（Two legs in the opposite direction）。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s10">
+
+  <h2><span class="section-num">十</span> 六条核心原则</h2>
+
+  <table>
+<thead><tr><th>#</th><th>原则</th><th>详细说明</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><strong>三次推动是灵魂</strong></td><td>无论形状是否完美，三次尝试失败就是楔形</td></tr>
+<tr><td>2</td><td><strong>背景决定一切</strong></td><td>强趋势中不逆势，弱趋势或区间中寻反转</td></tr>
+<tr><td>3</td><td><strong>等待确认</strong></td><td>不要只因看到三推就盲目入场，需要信号棒</td></tr>
+<tr><td>4</td><td><strong>让利润奔跑</strong></td><td>楔形反转是波段交易，不是剥头皮</td></tr>
+<tr><td>5</td><td><strong>分形思维</strong></td><td>嵌套楔形（多周期共振）概率更高</td></tr>
+<tr><td>6</td><td><strong>75% 规则</strong></td><td>通道 75% 概率反向突破</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s11">
+
+  <h2><span class="section-num">十一</span> Brooks 体系补充：楔形交易的深层逻辑</h2>
+
+  <h3>高潮行为的必要性</h3>
+
+  <p>Brooks 原著强调，楔形需要<strong>高潮行为</strong>才有效：</p>
+
+  <blockquote><p>"A Wedge is a type of climax reversal, so climactic behavior is needed for it to be effective. There needs to be a spike down and not a series of overlapping bars."</p></blockquote>
+
+  <p>也就是说，三次推动的最后一推必须有<strong>冲刺（spike）</strong>，而不是一连串重叠的犹豫 K 线。如果在第三推处出现「三道杠」（Barb Wire，三根重叠的十字星），那不是有效的楔形反转。</p>
+
+  <h3>趋势通道线超调</h3>
+
+  <blockquote><p>"The majority of Three Push patterns reverse after overshooting a trend channel line, and that alone is a reason to enter, even if the actual shape is not a Wedge."</p></blockquote>
+
+  <p>趋势通道线超调 + 反转 = 入场理由，即使形状不完美。三推往往比通道线更容易看到，这使三推比通道线更有实操价值。</p>
+
+  <h3>楔形失败的常见原因</h3>
+
+  <p>Brooks 指出楔形失败最常发生在：</p>
+
+  <ul>
+
+    <li>交易者过于急切逆势入场</li>
+
+    <li>没有等待明确的趋势线突破</li>
+
+    <li>没有看到逆势方力量的增强</li>
+
+    <li>在第一条小三推出现时就 fade（实际上可能只是更大形态的一部分）</li>
+
+  </ul>
+
+  <h3>磁吸位与目标位的关系</h3>
+
+  <p>Brooks 在 <em>Trading Price Action: Ranges</em> 中讨论：</p>
+
+  <blockquote><p>一旦 spike 结束并进入 channel，方向概率从 ~60% 逐渐下降到 ~50%。当价格到达目标位（如磁吸位），方向概率会超过 50% 偏向反向。</p></blockquote>
+
+  <p>这与楔形交易紧密相关：第三推到目标位时，反转概率最高。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s12">
+
+  <h2><span class="section-num">十二</span> 关键洞察与常见陷阱</h2>
+
+  <h3>文章的核心价值</h3>
+
+  <ul>
+
+    <li>将「三次推动」作为市场力竭的统一语言</li>
+
+    <li>五种楔形变体的分类覆盖了几乎所有衰竭场景</li>
+
+    <li>清晰的七步交易清单，从识别到目标位完整闭环</li>
+
+    <li>强调背景决定一切：强趋势中的楔形 = 旗形，不是反转</li>
+
+  </ul>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>紧密通道中做楔形反转</td><td>80% 反转在紧密通道中失败</td><td>先判断通道类型，紧密通道不逆势</td></tr>
+<tr><td>看到三推就入场</td><td>没有反转信号 K 线确认</td><td>等待强反向信号棒</td></tr>
+<tr><td>剥头皮心态</td><td>反转刚启动就止盈</td><td>第一目标至少 Leg 3 起点</td></tr>
+<tr><td>忽略动能衰减</td><td>第三推力度不减就入场</td><td>确认 K 线变小、影线增多、幅度缩小</td></tr>
+<tr><td>把楔形旗形当反转</td><td>趋势中看到三推回调就反向做</td><td>先判断是趋势恢复还是反转</td></tr>
+<tr><td>重叠 K 线处的楔形</td><td>第三推不是 spike 而是 Barb Wire</td><td>高潮行为是必要条件</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s13">
+
+  <h2><span class="section-num">十三</span> 知识索引</h2>
+
+  <p><code>price-action</code> Qdrant 向量库包含以下 Al Brooks 核心著作：</p>
+
+  <table>
+<thead><tr><th>著作</th><th>侧重</th></tr></thead>
+<tbody>
+<tr><td><em>Reading Price Charts Bar by Bar</em></td><td>基础框架：三推、楔形、趋势通道线、高潮反转</td></tr>
+<tr><td><em>Trading Price Action: Trends</em></td><td>趋势交易：通道、旗形、楔形旗形</td></tr>
+<tr><td><em>Trading Price Action: Ranges</em></td><td>区间交易：突破方向概率、磁吸位</td></tr>
+<tr><td><em>Trading Price Action: Reversals</em></td><td>反转交易：楔形顶底、嵌套楔形、最终旗形、失败的失败</td></tr>
+</tbody>
+</table>
+
+  <p>当遇到具体交易问题时，可用关键词搜索向量库获取 Brooks 原著的详细分析。</p>
+
+</div>
+
+</div>
+</body>
+</html>

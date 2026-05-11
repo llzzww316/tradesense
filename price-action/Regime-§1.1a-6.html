@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为学交易手册分析：Regime §1.1a -- Barb Wire 精确规则</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为学交易手册分析：Regime §1.1a -- Barb Wire 精确规则</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">定义精确区分：TTR vs Barb Wire</a></li>
+    <li><a href="#s2">Barb Wire 精确识别法</a></li>
+    <li><a href="#s3">Barb Wire + 开盘 Spike = 当日极值信号</a></li>
+    <li><a href="#s4">Barb Wire 内部操作禁令与 TTR 止损规则</a></li>
+    <li><a href="#s5">唯一有效操作</a></li>
+    <li><a href="#s6">TTR 最小高度门槛</a></li>
+    <li><a href="#s7">TTR 最小触发与 Always-In 保持</a></li>
+    <li><a href="#s8">TTR 突破概率精确数字</a></li>
+    <li><a href="#s9">Barb Wire 之后通常出现</a></li>
+    <li><a href="#s10">Barb Wire / TTR 距 EMA 远近规则</a></li>
+    <li><a href="#s11">规则速查表</a></li>
+    <li><a href="#s12">关键洞察</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为学交易手册（专题）：Regime §1.1a (6)](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486784&idx=1&sn=716339c36df17eab93d3b8bcf22f5aae) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>日期：2026年4月 | 作者：victorjia</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 定义精确区分：TTR vs Barb Wire</h2>
+
+  <table>
+<thead><tr><th>类别</th><th>定义</th></tr></thead>
+<tbody>
+<tr><td><strong>普通 TTR（Tight Trading Range）</strong></td><td>2+ 根 K 高度重叠，波动幅度太小无法止损单盈利（E-mini 例：<= 3 点高度）</td></tr>
+<tr><td><strong>Barb Wire</strong></td><td>TTR 的特殊形态 = <strong>3 根以上大幅重叠 K + 至少 1 根 Doji + 明显影线</strong>（刺状外观）</td></tr>
+</tbody>
+</table>
+
+  <h3>Barb Wire 高发区域</h3>
+
+  <p><strong>日内中段时间 + 价格在日内区间中部 + EMA 走平 = 最危险组合。</strong></p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> Barb Wire 精确识别法</h2>
+
+  <p>取 3 根候选 K 中的<strong>第二根</strong>（中间那根）：</p>
+
+  <table>
+<thead><tr><th>判断</th><th>条件</th></tr></thead>
+<tbody>
+<tr><td><strong>确认为 Barb Wire</strong></td><td>中间 K 高度的 <strong>50% 以上</strong> 落在前后相邻 K 的范围内</td></tr>
+<tr><td><strong>不是 Barb Wire</strong></td><td>中间 K 大部分突出于两侧 K 之外</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p>实操记忆：中间 K 大部分被左右两根 K "包裹" → Barb Wire。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> Barb Wire + 开盘 Spike = 当日极值信号</h2>
+
+  <table>
+<thead><tr><th>项目</th><th>内容</th></tr></thead>
+<tbody>
+<tr><td><strong>触发条件</strong></td><td>开盘第一小时出现几根 K 的 Spike 后，Spike 末端形成 Barb Wire</td></tr>
+<tr><td><strong>铁律</strong></td><td>此 Barb Wire 位置 = <strong>当日绝对极值的极高概率标志</strong></td></tr>
+<tr><td><strong>牛方向案例</strong></td><td>强牛 Spike → 末端 Barb Wire 在支撑处 = 反转形态 → 极可能是当日最低点</td></tr>
+<tr><td><strong>熊方向案例</strong></td><td>强熊 Spike → 末端 Barb Wire 在阻力处 = 反转形态 → 极可能是当日最高点</td></tr>
+<tr><td><strong>操作含义</strong></td><td>减少顺势追入；<strong>优先 Fade 该极值</strong> → 可能是当日建立的固定极端</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> Barb Wire 内部操作禁令与 TTR 止损规则</h2>
+
+  <h3>绝对禁止</h3>
+
+  <blockquote><p><strong>在 Barb Wire 内部使用止损单（任何方向）。机构双向 Fade，止损单 100% 被洗。</strong></p></blockquote>
+
+  <h3>TTR 内止损精确规则</h3>
+
+  <table>
+<thead><tr><th>规则</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td>在 TTR 顶部做空 → 止损 = TTR 高度等距投影到上方（测量缺口宽止损）</td><td>TTR 前经常出现虚假突破（超出边界再反转）→ 紧止损必被洗出</td></tr>
+<tr><td>在 TTR 内交易 → 止损必须放在<strong>最远的摆动极值外</strong>（不是最近的那个）</td><td>震荡市场会精确扫掉近期摆动高低点来猎杀止损，然后再反转回来</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 唯一有效操作</h2>
+
+  <h3>Fade 突破（主要策略）</h3>
+
+  <table>
+<thead><tr><th>步骤</th><th>规则</th></tr></thead>
+<tbody>
+<tr><td><strong>触发</strong></td><td>等强趋势 K 突破 Barb Wire</td></tr>
+<tr><td><strong>假设</strong></td><td>突破失败</td></tr>
+<tr><td><strong>入场</strong></td><td>Fade（逆突破方向在突破 K 反向极值外 1 tick 入场）</td></tr>
+<tr><td><strong>目标</strong></td><td>Barb Wire 中点（不贪心，不持 swing）</td></tr>
+</tbody>
+</table>
+
+  <h3>Fade 例外（禁止 Fade 的情形）</h3>
+
+  <blockquote><p>突破由 <strong>2 根以上连续趋势 K</strong> 构成 → 不能 Fade。市场已成功突破平衡，突破将延续。</p></blockquote>
+
+  <h3>BOP（突破回调）</h3>
+
+  <blockquote><p>Fade 失败（失败的失败）→ 反手，跟随原突破方向的 BOP。</p></blockquote>
+
+  <h3>老手激进操作</h3>
+
+  <p>在 Barb Wire 极端挂限价逆势（极小仓位，须有很强背景支撑）。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> TTR 最小高度门槛</h2>
+
+  <h3>操作前提</h3>
+
+  <table>
+<thead><tr><th>市场</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td><strong>E-mini 5 分钟图</strong></td><td>TTR 最小高度 = <strong>3 点</strong>（= scalp 目标的 3 倍）</td></tr>
+<tr><td>低于 3 点</td><td><strong>任何人都不应该交易</strong>（太窄无法盈利）</td></tr>
+</tbody>
+</table>
+
+  <h3>精确门槛（两个条件必须都满足）</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td>TTR 高度</td><td>>= 最小 scalp 目标的 2-3 倍（E-mini = 2-3 点）</td></tr>
+<tr><td>TTR 高度</td><td>>= 平均单根 K 线高度的 2-3 倍</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p>两个条件都满足才能用限价单在 TTR 内做 scalp（且仅限老手）。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> TTR 最小触发与 Always-In 保持</h2>
+
+  <h3>TTR 最小触发规则</h3>
+
+  <table>
+<thead><tr><th>规则</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>仅需 <strong>3 根 K</strong> 的紧密区间即可正式归类为突破模式（BOM）</td><td>不需要看到长期 Barb Wire 才进入 BOM</td></tr>
+</tbody>
+</table>
+
+  <h3>TTR 期间的 Always-In 方向保持</h3>
+
+  <table>
+<thead><tr><th>铁律</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>TTR 不取消前趋势的 Always-In 方向</strong></td><td>它只是暂停动能</td></tr>
+<tr><td><strong>精确案例</strong></td><td>强熊趋势进入 20 根 K 的 TTR → 市场仍然保持 Always-In Short</td></tr>
+<tr><td><strong>操作含义</strong></td><td>禁止以"TTR 内出现反弹"为由将 AI 翻转为多头</td></tr>
+<tr><td><strong>区别</strong></td><td>TTR = AI 暂停；趋势线被突破 + MTR 信号 = AI 可能改变</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> TTR 突破概率精确数字</h2>
+
+  <table>
+<thead><tr><th>场景</th><th>概率</th><th>应对</th></tr></thead>
+<tbody>
+<tr><td>突破方向（上 or 下）</td><td><strong>50/50</strong></td><td>不预测方向，等突破确认</td></tr>
+<tr><td>第一次突破尝试失败</td><td><strong>50%</strong></td><td>第一突破常为假突破</td></tr>
+<tr><td>任何一次突破尝试失败</td><td><strong>80%</strong></td><td>TR 内 80% 突破失败（与普通 TR 相同）</td></tr>
+<tr><td>回调 20 根 K 后趋势恢复</td><td><strong>50%</strong>（非 60%）</td><td>20 根 K 后趋势优势完全消除</td></tr>
+</tbody>
+</table>
+
+  <h3>等待规则</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td>TTR 持续 10-20 根 K</td><td>停止交易，只等突破</td></tr>
+<tr><td>20 根 K 后</td><td>趋势方向优势从 60% 降至 50/50 → 突破前后都需要跟进 K 确认</td></tr>
+<tr><td>Barb Wire 可能持续 20+ 根 K</td><td>>= 1.5 小时在 5 分钟图</td></tr>
+<tr><td>强制等待</td><td>即使不交易数小时也不是问题</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p><strong>"Tight trading range trumps everything" -- 等待是唯一正确回应。</strong></p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> Barb Wire 之后通常出现</h2>
+
+  <table>
+<thead><tr><th>场景</th><th>预期</th></tr></thead>
+<tbody>
+<tr><td>趋势进行中的 Barb Wire</td><td>通常是 <strong>Final Flag</strong> → 假突破后至少两腿回调或主趋势反转</td></tr>
+<tr><td>Barb Wire 在 EMA 附近形成</td><td>成功突破方向通常<strong>远离 EMA</strong>（如 EMA 上方 = 向上突破）</td></tr>
+<tr><td>开盘时 Barb Wire</td><td>高概率整日 TR 日</td></tr>
+<tr><td>磁铁目标</td><td>TTR 解决后 → 价格目标是 TTR 的顶点或中点（"Area of Agreement"）</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s10">
+
+  <h2><span class="section-num">十</span> Barb Wire / TTR 距 EMA 远近规则</h2>
+
+  <table>
+<thead><tr><th>TTR 与 EMA 的关系</th><th>市场含义</th><th>预期突破方向</th></tr></thead>
+<tbody>
+<tr><td><strong>EMA 附近</strong>（价格近均线）</td><td>平衡/Breakout Mode，等突破确认</td><td>远离 EMA 方向（趋势延续）</td></tr>
+<tr><td><strong>远离 EMA</strong>（20+ 根 K 未触 EMA）</td><td>EMA = 强磁力，均值回归压力极大</td><td><strong>朝向 EMA 突破</strong>（逆趋势方向 = 回调开始）</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p><strong>规则</strong>：TTR 在远离 EMA 处形成 + 持续 5+ 根 K → 高概率向 EMA 方向突破（均值回归）。<br>
+<strong>操作</strong>：此类 TTR 的突破方向偏向 EMA 侧，而非原趋势方向。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s11">
+
+  <h2><span class="section-num">十一</span> 规则速查表</h2>
+
+  <h3>Barb Wire 操作流程</h3>
+
+  <pre>识别 Barb Wire（中间 K 50%+ 被包裹）
+        ↓
+检查位置
+├── 开盘 Spike 末端 → 当日极值信号 → Fade
+├── 趋势中途 → Final Flag 可能
+├── EMA 附近 → 突破远离 EMA
+└── 远离 EMA → 均值回归，向 EMA 突破
+        ↓
+操作选择
+├── Fade 突破（1 根 K 突破 → 假设失败）
+├── 禁止 Fade（2+ 根 K 突破 → 成功突破）
+├── BOP（Fade 失败 → 反手）
+└── 等待（完全不做）</pre>
+
+  <h3>关键数值</h3>
+
+  <table>
+<thead><tr><th>参数</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>BOM 触发 K 线数</td><td>3 根</td></tr>
+<tr><td>TR 确立 K 线数</td><td>20 根</td></tr>
+<tr><td>趋势恢复概率（< 20 根）</td><td>60%</td></tr>
+<tr><td>趋势恢复概率（>= 20 根）</td><td>50%</td></tr>
+<tr><td>首次突破失败率</td><td>50%</td></tr>
+<tr><td>任何突破失败率</td><td>80%</td></tr>
+<tr><td>E-mini TTR 最小高度</td><td>3 点</td></tr>
+<tr><td>Barb Wire 识别</td><td>中间 K 50%+ 被包裹</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s12">
+
+  <h2><span class="section-num">十二</span> 关键洞察</h2>
+
+  <h3>本文核心价值</h3>
+
+  <ol>
+
+    <li><strong>Barb Wire 精准识别法</strong>（中间 K 50%+ 被包裹）将模糊形态变成可操作的规则</li>
+
+    <li><strong>开盘 Spike + 末端 Barb Wire = 极值信号</strong>是高价值的结构性反转信号</li>
+
+    <li><strong>EMA 远近决定突破方向</strong>的规则颠覆了"TR 沿趋势突破"的简单认知</li>
+
+    <li><strong>20 根 K 后趋势优势归零</strong>（60% → 50%）是一个精确的概率转换点</li>
+
+    <li><strong>TTR 最小高度门槛</strong>（E-mini 3 点）是一个硬性的、可量化交易准入标准</li>
+
+    <li><strong>"TTR = AI 暂停非翻转"</strong>防止了 TR 中错误的方向切换</li>
+
+  </ol>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>Barb Wire 内用止损单</td><td>突破后立即入场</td><td>禁用止损单，只用 Fade + 限价</td></tr>
+<tr><td>窄 TTR 中交易</td><td>TTR < 3 点还试图 scalp</td><td>低于门槛 = 完全不交易</td></tr>
+<tr><td>TR 远离 EMA 时顺势追突破</td><td>忘记均值回归</td><td>远离 EMA 的 TTR 向 EMA 突破</td></tr>
+<tr><td>TTR 中翻转 Always-In</td><td>反弹就认为 AI 变了</td><td>TTR = AI 暂停，非翻转</td></tr>
+<tr><td>2+ 根趋势 K 突破时 Fade</td><td>假突破失败后还在逆势</td><td>2+ 根趋势 K = 真突破</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

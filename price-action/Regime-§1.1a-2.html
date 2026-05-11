@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为学交易手册分析：Regime §1.1a -- Spike 阶段与 Channel 阶段</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为学交易手册分析：Regime §1.1a -- Spike 阶段与 Channel 阶段</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">核心命题</a></li>
+    <li><a href="#s2">Spike 阶段详解</a></li>
+    <li><a href="#s3">Spike → Channel 过渡</a></li>
+    <li><a href="#s4">Channel 阶段详解</a></li>
+    <li><a href="#s5">Spike vs Channel 操作对照</a></li>
+    <li><a href="#s6">Brooks 体系深度补充</a></li>
+    <li><a href="#s7">完整决策流程</a></li>
+    <li><a href="#s8">与 §1.1a (1) 的关系</a></li>
+    <li><a href="#s9">关键洞察与常见陷阱</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为学交易手册（专题）：Regime §1.1a (2)](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486612&idx=1&sn=7db0782ab36dde486818e9552de91bd1) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>日期：2026年4月 | 作者：victorjia</p></blockquote>
+
+  <blockquote><p><strong>前置阅读</strong>：[Regime（市场状态）](./Regime.md) → [§1.1a (1) 趋势内部阶段总论](./Regime-§1.1a-1.md)</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 核心命题</h2>
+
+  <blockquote><p>"Every trend has both a spike phase and a channel phase, and every trend is in either of those two modes at all times." -- Al Brooks</p></blockquote>
+
+  <p>趋势不是均匀的流动——它以突刺开始，以衰退结束。任何时刻，趋势必处于 Spike 或 Channel 两种状态之一。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> Spike 阶段详解</h2>
+
+  <h3>Spike 的识别特征</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>标准</th></tr></thead>
+<tbody>
+<tr><td><strong>位置</strong></td><td>从开盘或关键突破点开始的前 2-5 根连续强趋势 K</td></tr>
+<tr><td><strong>Body Gap</strong></td><td>K 线之间存在 body gap（开盘价 = 前收盘价或更高）</td></tr>
+<tr><td><strong>回调</strong></td><td>没有任何回调 K</td></tr>
+<tr><td><strong>K 线颜色</strong></td><td>所有 K 线同色，无反向 K</td></tr>
+<tr><td><strong>重叠</strong></td><td>相邻 K 线之间无重叠</td></tr>
+</tbody>
+</table>
+
+  <h3>Spike 的根本：每根趋势 K 的五重身份</h3>
+
+  <p>每根趋势 K 同时是：</p>
+
+  <ol>
+
+    <li><strong>Spike</strong> -- 单边压倒性爆发</li>
+
+    <li><strong>Breakout</strong> -- 突破关键价位</li>
+
+    <li><strong>Gap</strong> -- 实体缺口</li>
+
+    <li><strong>Vacuum</strong> -- 真空效应</li>
+
+    <li><strong>Climax</strong> -- 高潮运动的一部分</li>
+
+  </ol>
+
+  <blockquote><p>机构如此确信市场将走高，拒绝等待回调，直接市价追入。</p></blockquote>
+
+  <h3>Body Gap 频率规则</h3>
+
+  <p><strong>body gap 频率越高，趋势强度越大。</strong></p>
+
+  <ul>
+
+    <li>连续存在 body gap = Spike 阶段</li>
+
+    <li>body gap 消失 = Spike 可能正在向 Channel 过渡</li>
+
+    <li>在 Spike 阶段：<strong>禁止逆势</strong></li>
+
+  </ul>
+
+  <h3>Spike 何时结束？（可操作的实时规则）</h3>
+
+  <table>
+<thead><tr><th>结束信号</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><strong>第一根停顿 K</strong></td><td>Inside Bar、Doji、小实体 K 出现时</td></tr>
+<tr><td>停顿 K 的前一根</td><td>为 Spike 的正式结束点</td></tr>
+</tbody>
+</table>
+
+  <p><strong>关键</strong>：Spike 的终点可以在它形成的那一刻识别。这不是事后判断，而是实时可操作的规则。</p>
+
+  <h3>Brooks 原著的确证</h3>
+
+  <p>Qdrant 检索中 Brooks 明确指出：buy climax（买入高潮）后市场通常开始至少两段式回调（two-legged correction），持续至少 10 根 K。停顿 K "can be any bar that is not another big bull trend bar" -- 任何不是另一根大趋势 K 的 K 线都可以是停顿：</p>
+
+  <ul>
+
+    <li>Doji（十字星）</li>
+
+    <li>小实体的熊 K 或牛 K</li>
+
+    <li>小型熊趋势 K</li>
+
+  </ul>
+
+  <p>Brooks 补充了一个关键细节：停顿 K 有时的高点会略高于前一根高潮 K 的高点，但这仍然充当单 K 最终旗形（one-bar final flag），并导致第三推后的反转。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> Spike → Channel 过渡</h2>
+
+  <h3>过渡的视觉线索</h3>
+
+  <table>
+<thead><tr><th>阶段</th><th>视觉特征</th></tr></thead>
+<tbody>
+<tr><td><strong>Spike</strong></td><td>所有 K 同色，无重叠，Body Gap 存在 = 完全单向</td></tr>
+<tr><td><strong>过渡临界点</strong></td><td>出现第一根反向 K 或大影线 + 与前 K 实体重叠</td></tr>
+<tr><td><strong>进入 Channel</strong></td><td>对立方找到了有价值的价格</td></tr>
+</tbody>
+</table>
+
+  <h3>新手陷阱</h3>
+
+  <p>继续视 Channel 为 Spike，继续追入，在 Channel 顶部买入 → <strong>实为楔形第 2-3 推</strong>，买入后立即被套。</p>
+
+  <h3>操作切换</h3>
+
+  <table>
+<thead><tr><th>阶段</th><th>下单方式</th></tr></thead>
+<tbody>
+<tr><td><strong>Spike 阶段</strong></td><td>不等回调，直接市价买收盘，小仓位</td></tr>
+<tr><td><strong>Channel 阶段</strong></td><td>止损单在 H1/H2，不再买收盘</td></tr>
+</tbody>
+</table>
+
+  <p><strong>切换的直接含义</strong>：判断当前处于哪个子状态，直接决定下单类型。这不是理论分类，而是入场策略的直接输入。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> Channel 阶段详解</h2>
+
+  <h3>Channel 的识别</h3>
+
+  <p>Channel 阶段在出现第一次 2 根以上的回调后进入：</p>
+
+  <ul>
+
+    <li>形成通道结构（可画两条平行线）</li>
+
+    <li>回调变深</li>
+
+    <li>重叠增多</li>
+
+    <li><strong>双向交易开始</strong></li>
+
+  </ul>
+
+  <h3>核心规律</h3>
+
+  <blockquote><p><strong>所有通道 = 倾斜的交易区间。</strong> 宽牛通道中多空都能赚钱——这就是「倾斜的 TR」。</p></blockquote>
+
+  <h3>三种通道类型</h3>
+
+  <table>
+<thead><tr><th>通道类型</th><th>存在原因</th><th>与 TR 的关系</th><th>在高 TF 上充当</th></tr></thead>
+<tbody>
+<tr><td><strong>微通道 (Microchannel)</strong></td><td>算法惯性："High-frequency computers and momentum programs detect the trend and scale in relentlessly"</td><td>几乎无回调，单边极强</td><td>Spike</td></tr>
+<tr><td><strong>紧密通道 (Tight Channel)</strong></td><td>主导方压倒对手，回调仅 1-3 根 K</td><td>弱版微通道</td><td>Spike</td></tr>
+<tr><td><strong>宽通道/楼梯 (Broad Channel/Stair)</strong></td><td>多空双方都较强，回调深</td><td>可双向 scalp，行为接近 TR</td><td>Channel</td></tr>
+</tbody>
+</table>
+
+  <h3>三种通道的共同本质</h3>
+
+  <table>
+<thead><tr><th>属性</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>本质</strong></td><td>所有通道 = 双向交易区域，双方都在积极参与</td></tr>
+<tr><td><strong>根本理解</strong></td><td>通道是「倾斜的交易区间」</td></tr>
+<tr><td><strong>操作含义</strong></td><td>即使是强趋势中，Channel 阶段仍有反向交易机会</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> Spike vs Channel 操作对照</h2>
+
+  <table>
+<thead><tr><th>维度</th><th>Spike 阶段</th><th>Channel 阶段</th></tr></thead>
+<tbody>
+<tr><td><strong>K 线特征</strong></td><td>同色、无重叠、body gap 存在</td><td>有反向 K、有重叠、有影线</td></tr>
+<tr><td><strong>回调</strong></td><td>不允许回调</td><td>允许 2 根以上回调</td></tr>
+<tr><td><strong>双向交易</strong></td><td>禁止（只有单向）</td><td>允许（多空都能赚钱）</td></tr>
+<tr><td><strong>入场方式</strong></td><td>市价买收盘</td><td>止损单 H1/H2</td></tr>
+<tr><td><strong>仓位</strong></td><td>小仓（Spike 易快速反转）</td><td>正常仓位</td></tr>
+<tr><td><strong>逆势规则</strong></td><td>绝对禁止</td><td>宽通道中可 scalp</td></tr>
+<tr><td><strong>结束标志</strong></td><td>第一根停顿 K</td><td>趋势线被突破 → 可能进入 TR</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> Brooks 体系深度补充</h2>
+
+  <h3>停顿 K 作为最终旗形（Final Flag）</h3>
+
+  <p>Brooks 在 Qdrant 检索中详细描述了停顿 K 的特殊角色：</p>
+
+  <blockquote><p>"The pause can be any bar that is not another big bull trend bar. A doji with a bear or bull body or a bear trend bar, which might be small, are the most common pauses."</p></blockquote>
+
+  <p>停顿 K 有时会形成一个单 K 最终旗形（one-bar final flag），导致反转。关键是：</p>
+
+  <ul>
+
+    <li>高潮（climax）后通常会有至少 10 根 K、两段式的回调</li>
+
+    <li>停顿 K 就是对高潮的反应</li>
+
+    <li>如果停顿 K 之后出现反向突破，可能是反转而非仅仅回调</li>
+
+  </ul>
+
+  <h3>Spike and Climax 不可持续</h3>
+
+  <p>Brooks 的核心观点：Spike 阶段的行为是 "unsustainable behavior and therefore climactic"（不可持续，因此是高潮性的）。其延伸推论：</p>
+
+  <ol>
+
+    <li>Spike 越强，后续修正幅度通常越大</li>
+
+    <li>强 Spike 带来的动量通常会在 10-20 根 K 内导致对趋势极值的重新测试</li>
+
+    <li>修正的常见形式：两段式回调（two-legged pullback）</li>
+
+  </ol>
+
+  <h3>Inside Bar 作为微型 Spike-and-TR</h3>
+
+  <p>Brooks 精辟地指出：突破 K 之后的内包 K "can be thought of as a possible miniature Spike and Trading Range reversal setup"——这是一个精巧的跨时间框架类比，将微观结构与宏观形态统一。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 完整决策流程</h2>
+
+  <pre>Step 1: Regime 判断（趋势 vs TR）
+              ↓
+Step 2: 趋势内部阶段判断
+        每根 K 收盘后检查：
+        ├── 所有 K 同色 + 无重叠 + body gap 存在？
+        │       → Spike 阶段
+        │       → 市价入场，不等回调
+        │       → 禁止逆势
+        │
+        ├── 出现反向 K 或重叠 K？
+        │       → 过渡临界点
+        │       → 切换到 Channel 思维
+        │
+        └── 有 2 根以上回调 + 可画通道线？
+                → Channel 阶段
+                → 止损单 H1/H2
+                → 宽通道可双向 scalp</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 与 §1.1a (1) 的关系</h2>
+
+  <table>
+<thead><tr><th>§1.1a (1) -- 总论</th><th>§1.1a (2) -- 本篇</th></tr></thead>
+<tbody>
+<tr><td>建立趋势三层定义</td><td>聚焦 Spike/Channel 的可操作特征</td></tr>
+<tr><td>提出 Bar-by-bar 核心问题</td><td>给出具体的阶段识别标准</td></tr>
+<tr><td>建立 "动量优先" 原则</td><td>给出各阶段的下单方式</td></tr>
+<tr><td>框架性</td><td>操作性</td></tr>
+</tbody>
+</table>
+
+  <p><strong>§1.1a (1) 告诉你为什么趋势有阶段，§1.1a (2) 告诉你怎么在每个阶段操作。</strong></p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 关键洞察与常见陷阱</h2>
+
+  <h3>本文核心价值</h3>
+
+  <ol>
+
+    <li><strong>"所有通道 = 倾斜的交易区间"</strong> 是最大的认知升级——打破了"趋势中只能顺势"的教条</li>
+
+    <li><strong>Body gap 频率规则</strong>提供了一个客观的、可量化的 Spike 判断标准</li>
+
+    <li><strong>停顿 K = Spike 结束点</strong>是一个可以在实时图表上直接执行的规则</li>
+
+    <li><strong>下单方式切换</strong>（市价 vs 止损单）将理论判断直接映射到操作</li>
+
+  </ol>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>Channel 当 Spike 追</td><td>出重叠后继续用市价追入</td><td>出现反向 K 或重叠 → 切换到等回调模式</td></tr>
+<tr><td>Spike 末期入场</td><td>停顿 K 出现后还在追</td><td>看到任何非趋势 K = 停止追单</td></tr>
+<tr><td>宽通道中只做单向</td><td>在宽牛通道中不看空头机会</td><td>宽通道本质是倾斜 TR，双向 scalp</td></tr>
+<tr><td>忽略 body gap 消失</td><td>没注意趋势强度在衰减</td><td>持续观察 body gap 频率变化</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

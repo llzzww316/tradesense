@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为学交易手册分析：Regime §1.1a -- 通道类型与交易规则</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为学交易手册分析：Regime §1.1a -- 通道类型与交易规则</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">四种通道类型与交易规则</a></li>
+    <li><a href="#s2">TR 中出现小 LH = 早期熊通道警告</a></li>
+    <li><a href="#s3">通道中第三腿规则</a></li>
+    <li><a href="#s4">紧密通道突破后的&quot;两腿下跌&quot;铁律</a></li>
+    <li><a href="#s5">两腿下跌规则（成功突破后）</a></li>
+    <li><a href="#s6">普通趋势（有回调）的操作框架</a></li>
+    <li><a href="#s7">趋势末端信号（警戒）</a></li>
+    <li><a href="#s8">规则速查表</a></li>
+    <li><a href="#s9">关键洞察</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为学交易手册（专题）：Regime §1.1a (5)](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486768&idx=1&sn=a39ffe887680e90f28be2f758500d4e5) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>日期：2026年4月 | 作者：victorjia</p></blockquote>
+
+  <blockquote><p><strong>前置阅读</strong>：[Regime（市场状态）](./Regime.md) → [§1.1a (1) 趋势内部阶段总论](./Regime-§1.1a-1.md) → [§1.1a (2) Spike/Channel 阶段](./Regime-§1.1a-2.md) → [§1.1a (3) Channel→TR](./Regime-§1.1a-3.md) → [§1.1a (4) SPT 精确规则](./Regime-§1.1a-4.md)</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 四种通道类型与交易规则</h2>
+
+  <table>
+<thead><tr><th>通道类型</th><th>定义</th><th>操作</th></tr></thead>
+<tbody>
+<tr><td><strong>紧密牛通道</strong></td><td>小回调趋势，回调 1-3 根 K</td><td><strong>只做多</strong>，任何回调买；<strong>禁止做空</strong>，即使有完美熊 K 信号</td></tr>
+<tr><td><strong>宽幅牛通道</strong></td><td>类似倾斜 TR，两方都在做</td><td>可在前高做空（scalp）；在 50% 回调做多；<strong>双向均可</strong></td></tr>
+<tr><td><strong>紧密熊通道</strong></td><td>小反弹趋势</td><td><strong>只做空</strong>，任何反弹卖；<strong>禁止做多</strong></td></tr>
+<tr><td><strong>宽幅熊通道</strong></td><td>类似斜向 TR，但持续形成 LH+LL</td><td>本质是熊趋势（虽然外观像 TR）；在反弹处做空</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> TR 中出现小 LH = 早期熊通道警告</h2>
+
+  <h3>Brooks 铁律</h3>
+
+  <blockquote><p>熊趋势通常从 TR 内出现小型更低高点（minor LH）开始。</p></blockquote>
+
+  <table>
+<thead><tr><th>阶段</th><th>特征</th><th>操作</th></tr></thead>
+<tbody>
+<tr><td><strong>早期信号</strong></td><td>TR 内一系列相对更低的高点 + 更低的低点</td><td>即使整体看起来横盘，结构上已是宽幅熊通道</td></tr>
+<tr><td><strong>确认后</strong></td><td>TR 内出现明确的 LH 序列</td><td><strong>停止在区间顶部买突破</strong>；改为在反弹处做空</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 通道中第三腿规则</h2>
+
+  <p>通道通常有 3 腿（= 楔形形态）。</p>
+
+  <table>
+<thead><tr><th>操作类型</th><th>规则</th></tr></thead>
+<tbody>
+<tr><td><strong>第 3 腿顺势</strong></td><td>第 3 腿回调（H3/L3）仍然是顺势入场机会（通道 = 旗形）</td></tr>
+<tr><td><strong>第 3 腿逆势</strong></td><td><strong>禁止在紧密通道第 3 腿顶部直接做空</strong>，必须等：</td></tr>
+</tbody>
+</table>
+
+  <p>第三方腿逆势入场的三个前置条件（必须满足至少一个）：</p>
+
+  <ol>
+
+    <li>通道线上方强突破失败（买高潮）+ 反向 K</li>
+
+    <li>等强熊突破 K + 跟进 K</li>
+
+    <li>等第二次做空信号（Lower High MTR）</li>
+
+  </ol>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 紧密通道突破后的"两腿下跌"铁律</h2>
+
+  <h3>第一次突破的本质（不是反转！）</h3>
+
+  <table>
+<thead><tr><th>事实</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>紧密牛通道首次向下突破</strong></td><td>= 弱多头止盈出场（不是强空头新开仓）</td></tr>
+<tr><td><strong>底层动能</strong></td><td>仍是牛方</td></tr>
+<tr><td><strong>结果</strong></td><td>这次突破通常在几根 K 内失败 → 回调后趋势恢复创新高</td></tr>
+<tr><td><strong>结论</strong></td><td><strong>80% 的第一次紧密通道突破将被测试或失败</strong></td></tr>
+</tbody>
+</table>
+
+  <h3>突破测试机制（必然发生）</h3>
+
+  <p>因为多空双方都预期第一次逆势突破是陷阱：</p>
+
+  <ul>
+
+    <li>逆势方快速止盈</li>
+
+    <li>顺势方在"打折价"加仓</li>
+
+  </ul>
+
+  <p>→ 结果：价格必然反弹测试前期极值（Lower High 或新高）→ 才能确认反转。</p>
+
+  <h3>操作铁律</h3>
+
+  <blockquote><p><strong>绝对不要激进追空紧密牛通道的第一次向下突破。等回测形成 Lower High 再入场。</strong></p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 两腿下跌规则（成功突破后）</h2>
+
+  <table>
+<thead><tr><th>情形</th><th>突破测试结果</th><th>预期后续走势</th></tr></thead>
+<tbody>
+<tr><td>测试形成 <strong>Higher High</strong>（新高）</td><td>突破未确认</td><td>仍有<strong>两腿</strong>下跌</td></tr>
+<tr><td>测试形成 <strong>Lower High</strong></td><td>突破部分确认</td><td>可能只剩<strong>一腿</strong>（因突破本身已是第一腿）</td></tr>
+<tr><td>突破后出现紧密熊通道</td><td>第一腿就是紧密熊通道</td><td>必须等<strong>第二腿</strong>才能安全做多——禁止买紧密熊通道第一次突破</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 普通趋势（有回调）的操作框架</h2>
+
+  <table>
+<thead><tr><th>项目</th><th>规则</th></tr></thead>
+<tbody>
+<tr><td><strong>顺势入场窗口</strong></td><td>回调触及 EMA，出现 H2/L2</td></tr>
+<tr><td><strong>反转尝试</strong></td><td>通常会失败变成旗形继续顺势</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 趋势末端信号（警戒）</h2>
+
+  <table>
+<thead><tr><th>信号</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>运行 20+ 根 bar 后出现该趋势<strong>最大的 bar</strong></td><td>高潮耗尽</td></tr>
+<tr><td>出现三次推进但<strong>动能递减</strong></td><td>楔形反转可能</td></tr>
+<tr><td>趋势超过 20 根 K 后出现收缩形态（TR/TTR/Triangle/ii）</td><td><strong>Final Flag</strong></td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 规则速查表</h2>
+
+  <h3>通道类型 × 操作矩阵</h3>
+
+  <table>
+<thead><tr><th>通道类型</th><th>顺势</th><th>逆势</th><th>特征</th></tr></thead>
+<tbody>
+<tr><td>紧密牛</td><td>任何回调买</td><td><strong>禁止</strong></td><td>回调 1-3 根 K</td></tr>
+<tr><td>宽幅牛</td><td>50% 回调做多</td><td>前高 scalp 做空</td><td>两方都在做</td></tr>
+<tr><td>紧密熊</td><td>任何反弹卖</td><td><strong>禁止</strong></td><td>反弹极小</td></tr>
+<tr><td>宽幅熊</td><td>反弹做空</td><td>谨慎</td><td>本质熊趋势，LH+LL</td></tr>
+</tbody>
+</table>
+
+  <h3>通道突破操作</h3>
+
+  <table>
+<thead><tr><th>规则</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>首次突破不可追</td><td>80% 被测试或失败</td></tr>
+<tr><td>等回测确认</td><td>Higher High（未确认）vs Lower High（确认）</td></tr>
+<tr><td>突破测试必然发生</td><td>逆势方止盈 + 顺势方加仓</td></tr>
+<tr><td>突破后的两腿</td><td>测试形成 HH → 两腿；LH → 一腿</td></tr>
+</tbody>
+</table>
+
+  <h3>趋势末端检查清单</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>是否满足？</th></tr></thead>
+<tbody>
+<tr><td>运行 >= 20 根 bar？</td><td></td></tr>
+<tr><td>出现该趋势最大 bar？</td><td></td></tr>
+<tr><td>三次推进动能递减？</td><td></td></tr>
+<tr><td>出现收缩形态（TR/TTR/Triangle/ii）？</td><td></td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 关键洞察</h2>
+
+  <h3>本文核心价值</h3>
+
+  <ol>
+
+    <li><strong>四种通道分类</strong>将通道从 "Channel 阶段" 细化为四种可操作的具体类型</li>
+
+    <li><strong>"TR 中出 LH = 熊通道警告"</strong>是一个早期的、高价值的结构转换信号</li>
+
+    <li><strong>第一次突破 80% 失败率</strong>是一个硬性的概率基准——可以据此构建正期望的策略</li>
+
+    <li><strong>突破测试机制</strong>的解释（逆势方止盈 + 顺势方加仓）揭示了结构形成的根本驱动力</li>
+
+    <li><strong>两腿下跌规则</strong>给出了突破后的精确走势预期</li>
+
+    <li><strong>Final Flag 三条件</strong>（高潮 K 线 + 楔形动能递减 + 收缩形态）是趋势末端的精确判断标准</li>
+
+  </ol>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>紧密通道中做逆势</td><td>"有完美熊 K 信号"仍然禁止</td><td>紧密通道 = 单向操作</td></tr>
+<tr><td>追第一次突破</td><td>突破后立即追入</td><td>等回测确认</td></tr>
+<tr><td>宽幅熊通道当 TR</td><td>在宽幅熊通道中买突破</td><td>持续 LH+LL = 熊趋势，反弹做空</td></tr>
+<tr><td>第三方腿直接逆势</td><td>在紧通道第三推顶部做空</td><td>必须等突破失败确认</td></tr>
+<tr><td>忽略 Final Flag</td><td>趋势末期仍在积极追势</td><td>检查三项末端信号</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

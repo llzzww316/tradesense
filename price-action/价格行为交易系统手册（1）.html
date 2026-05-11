@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易系统手册分析</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易系统手册分析</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">核心框架：三要素</a></li>
+    <li><a href="#s2">背景判断：趋势 vs 交易区间</a></li>
+    <li><a href="#s3">Always In 方向判定</a></li>
+    <li><a href="#s4">K 线组合示例</a></li>
+    <li><a href="#s5">Brooks 体系补充：入场与执行</a></li>
+    <li><a href="#s6">完整交易决策流程</a></li>
+    <li><a href="#s7">关键洞察与常见陷阱</a></li>
+    <li><a href="#s8">知识索引</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为交易系统手册（1）](https://mp.weixin.qq.com/s/ygVmT8McKxEOvxezOnHxwg) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>核心原则：<strong>学习成功的唯一标准 = 是否能够复现作者的判断顺序。</strong></p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 核心框架：三要素</h2>
+
+  <p>交易决策按顺序检查三个要素：<strong>背景 → 形态 → 位置</strong>。</p>
+
+  <pre>背景（最复杂） → 形态（信号 K 线） → 位置（支撑/阻力/均线）
+     ↓                  ↓                    ↓
+ 趋势还是区间？     什么类型的信号？     信号出现在哪里？</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 背景判断：趋势 vs 交易区间</h2>
+
+  <h3>趋势市场</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>表现</th></tr></thead>
+<tbody>
+<tr><td>K 线连续性</td><td>连续强趋势 K 线，几乎无重叠</td></tr>
+<tr><td>均线状态</td><td>EMA 明显倾斜</td></tr>
+<tr><td>回调深度</td><td>回调浅且短暂</td></tr>
+<tr><td>价格结构</td><td>持续创新高/新低</td></tr>
+<tr><td>缺口</td><td>缺口保持不回补</td></tr>
+</tbody>
+</table>
+
+  <p><strong>微通道（Microchannel）</strong>：强趋势的标志——每根 K 线的低点都等于或高于前一根 K 线的低点（多头微通道）。</p>
+
+  <p>Brooks 补充：紧密通道中「大多数交易者应该停止交易」，趋势过强时要么顺势追、要么观望，不要逆势抄底摸顶。</p>
+
+  <h3>交易区间</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>表现</th></tr></thead>
+<tbody>
+<tr><td>K 线重叠</td><td>K 线之间大量重叠</td></tr>
+<tr><td>均线状态</td><td>EMA 走平，价格围绕 EMA 波动</td></tr>
+<tr><td>双向交易</td><td>多头和空头都能赚钱</td></tr>
+<tr><td>十字星频繁</td><td>犹豫不决的 K 线增多</td></tr>
+<tr><td>突破失败</td><td>突破尝试后迅速反转</td></tr>
+</tbody>
+</table>
+
+  <p>Brooks 补充：交易区间的本质是「多空双方都在赚钱」，突破失败的标志往往是「大突破 K 线后出现小内包 K 线，然后反向跌破」。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> Always In 方向判定</h2>
+
+  <p><strong>Always In = 强制二选一</strong>：如果你此刻必须持仓，只能选一个方向。</p>
+
+  <p>目的：</p>
+
+  <ul>
+
+    <li>过滤错误交易方向（Always In Long 时移除「做空」选项）</li>
+
+    <li>消除犹豫（即使「感觉太高」也应该买）</li>
+
+    <li>持仓依据（只要状态不变，就继续持有）</li>
+
+  </ul>
+
+  <h3>判断方法</h3>
+
+  <h4>第一步：看 K 线特征</h4>
+
+  <table>
+<thead><tr><th>特征</th><th>Always In Long</th><th>Always In Short</th></tr></thead>
+<tbody>
+<tr><td>K 线实体</td><td>大阳线，收盘接近最高价</td><td>大阴线，收盘接近最低价</td></tr>
+<tr><td>K 线重叠</td><td>连续 K 线之间重叠少</td><td>连续 K 线之间重叠少</td></tr>
+<tr><td>与均线关系</td><td>收盘在 20EMA 之上</td><td>收盘在 20EMA 之下</td></tr>
+<tr><td>缺口</td><td>低点高于前 K 线高点</td><td>高点低于前 K 线低点</td></tr>
+</tbody>
+</table>
+
+  <h4>第二步：确认所需 K 线数</h4>
+
+  <table>
+<thead><tr><th>情况</th><th>所需 K 线数</th></tr></thead>
+<tbody>
+<tr><td>标准确认</td><td>2 根：突破 K 线 + 跟随 K 线（都是同向强趋势 K 线）</td></tr>
+<tr><td>稳妥确认</td><td>3 根：连续 3 根同向趋势 K 线</td></tr>
+<tr><td>高度确认</td><td>4 根：连续 4 根同向 K 线且收盘在均线一侧</td></tr>
+<tr><td>极端情况</td><td>1 根：巨大的惊喜棒（建议仍等跟随确认）</td></tr>
+</tbody>
+</table>
+
+  <h4>第三步：检查清单（5 项）</h4>
+
+  <ol>
+
+    <li>有无大实体趋势 K 线？（收盘接近极值）</li>
+
+    <li>下一根 K 线是否同向？（不是十字星或反向 K 线）</li>
+
+    <li>K 线是否收盘在 20EMA 的一侧？</li>
+
+    <li>是否突破了关键点位？（区间边界 / 前高低点）</li>
+
+    <li>逆势者是否被套？（没有回调让他们保本离场）</li>
+
+  </ol>
+
+  <p><strong>≥4 项满足 → 可确认 Always In。</strong></p>
+
+<hr>
+
+  <h3>一句话总结</h3>
+
+  <blockquote><p><strong>大趋势 K 线 + 同向跟随 K 线 + 收盘在均线一侧 = Always In 确立。</strong></p></blockquote>
+
+<hr>
+
+  <h3>Always In 方向何时改变？</h3>
+
+  <ol>
+
+    <li>反向出现强趋势 K 线</li>
+
+    <li>连续的反向 K 线收盘</li>
+
+    <li>封闭之前的缺口</li>
+
+    <li>突破趋势线后测试极值失败</li>
+
+  </ol>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> K 线组合示例</h2>
+
+  <h3>Always In Long（做多）</h3>
+
+  <p><strong>突破 + 跟随</strong></p>
+
+  <pre>K 线 1: 大阳线，收盘接近最高价
+K 线 2: 又一根阳线，收盘高于 K 线 1 高点
+→ 确认 Always In Long</pre>
+
+  <p><strong>连续 3 阳</strong></p>
+
+  <pre>K 线 1: 阳线 → K 线 2: 阳线，收盘更高 → K 线 3: 阳线，收盘更高
+→ 确认 Always In Long</pre>
+
+  <p><strong>突破均线</strong></p>
+
+  <pre>K 线 1: 大阳线突破并收盘在 20EMA 之上
+K 线 2: 阳线，维持在均线上方
+→ 确认 Always In Long</pre>
+
+  <h3>Always In Short（做空）</h3>
+
+  <p><strong>连续阴线</strong></p>
+
+  <pre>K 线 1: 大阴线 → K 线 2: 大阴线 → K 线 3: 阴线，收盘在 20EMA 下方
+→ 确认 Always In Short</pre>
+
+  <p><strong>反转失败</strong></p>
+
+  <pre>K 线 1: 阳线（多头尝试）→ K 线 2: 更大的阴线吞没阳线
+→ 确认 Always In Short</pre>
+
+  <h3>简化判断流程</h3>
+
+  <pre>看到一根大趋势 K 线 → 等待下一根 K 线
+    ├── 同向强 K 线 → 确认 Always In → 只做这个方向
+    └── 十字星/反向 K 线 → 不确认 → 等待或视为震荡</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> Brooks 体系补充：入场与执行</h2>
+
+  <p>文章侧重于<strong>方向判断</strong>，Brooks 原著补充了<strong>入场方式</strong>：</p>
+
+  <h3>二次入场原则（Second Entry）</h3>
+
+  <blockquote><p>"By definition, there was a first entry, so the second entry is the second reason." — Al Brooks</p></blockquote>
+
+  <p>每次交易需要<strong>至少两个理由</strong>：</p>
+
+  <ol>
+
+    <li>好的信号 K 线形态（反转 K、双 K 反转、ii 形态）</li>
+
+    <li>均线回调（趋势中），尤其两段式回调</li>
+
+    <li>突破后回调</li>
+
+    <li>在明确的 Always In 方向中回调</li>
+
+    <li>之前高/低点、趋势线、趋势通道线等关键位置的测试</li>
+
+  </ol>
+
+  <h3>入场方式</h3>
+
+  <p><strong>Stop 单入场</strong>（推荐）：</p>
+
+  <blockquote><p>"One of the best ways to trade using price action is to enter on a stop, because you are being carried into the trade by the momentum."</p></blockquote>
+
+  <p>用突破挂单让动量带你入场，比限价单更容易顺势。</p>
+
+  <h3>交易区间中的特殊规则</h3>
+
+  <ul>
+
+    <li>紧密交易区间/紧密通道出现时，<strong>大多数交易者应该停止交易</strong></li>
+
+    <li>有经验的交易者可以在前一根 K 线的低点买入、高点卖出</li>
+
+    <li>缩量时等待方向选择</li>
+
+  </ul>
+
+  <h3>趋势反转的关键信号</h3>
+
+  <ul>
+
+    <li>三推（Three Pushes）+ 趋势通道线超调 + 楔形形态</li>
+
+    <li>「收缩楼梯」：每次突破幅度递减 → 动能衰竭</li>
+
+    <li>强反转 K 线的特征：大实体 + 小影线 + 收盘接近极值</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 完整交易决策流程</h2>
+
+  <pre>Step 1: 判断背景 — 趋势还是交易区间？
+         趋势 → 顺势交易       区间 → 高抛低吸
+              ↓
+Step 2: 确定 Always In 方向（文章 5 项检查清单）
+         Always In Long → 只做多    Always In Short → 只做空
+              ↓
+Step 3: 等待价格行为信号 K（形态 + 位置）
+         信号 K 必须出现在关键位置（均线/支撑/阻力/前高低点）
+              ↓
+Step 4: 寻找第二个入场理由（Brooks 二阶入场原则）
+         回调+信号 K / 突破+回调 / 二次信号
+              ↓
+Step 5: 用 Stop 单顺势入场
+         设好止损（信号 K 极值 + 1 tick 缓冲）
+              ↓
+Step 6: 持仓管理
+         Always In 状态不变 → 继续持有
+         Always In 改变 → 减仓或离场</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 关键洞察与常见陷阱</h2>
+
+  <h3>文章的价值</h3>
+
+  <ul>
+
+    <li>把 Brooks 数百页的「背景判断」提炼为两个清晰表格</li>
+
+    <li>Always In 的 5 项检查清单实操性极强</li>
+
+    <li>简化判断流程：「一根大 K + 等下一根」快速决策</li>
+
+  </ul>
+
+  <h3>Brooks 补充的深度</h3>
+
+  <ul>
+
+    <li><strong>灰度思维</strong>："if you see everything in shades of gray, you will be a much better trader"</li>
+
+    <li>逆势交易不是不能做，但需要更强的反转信号 + 更精准的入场位置</li>
+
+    <li>一 tick 失败（One-Tick Failure）是新手最常见的亏损来源</li>
+
+  </ul>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>逆势交易</td><td>Always In Long 时做空</td><td>严格遵守 Always In 方向过滤</td></tr>
+<tr><td>单一理由入场</td><td>看到一个信号就冲</td><td>至少两个入场理由</td></tr>
+<tr><td>区间当趋势</td><td>在交易区间追突破</td><td>先判断背景再动手</td></tr>
+<tr><td>忽视位置</td><td>好信号出现在烂位置</td><td>信号必须结合关键价位</td></tr>
+<tr><td>过早入场</td><td>不等跟随确认</td><td>至少等一根跟随 K 线</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 知识索引</h2>
+
+  <p><code>price-action</code> Qdrant 向量库包含以下 Al Brooks 核心著作：</p>
+
+  <table>
+<thead><tr><th>著作</th><th>侧重</th></tr></thead>
+<tbody>
+<tr><td><em>Reading Price Charts Bar by Bar</em></td><td>基础框架：K 线解读、趋势/区间、支撑阻力</td></tr>
+<tr><td><em>Trading Price Action: Trends</em></td><td>趋势交易：回调、突破、通道</td></tr>
+<tr><td><em>Trading Price Action: Ranges</em></td><td>区间交易：突破失败、区间边界、剥头皮</td></tr>
+<tr><td><em>Trading Price Action: Reversals</em></td><td>反转交易：顶底形态、趋势衰竭、楔形</td></tr>
+</tbody>
+</table>
+
+  <p>当遇到具体交易问题时，可用关键词搜索向量库获取 Brooks 原著的详细分析。</p>
+
+</div>
+
+</div>
+</body>
+</html>

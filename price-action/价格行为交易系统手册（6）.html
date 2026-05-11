@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易系统手册（6）：K 线信号系统</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易系统手册（6）：K 线信号系统</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">核心框架：四棒交易序列</a></li>
+    <li><a href="#s2">基础 K 线类型</a></li>
+    <li><a href="#s3">四棒序列详解</a></li>
+    <li><a href="#s4">特殊 K 线类型</a></li>
+    <li><a href="#s5">复合 K 线结构</a></li>
+    <li><a href="#s6">常见错误（避开这些陷阱）</a></li>
+    <li><a href="#s7">Brooks 体系深化：信号棒质量评估框架</a></li>
+    <li><a href="#s8">完整交易决策流程（K 线信号系统视角）</a></li>
+    <li><a href="#s9">知识索引</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为交易系统手册（6）](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247485810&idx=1&sn=bb9af420a4a1e7f34ef105588e762d2c) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>核心主题：<strong>K 线分类学——从单根基础 K 线到复合结构，再到完整的四棒交易序列。</strong></p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 核心框架：四棒交易序列</h2>
+
+  <p>每笔交易都可以分解为四个阶段的 K 线角色：</p>
+
+  <pre>设置棒 (Setup Bar) → 信号棒 (Signal Bar) → 入场棒 (Entry Bar) → 跟随棒 (Follow-through Bar)
+     ↓                    ↓                    ↓                    ↓
+  形成交易背景         触发入场的K线        实际成交的K线        确认方向的K线
+  创造前提条件        确认设置有效性        突破信号棒极值        判断是否继续持有</pre>
+
+  <h3>Brooks 原著对应</h3>
+
+  <p>Brooks 在 <em>Reading Price Charts Bar by Bar</em>（#75 片段，得分 0.676）中明确定义：</p>
+
+  <blockquote><p>"A setup is a chart pattern composed of one or more bars that leads a trader to believe that an order can be placed that has a good chance of resulting in a profitable trade."</p></blockquote>
+
+  <p>关键洞察：<strong>每一根 K 线都可以是 Setup</strong>——因为下一根 K 线总可能开启强劲运动。但 Setup Bar 本身<strong>不是入场理由</strong>，必须在与前序 K 线的关系中来理解。</p>
+
+  <p>Brooks（#81 片段，得分 0.682）进一步说明：</p>
+
+  <blockquote><p>"A setup bar in and of itself is not a reason to enter a trade. It has to be viewed in relation to the bars before it, and it can only lead to a trade if it is part of a continuation or reversal pattern."</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 基础 K 线类型</h2>
+
+  <h3>2.1 趋势棒（Trend Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>收盘价远离开盘价，显示单边力量</td></tr>
+<tr><td>视觉</td><td>实体大、影线短、收盘接近极值</td></tr>
+<tr><td>含义</td><td>该周期内一方占绝对优势，无犹豫</td></tr>
+<tr><td>交易含义</td><td>连续同向趋势棒构成强劲趋势</td></tr>
+<tr><td>关键位置</td><td>出现在关键位置时可能预示趋势延续或突破确认</td></tr>
+</tbody>
+</table>
+
+  <p><strong>Brooks 补充</strong>（#71 片段，得分 0.682）：</p>
+
+  <blockquote><p>"Everything is relative and subject to constant reassessment even to the point of totally changing your opinion about the direction of the market."</p></blockquote>
+
+  <p>如果趋势棒实体异常大，可能代表<strong>耗竭（exhaustion）</strong>或<strong>单棒假突破（one bar false breakout）</strong>，诱捕追单者后在下一两棒反转。</p>
+
+  <h3>2.2 十字星（Doji）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>开盘价与收盘价非常接近，极小实体或无实体</td></tr>
+<tr><td>含义</td><td>多空势均力敌，市场犹豫不决</td></tr>
+<tr><td>信号质量</td><td><strong>弱信号</strong>——十字星作为入场信号胜率约 40%</td></tr>
+<tr><td>正确用途</td><td>判断市场状态（犹豫、平衡），而非入场依据</td></tr>
+<tr><td>应对策略</td><td>若必须在十字星后入场，降低仓位或等待确认</td></tr>
+</tbody>
+</table>
+
+  <p><strong>Brooks 补充</strong>（#73/#82 片段，得分 0.707/0.682）：</p>
+
+  <p>Brooks 指出十字星不是绝对的坏信号——<strong>取决于背景（context）</strong>：</p>
+
+  <blockquote><p>"A doji bar can be an excellent signal bar, depending on context."</p></blockquote>
+
+  <p>例如：十字星作为 <strong>Failed Final Flag</strong> 或 <strong>EMA Gap Bar</strong> 时可以是好的 Setup Bar。但 <strong>Barb Wire</strong>（上午 9-11 点 PST，小十字星密集在均线附近）中的十字星失败率极高。</p>
+
+  <h3>2.3 反转棒（Reversal Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>价格先朝一个方向运动后被拒绝，收盘于反方向</td></tr>
+<tr><td>信号质量</td><td>最强的信号棒类型，但需要背景支撑</td></tr>
+<tr><td>顺势 vs 逆势</td><td>顺势交易可接受较低质量信号；逆势交易须等待近乎完美的反转棒</td></tr>
+<tr><td>陷阱</td><td>反转棒经常失败，演变为旗形（趋势延续）</td></tr>
+<tr><td>关键</td><td>判断反转棒是否有效的核心是出现位置和背景</td></tr>
+</tbody>
+</table>
+
+  <p><strong>Brooks 补充</strong>（#144 片段，得分 0.693）：</p>
+
+  <p>最佳多头反转棒的标准：</p>
+
+  <ul>
+
+    <li>收盘高于开盘（阳线实体）</li>
+
+    <li>开盘接近或低于前一根 K 线的收盘价，收盘远高于前一根 K 线收盘价</li>
+
+    <li>反转了多根前 K 线的收盘价和高点</li>
+
+    <li>信号棒之后的 K 线不是十字星内包棒，而是强劲的入场棒</li>
+
+  </ul>
+
+  <h3>2.4 影线（Tails）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>最高价/最低价与实体之间的部分</td></tr>
+<tr><td>上影线</td><td>高开低走被拒绝，显示上方卖压</td></tr>
+<tr><td>下影线</td><td>低开高走被拒绝，显示下方买盘</td></tr>
+<tr><td>信号质量</td><td>长反向影线 = 弱信号，应谨慎或尽早离场</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 四棒序列详解</h2>
+
+  <h3>3.1 设置棒（Setup Bar）</h3>
+
+  <p><strong>功能</strong>：形成交易机会背景的 K 线。</p>
+
+  <table>
+<thead><tr><th>要点</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>本质</td><td>它们共同构成可识别的形态或结构</td></tr>
+<tr><td>是否触发入场</td><td>本身不直接触发入场</td></tr>
+<tr><td>核心价值</td><td>创造"设置"（Setup），即交易机会的前提条件</td></tr>
+<tr><td>Brooks 定义</td><td>被后续信号棒确认后才成为 Setup Bar</td></tr>
+</tbody>
+</table>
+
+  <p>Brooks（#80 片段，得分 0.691）举了实际例子：</p>
+
+  <blockquote><p>"Bar 3 was a strong bull reversal bar that reversed both yesterday's low and a test of the bear trendline, setting up a possible long. A buy stop at one tick above this bar would have been filled, and then Bar 3 becomes a signal bar (instead of just a setup bar)."</p></blockquote>
+
+  <p>注意：<strong>同一根 K 线在突破前是 Setup Bar，突破后成为 Signal Bar</strong>——角色随着价格行为动态转换。</p>
+
+  <h3>3.2 信号棒（Signal Bar）</h3>
+
+  <p><strong>功能</strong>：触发入场逻辑的具体 K 线。</p>
+
+  <table>
+<thead><tr><th>要点</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>核心作用</td><td>确认 Setup 的有效性</td></tr>
+<tr><td>入场参考</td><td>提供具体入场价位（突破其高点做多 / 跌破其低点做空）</td></tr>
+<tr><td>质量影响</td><td>形态质量直接影响交易胜率</td></tr>
+<tr><td>强弱判断</td><td>趋势棒 > 十字星；小影线 > 长反向影线</td></tr>
+</tbody>
+</table>
+
+  <p><strong>强信号棒标准</strong>（文章 + Brooks）：</p>
+
+  <ul>
+
+    <li>实体大、收盘接近极值</li>
+
+    <li>影线短</li>
+
+    <li>顺势方向</li>
+
+    <li>出现在关键位置（均线、支撑/阻力、前高低点）</li>
+
+  </ul>
+
+  <p><strong>弱信号棒特征</strong>：</p>
+
+  <ul>
+
+    <li>十字星实体（胜率约 40%）</li>
+
+    <li>长反向影线</li>
+
+    <li>实体很小</li>
+
+    <li>逆势方向</li>
+
+  </ul>
+
+  <h3>3.3 入场棒（Entry Bar）</h3>
+
+  <p><strong>功能</strong>：实际成交的那根 K 线。</p>
+
+  <table>
+<thead><tr><th>要点</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>时间关系</td><td>通常是信号棒之后的那根 K 线</td></tr>
+<tr><td>触发机制</td><td>当使用 Stop Order 时，入场棒是触发订单成交的 K 线</td></tr>
+<tr><td>入场时刻</td><td>信号棒高点/低点被突破的瞬间</td></tr>
+</tbody>
+</table>
+
+  <p><strong>三种入场棒表现</strong>：</p>
+
+  <table>
+<thead><tr><th>类型</th><th>特征</th><th>应对</th></tr></thead>
+<tbody>
+<tr><td>理想情况</td><td>继续朝预期方向运动，收盘接近极值</td><td>持有，信心增强</td></tr>
+<tr><td>警告信号</td><td>出现长反向影线或实体很小</td><td>警惕，准备减仓</td></tr>
+<tr><td>危险信号</td><td>与预期方向相反</td><td>立即止损或平价离场</td></tr>
+</tbody>
+</table>
+
+  <h3>3.4 跟随棒（Follow-through Bar）</h3>
+
+  <p><strong>功能</strong>：入场后的确认 K 线——判断突破后是否有连续 K 线确认方向。</p>
+
+  <table>
+<thead><tr><th>要点</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>核心原则</td><td><strong>缺乏跟进即离场</strong>（If no follow-through, exit immediately）</td></tr>
+<tr><td>高质量跟随棒</td><td>继续朝预期方向运动，与入场棒同方向，动能延续</td></tr>
+<tr><td>低质量跟随棒</td><td>反向 K 线、十字星、长影线、实体很小</td></tr>
+</tbody>
+</table>
+
+  <p>最关键的一条规则：</p>
+
+  <blockquote><p><strong>如果跟随棒不支持你的方向，立即平仓或止损。不要死等止损被触发。</strong></p></blockquote>
+
+  <blockquote><p>"入场后不观察跟随棒，死等止损被触发"是排名第二的常见错误。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 特殊 K 线类型</h2>
+
+  <h3>4.1 惊喜棒（Surprise Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>实体异常大的 K 线，动量极强</td></tr>
+<tr><td>含义</td><td>出乎意料的大型运动，预示会有第二段（second leg）</td></tr>
+<tr><td>获利策略</td><td>在惊喜棒支付掉所有风险后获利了结</td></tr>
+<tr><td>入场策略</td><td>卖出收盘价（激进）/ 回调至 50% 或上三分之一处挂单（保守）</td></tr>
+</tbody>
+</table>
+
+  <p><strong>Brooks 对应</strong>：惊喜棒本质是<strong>高潮棒（Climax Bar）</strong>的一种表现形式，代表购买/抛售高潮。</p>
+
+  <h3>4.2 失望棒（Disappointing Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>与预期走势相反的 K 线</td></tr>
+<tr><td>表现</td><td>预期上涨却出阴线；预期大幅突破却只有小实体；预期快速运动却停滞</td></tr>
+<tr><td>应对</td><td>重新评估交易前提——如果前提已被动摇，提前离场</td></tr>
+<tr><td>关键原则</td><td><strong>不要因为"还没触及止损"而固守失败的交易</strong></td></tr>
+</tbody>
+</table>
+
+  <h3>4.3 高潮棒 / 放弃棒（Climax Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>趋势末端出现的极端 K 线</td></tr>
+<tr><td>本质</td><td>购买/抛售高潮——一方交易者平仓离场或动能过度延伸</td></tr>
+<tr><td>代表</td><td>市场的"过度行为"，价格在短时间内推向极端</td></tr>
+<tr><td>后果</td><td>高潮通常导致至少 <strong>10 棒且两个腿</strong> 的回调</td></tr>
+<tr><td>极值用途</td><td>高点/低点可作为止盈目标或后续支撑/阻力位</td></tr>
+</tbody>
+</table>
+
+  <p><strong>核心规则</strong>：<strong>不应在高潮棒后立即追单</strong>。在强势空头趋势中，等待价格小幅回升至高潮棒顶部再做空。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 复合 K 线结构</h2>
+
+  <h3>5.1 内包棒（Inside Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>完全被前一根 K 线包含（高 ≤ 前高，低 ≥ 前低）</td></tr>
+<tr><td>含义</td><td>市场收缩，多空暂时休战，积蓄能量</td></tr>
+<tr><td>趋势末期</td><td>趋势运行一段时间后的内包棒 = 最终旗形（Final Flag），可能预示趋势结束</td></tr>
+<tr><td>交易含义</td><td>收缩后可能迎来突破，方向需后续确认</td></tr>
+</tbody>
+</table>
+
+  <h3>5.2 外包棒（Outside Bar）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>完全包含前一根 K 线（高 > 前高，低 < 前低）</td></tr>
+<tr><td>含义</td><td>多空双方都曾占优势，波动率突然放大</td></tr>
+<tr><td>交易含义</td><td>方向不明，收盘价位置提供一定偏好，但信号含糊</td></tr>
+<tr><td>后续</td><td>外包棒可视为微型交易区间，高低点成为短期支撑阻力</td></tr>
+</tbody>
+</table>
+
+  <h3>5.3 双 K 反转（Two-bar Reversal）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>多头反转</td><td>第一棒空头趋势棒 + 第二棒多头趋势棒，形成"U"形</td></tr>
+<tr><td>空头反转</td><td>第一棒多头趋势棒 + 第二棒空头趋势棒，形成倒"U"形</td></tr>
+<tr><td>本质</td><td>时间展开的反转棒——合并两棒后类似长影线的反转棒</td></tr>
+<tr><td>含义</td><td>原方向力量在第一棒达到顶峰，第二棒显示反方向力量迅速接管</td></tr>
+</tbody>
+</table>
+
+  <h3>5.4 微通道（Microchannel）</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>连续多根 K 线不破前一棒高/低点</td></tr>
+<tr><td>多头微通道</td><td>每根 K 线最低点 ≥ 前一根最低点</td></tr>
+<tr><td>空头微通道</td><td>每根 K 线最高点 ≤ 前一根最高点</td></tr>
+<tr><td>含义</td><td>趋势力量极其强劲，几乎没有有意义的回调</td></tr>
+<tr><td>交易规则</td><td><strong>只在微通道方向交易，绝不逆势</strong></td></tr>
+</tbody>
+</table>
+
+  <p><strong>微通道 vs 紧密通道</strong>：</p>
+
+  <table>
+<thead><tr><th></th><th>紧密通道</th><th>微通道</th></tr></thead>
+<tbody>
+<tr><td>回调幅度</td><td>很小</td><td>几乎没有（不破前一棒极值）</td></tr>
+<tr><td>对手方状态</td><td>有微弱反击</td><td>完全无力反击</td></tr>
+<tr><td>Brooks 建议</td><td>大多数交易者应停止交易</td><td>顺势操作或等待打破后再反向</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 常见错误（避开这些陷阱）</h2>
+
+  <table>
+<thead><tr><th>#</th><th>错误</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>把十字星当高质量信号</td><td>十字星后立即入场，胜率仅 40%</td><td>等待确认 K 线或跳过机会</td></tr>
+<tr><td>2</td><td>忽略跟随棒表现</td><td>入场后死等止损被触发</td><td>跟随棒不支持方向→立即退出</td></tr>
+<tr><td>3</td><td>在高潮棒后追单</td><td>追单后在回调中被止损</td><td>识别高潮棒，等待回调结束后顺势入场</td></tr>
+<tr><td>4</td><td>在微通道中逆势操作</td><td>多头微通道中做空被碾压</td><td>只在微通道方向交易</td></tr>
+<tr><td>5</td><td>不评估信号棒质量就入场</td><td>弱信号入场，胜率低于 50%</td><td>顺势可接受低质量；逆势必须近乎完美</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> Brooks 体系深化：信号棒质量评估框架</h2>
+
+  <p>基于 Qdrant 向量库中 Brooks 原著的补充，以下是更完整的信号棒质量评估体系：</p>
+
+  <h3>7.1 信号棒的背景依赖</h3>
+
+  <p>Brooks（#82 片段，得分 0.682）：</p>
+
+  <blockquote><p>"It is always better to get into a market after the correct side (bulls or bears) have taken control of at least the signal bar."</p></blockquote>
+
+  <p>信号棒只有在<strong>正确的一方已经掌控市场</strong>时才有效。一根趋势棒会给交易者更多信心使用更宽松的止损、交易更大仓位。</p>
+
+  <h3>7.2 最佳信号棒标准（Brooks 完整版）</h3>
+
+  <p><strong>多头反转信号棒</strong>（#145 片段，得分 0.690）：</p>
+
+  <ul>
+
+    <li>收盘高于开盘（阳线实体），或收盘高于中点</li>
+
+    <li>开盘接近或低于前 K 线收盘，收盘远高于前 K 线收盘</li>
+
+    <li>反转了多根前 K 线的收盘价和高点</li>
+
+    <li>高点上穿多根前 K 线高点</li>
+
+    <li>影线短</li>
+
+    <li>若实体异常大 → 可能代表耗竭或单棒假突破</li>
+
+  </ul>
+
+  <p><strong>空头反转信号棒</strong>（#145 片段，得分 0.690）：</p>
+
+  <ul>
+
+    <li>收盘低于开盘（阴线实体），或收盘低于中点</li>
+
+    <li>开盘接近或高于前 K 线收盘，收盘远低于前 K 线收盘</li>
+
+    <li>下穿多根前 K 线低点</li>
+
+    <li>影线短</li>
+
+  </ul>
+
+  <h3>7.3 入场 Stop 单的精确位置</h3>
+
+  <p>Brooks（#77 片段，得分 0.677）：</p>
+
+  <blockquote><p>"Place the entry stop at one tick above or below the prior bar."</p></blockquote>
+
+  <p>注意：对于股票，Brooks 建议用 <strong>两个 tick</strong> 的缓冲，因为 <strong>一 tick 陷阱（One-Tick Trap）</strong>很常见——市场仅突破一个 tick 后就反转，套住所有刚入场的交易者。</p>
+
+  <h3>7.4 高潮与耗竭</h3>
+
+  <p>Brooks（#612 片段，得分 0.682）描述了 <strong>Spike and Climax</strong> 模式：</p>
+
+  <ul>
+
+    <li>急速下跌（Spike）→ 暂停 → 再次抛售高潮（Sell Climax）</li>
+
+    <li>高潮后的水平交易区间 = Final Flag</li>
+
+    <li>高潮棒伴随异常大的成交量确认</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 完整交易决策流程（K 线信号系统视角）</h2>
+
+  <pre>Step 1: 观察设置棒（Setup Bar）
+        它们构成了什么形态？趋势延续还是反转？
+              ↓
+Step 2: 等待信号棒（Signal Bar）
+        评估质量：趋势棒？十字星？反转棒？
+        顺势可接受低质量，逆势必须近乎完美
+              ↓
+Step 3: 设置 Stop 入场单
+        信号棒高点 + 1 tick（做多）/ 低点 - 1 tick（做空）
+        股票可考虑 +2 tick 避免一 tick 陷阱
+              ↓
+Step 4: 入场棒（Entry Bar）出现
+        理想：继续同向 → 持有
+        警告：长影线/小实体 → 警惕
+        危险：反向 K 线 → 立即退出
+              ↓
+Step 5: 观察跟随棒（Follow-through Bar）
+        缺乏跟进 → 立即离场！不要死等止损
+        高质量跟进 → 持有，目标看下一关键位
+              ↓
+Step 6: 遇到惊喜棒 → 获利了结（支付所有风险后）
+        遇到高潮棒 → 不追单，等待回调
+        遇到失望棒 → 重新评估前提</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 知识索引</h2>
+
+  <p><code>price-action</code> Qdrant 向量库包含以下 Al Brooks 核心著作中与本主题最相关的部分：</p>
+
+  <table>
+<thead><tr><th>著作</th><th>相关主题</th></tr></thead>
+<tbody>
+<tr><td><em>Reading Price Charts Bar by Bar</em>（第 1-2 章）</td><td>信号棒、入场棒、Setup 基础定义；K 线组合模式</td></tr>
+<tr><td><em>Trading Price Action: Trends</em></td><td>趋势中信号棒选择、回调入场、紧密通道</td></tr>
+<tr><td><em>Trading Price Action: Reversals</em></td><td>反转棒标准、高潮/耗竭识别、楔形反转</td></tr>
+<tr><td><em>Trading Price Action: Ranges</em></td><td>交易区间中信号棒失效模式、Barb Wire 陷阱</td></tr>
+</tbody>
+</table>
+
+  <p>当遇到具体 K 线形态判断问题时，可用关键词搜索向量库获取 Brooks 原著的详细分析。</p>
+
+</div>
+
+</div>
+</body>
+</html>

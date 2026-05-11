@@ -32,7 +32,15 @@
       "Bash(curl -s \"http://localhost:8765/replay_data?symbol=%E8%9E%BA%E7%BA%B9%E9%92%A2&display_period=5m&step_period=1m&count=50\")",
       "Bash(curl *)",
       "Bash(echo \"PID: $!\")",
-      "Bash(git commit -m 'fix\\(data_provider\\): switch from mootdx ExtQuotes network to local tdx file reader *)"
+      "Bash(git commit -m 'fix\\(data_provider\\): switch from mootdx ExtQuotes network to local tdx file reader *)",
+      "Bash(git push *)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run *)",
+      "mcp__tavily__tavily_crawl",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_tabs",
+      "mcp__playwright__browser_close"
     ]
   }
 }

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为学交易手册分析：Regime §1.1a -- 趋势内部阶段</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为学交易手册分析：Regime §1.1a -- 趋势内部阶段</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">趋势的第一性原理</a></li>
+    <li><a href="#s2">Spike 第一性原理</a></li>
+    <li><a href="#s3">Bar-by-Bar 唯一核心问题</a></li>
+    <li><a href="#s4">Spike → Channel → TR 阶段框架</a></li>
+    <li><a href="#s5">Brooks 体系深度补充</a></li>
+    <li><a href="#s6">完整决策流程（Spike → Channel → TR 版本）</a></li>
+    <li><a href="#s7">关键洞察</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为学交易手册（专题）：Regime §1.1a](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486595&idx=1&sn=40cdda63f22732c3411973cfc04d94f1) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>日期：2026年4月3日 | 作者：victorjia</p></blockquote>
+
+  <blockquote><p><strong>前置阅读</strong>：[Regime（市场状态）](./Regime.md) —— §1.1 判断了你在哪种世界，§1.1a 放大看每种世界内部的结构。</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 趋势的第一性原理</h2>
+
+  <h3>Brooks 的三个引用定义</h3>
+
+  <blockquote><p>"A trend is simply a move from one trading range to another." -- Al Brooks<br>
+"Price action is the movement that takes place along the way as institutions probe for value." -- Al Brooks</p></blockquote>
+
+  <h3>趋势三层定义</h3>
+
+  <table>
+<thead><tr><th>层次</th><th>定义</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><strong>数学定义</strong></td><td>"an area of relative certainty, where the odds are greater than 50-50 that the market will move X ticks further before it moves X ticks in the opposite direction"</td><td>趋势是<strong>概率偏移</strong>，不是更高高点/更高低点的视觉形态</td></tr>
+<tr><td><strong>结构定义</strong></td><td>"a move from one trading range to another" —— 暂时的不平衡，双方对当前价格产生分歧</td><td>趋势代表市场迫切寻找双方都认为有价值的新价位</td></tr>
+<tr><td><strong>基因定义</strong></td><td>"Price action is a manifestation of human behavior and therefore actually has a genetic basis"</td><td>大萧条时期的手绘图和今天算法驱动图完全一样，因为来自人类 DNA</td></tr>
+</tbody>
+</table>
+
+  <p><strong>核心洞察</strong>：数学定义是第一性——趋势的本质不是 HH/HL 的形态序列，而是概率的持续偏移。HH/HL 只是概率偏移的视觉副产品。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> Spike 第一性原理</h2>
+
+  <h3>每根趋势 K 线的四重身份</h3>
+
+  <blockquote><p>"Every trend bar is simultaneously (1) a spike; (2) a breakout; (3) a gap... and (4) a part or all of a vacuum and a climax." -- Al Brooks</p></blockquote>
+
+  <table>
+<thead><tr><th>身份</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><strong>Spike</strong></td><td>单边力量压倒性的爆发性运动</td></tr>
+<tr><td><strong>Breakout</strong></td><td>突破某个关键价位（前高/前低/均线/区间边界）</td></tr>
+<tr><td><strong>Gap</strong></td><td>实体之间存在缺口（body gap），即使没有价格跳空</td></tr>
+<tr><td><strong>Vacuum/Climax</strong></td><td>极端运动的一部分，可能是吸尘器效应（vacuum test）或高潮（climax）</td></tr>
+</tbody>
+</table>
+
+  <h3>Spike 发生的根本原因</h3>
+
+  <blockquote><p>"In a spike up, everyone is in agreement that this is not an area of value for the bears."</p></blockquote>
+
+  <ul>
+
+    <li>机构对当前价格产生<strong>普遍一致的否定</strong></li>
+
+    <li>机构如此确信市场将走高，拒绝等待回调，直接市价追入</li>
+
+    <li><strong>跨时间框架分形</strong>：5m 图上的 Spike = 1m 图上的极陡 spike-and-channel；5m 图上的陡峭 channel = 60m 图上的 Spike</li>
+
+  </ul>
+
+  <p><strong>Qdrant 知识库确证</strong>：Brooks 在 <em>Trading Price Action: Reversals</em> 中详细讨论了 spike and climax 的变化形态。Spike 之后通常跟随一个 trading range 或 channel，因为空方和多方的力量会在 spike 后继续博弈。Spike 期间 K 线"unsustainable behavior and therefore climactic"——不可持续的行为因而是高潮性的，因此必然会有修正。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> Bar-by-Bar 唯一核心问题</h2>
+
+  <blockquote><p>"The single most important determination that a trader makes, and he makes this after the close of every bar, is whether there will be more buyers or sellers above and below the prior bar." -- Al Brooks</p></blockquote>
+
+  <h3>每根 K 线收盘后只需回答一个问题：</h3>
+
+  <p><strong>在当前 K 线的上方和下方，会有更多的买方还是卖方？</strong></p>
+
+  <p>这比任何指标、形态、或复杂分析都更根本。它迫使交易者聚焦于市场参与者的意图而非价格的表面波动。</p>
+
+  <h3>矛盾信号的处理规则</h3>
+
+  <p><strong>动量优先于小信号</strong>：4 根强熊 K 之后出现的买入信号，被动量否定。</p>
+
+  <p>这是一个硬性过滤规则：当短期小信号与大周期动量冲突时，动量胜出。具体来说：</p>
+
+  <ul>
+
+    <li>大时间框架的动量 > 小时间框架的信号</li>
+
+    <li>连续多根同向趋势 K > 单根反转信号</li>
+
+    <li>通道内的趋势延续 > 趋势线突破信号</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> Spike → Channel → TR 阶段框架</h2>
+
+  <h3>趋势的生命周期</h3>
+
+  <pre>Spike → Channel → TR → （方向选择）
+  ↓        ↓        ↓
+逐K追入   等回调   限价单Fade</pre>
+
+  <h3>各阶段特征对照</h3>
+
+  <table>
+<thead><tr><th>阶段</th><th>K 线特征</th><th>操作策略</th><th>Qdrant Brooks 补充</th></tr></thead>
+<tbody>
+<tr><td><strong>Spike</strong></td><td>大实体、无重叠、同色、body gap 存在</td><td>止损单顺势，可直接追入</td><td>"Gap openings increase the chance that the day will become a trend day. The larger the gap, the more likely the day will be a trend day."</td></tr>
+<tr><td><strong>Channel</strong></td><td>有重叠、有影线、有反向 K，但整体方向维持</td><td>等回调再入场</td><td>Channel 中的 "two legs" 结构：两段式运动，第二次推通常是入场时机</td></tr>
+<tr><td><strong>TR</strong></td><td>大量重叠、EMA 走平、双向震荡</td><td>限价单高抛低吸</td><td>"All trading ranges are continuation patterns" —— TR 之后大概率延续原趋势方向突破</td></tr>
+</tbody>
+</table>
+
+  <h3>跨时间框架分形（关键）</h3>
+
+  <table>
+<thead><tr><th>高时间框架</th><th>低时间框架</th></tr></thead>
+<tbody>
+<tr><td>60m 图上的 Spike</td><td>5m 图上的极陡 spike-and-channel</td></tr>
+<tr><td>60m 图上的 Channel</td><td>5m 图上的微型趋势或通道</td></tr>
+<tr><td>5m 图上的 Spike</td><td>1m 图上的极陡 spike-and-channel</td></tr>
+</tbody>
+</table>
+
+  <p>这个分形关系意味着：<strong>任何时间框架的 Regime 判断只在当前 TF 有效</strong>。你在日线上是趋势，在 5 分钟线上可能是震荡通道。必须明确你在哪个时间框架上做判断。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> Brooks 体系深度补充</h2>
+
+  <h3>Breakout Gap 与 Measuring Gap</h3>
+
+  <p>从 Qdrant 检索中，Brooks 对 gap/spike 概念有以下补充：</p>
+
+  <table>
+<thead><tr><th>Gap 类型</th><th>定义</th><th>交易含义</th></tr></thead>
+<tbody>
+<tr><td><strong>Breakout Gap</strong></td><td>趋势开始时的强趋势 K 线</td><td>视为 gap，通常有第二段运动</td></tr>
+<tr><td><strong>Measuring Gap</strong></td><td>回调不重叠突破点的 gap</td><td>趋势强劲的标志，可能是一段趋势的中点</td></tr>
+<tr><td><strong>Micro Measuring Gap</strong></td><td>强趋势 K 线之间的小 gap</td><td>连续趋势 K 之前的信号</td></tr>
+</tbody>
+</table>
+
+  <h3>Spike and Climax 的必然结局</h3>
+
+  <p>Brooks 明确指出：Spike 期间的行为是 "unsustainable behavior and therefore climactic"——不可持续的，因此必定进入修正（correction）。修正可能以两种形式出现：</p>
+
+  <ol>
+
+    <li><strong>Channel</strong>（通道）：方向延续，但速度减缓，出现重叠和回调</li>
+
+    <li><strong>Trading Range</strong>（交易区间）：完全横向，方向暂停</li>
+
+  </ol>
+
+  <p>Qdrant 检索到的一个关键案例："nine bars up...all had higher lows and higher highs...eight of the nine had higher closes...very little overlap between adjacent bars. This was unsustainable behavior and therefore climactic, and was therefore likely to correct."</p>
+
+  <h3>Inside Bar 作为微型 Spike-and-TR 反转</h3>
+
+  <p>Brooks 有一个精妙的洞察："An inside bar after a breakout bar can be thought of as a possible miniature Spike and Trading Range reversal setup." 即突破 K 之后的内包 K = 微型 spike + TR 反转结构。这对入场后的持仓管理有重要意义。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 完整决策流程（Spike → Channel → TR 版本）</h2>
+
+  <pre>Step 1: Regime 判断（§1.1）→ 趋势还是 TR？
+              ↓
+Step 2: 趋势阶段判断（§1.1a）
+        看 K 线重叠度 + 影线 + 反向 K
+              ↓
+    ├── Spike 阶段 → 无重叠、同色、body gap
+    │       → 策略：止损单顺势追入
+    │
+    ├── Channel 阶段 → 有重叠、有影线、有反向 K
+    │       → 策略：等回调，H2 信号入场
+    │
+    └── TR 阶段 → ≥20 根横盘
+            → 策略：限价单 Fade
+              ↓
+Step 3: Bar-by-bar 核心问题
+        当前 K 的上方/下方买方多还是卖方多？
+              ↓
+Step 4: 动量检查
+        大周期动量是否与小信号矛盾？→ 动量优先
+              ↓
+Step 5: 入场执行 + 持仓管理</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 关键洞察</h2>
+
+  <h3>本文的核心价值</h3>
+
+  <ol>
+
+    <li><strong>趋势的数学定义</strong>是最大的认知升级——概率偏移而非形态序列</li>
+
+    <li><strong>Spike 的四重身份</strong>（spike + breakout + gap + vacuum/climax）让交易者理解每根趋势 K 的复合含义</li>
+
+    <li><strong>Bar-by-bar 核心问题</strong>是一个极简但极深的决策框架</li>
+
+    <li><strong>跨时间框架分形</strong>解释了为什么同一个价格运动在不同 TF 上被不同角色交易</li>
+
+  </ol>
+
+  <h3>与 §1.1（Regime 篇）的关系</h3>
+
+  <table>
+<thead><tr><th>§1.1（Regime 篇）</th><th>§1.1a（本篇）</th></tr></thead>
+<tbody>
+<tr><td>宏观分类：这是什么世界？</td><td>微观分层：世界内部是什么阶段？</td></tr>
+<tr><td>三态：趋势 / TR / 弱趋势</td><td>趋势内部三阶段：Spike / Channel / TR</td></tr>
+<tr><td>判断标准：重叠度 + EMA + 方向一致性</td><td>判断标准：Spike→Channel→TR 过渡信号</td></tr>
+<tr><td>操作框架：止损单 vs 限价单</td><td>操作细化：追入 vs 等回调 vs Fade</td></tr>
+</tbody>
+</table>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>Channel 当 Spike 追</td><td>出重叠 + 影线后继续追入</td><td>出现反向 K 或重叠即停止追单</td></tr>
+<tr><td>忽略跨 TF 分形</td><td>在 5m TR 里用日线趋势逻辑交易</td><td>明确主要交易 TF，不跨级混淆</td></tr>
+<tr><td>小信号对抗大动量</td><td>4 根熊 K 后买入</td><td>动量优先，等动量减弱再说</td></tr>
+<tr><td>误判 Spike 可持续性</td><td>认为强趋势会一直持续</td><td>"unsustainable behavior" → 必修正</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "价格行为学交易手册（专题）：Regime：§1.1a" [level=1] [ref=e7]
+      - generic [ref=e8]:
+        - generic [ref=e9]: 原创
+        - generic [ref=e10]: victorjia
+        - link "价格行为学解析" [ref=e12]:
+          - /url: javascript:void(0);
+        - generic:
+          - emphasis [ref=e13]: 2026年4月3日 01:50
+          - emphasis [ref=e14]: 越南
+      - generic [ref=e15]:
+        - heading "§1.1a 趋势内部阶段：Spike → Channel → TR" [level=3] [ref=e16]
+        - paragraph [ref=e17]: §1.1判断了你在哪种世界。现在放大看每种世界内部的结构——Spike和Channel怎么区分？什么时候趋势变成TR？这些决定了你的下单方式。
+        - heading "趋势阶段" [level=4] [ref=e18]
+        - heading "趋势的第一性原理" [level=3] [ref=e19]
+        - blockquote [ref=e20]:
+          - generic [ref=e21]
+        - blockquote [ref=e22]:
+          - generic [ref=e23]
+        - paragraph [ref=e24]:
+          - strong [ref=e25]: 趋势三层定义：
+        - table [ref=e26]:
+          - rowgroup [ref=e27]
+          - rowgroup [ref=e35]
+        - paragraph [ref=e57]:
+          - strong [ref=e58]: Spike第一性原理（每根趋势K = 以下所有叠加）：
+        - blockquote [ref=e59]:
+          - generic [ref=e60]
+        - paragraph [ref=e61]:
+          - text: Spike发生的根本原因是机构对当前价格产生
+          - strong [ref=e62]: 普遍一致的否定
+          - text: ：
+        - list [ref=e63]:
+          - listitem [ref=e64]
+          - listitem [ref=e66]
+          - listitem [ref=e68]
+        - paragraph [ref=e70]:
+          - strong [ref=e71]: Bar-by-bar的唯一核心问题：
+        - blockquote [ref=e72]:
+          - generic [ref=e73]
+        - paragraph [ref=e74]:
+          - text: 每根K收盘后只需回答这一个问题。矛盾信号时：
+          - strong [ref=e75]: 动量优先于小信号
+          - text: ——4根强熊K之后出现的买入信号，被动量否定。
+        - paragraph [ref=e77]:
+          - generic [ref=e78]: 我们致力于写成交易领域最好的智慧库，
+          - generic [ref=e80]: 伟大不是一项成就，而是一生的进取。
+        - paragraph [ref=e81]:
+          - generic [ref=e82]
+        - paragraph [ref=e84]:
+          - generic [ref=e85]
+    - generic [ref=e88]:
+      - paragraph [ref=e93]:
+        - link "喜欢作者" [ref=e94]:
+          - /url: javascript:;
+          - text: 喜欢作者
+      - generic [ref=e98]:
+        - button "价格行为交易手册 · 目录" [ref=e99]:
+          - generic [ref=e102]: 价格行为交易手册 · 目录
+        - generic [ref=e104]:
+          - button "上一篇 价格行为学交易手册（专题）：Regime" [ref=e105]
+          - button "下一篇 价格行为学交易手册（专题）：Regime：§1.1a" [ref=e110]
+  - generic [ref=e119]:
+    - link "价格行为学解析" [ref=e129]:
+      - generic [ref=e130]: 价格行为学解析
+    - generic [ref=e132]:
+      - button "赞" [ref=e134]:
+        - generic [ref=e135]: 赞
+      - button "分享" [ref=e137]:
+        - generic [ref=e138]: 分享
+      - button "在看" [ref=e140]:
+        - generic [ref=e141]: 推荐
+      - button "留言 写留言" [ref=e143]:
+        - generic [ref=e144]: 写留言

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为交易手册：概述 -- 深度分析</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为交易手册：概述 -- 深度分析</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">文章核心框架</a></li>
+    <li><a href="#s2">三种市场状态详解</a></li>
+    <li><a href="#s3">Always In Direction（始终在场方向）</a></li>
+    <li><a href="#s4">入场设置体系</a></li>
+    <li><a href="#s5">止损与资金管理</a></li>
+    <li><a href="#s6">主要趋势反转 (MTR) 判别模型</a></li>
+    <li><a href="#s7">信号棒质量判别模型</a></li>
+    <li><a href="#s8">交易区间规则体系</a></li>
+    <li><a href="#s9">量度目标计算</a></li>
+    <li><a href="#s10">Scalp vs Swing 选择模型</a></li>
+    <li><a href="#s11">完整交易决策流程</a></li>
+    <li><a href="#s12">交易者方程式</a></li>
+    <li><a href="#s13">学习阶段路径</a></li>
+    <li><a href="#s14">知识坍缩诊断（错误学习判断）</a></li>
+    <li><a href="#s15">常见错误清单</a></li>
+    <li><a href="#s16">回溯机制（学习失败时的诊断路径）</a></li>
+    <li><a href="#s17">核心术语速查</a></li>
+    <li><a href="#s18">Al Brooks 知识库交叉对照总结</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p><strong>来源</strong>: [微信公众平台 - victorjia 价格行为学解析](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486466&idx=1&sn=1567a3be46472b6b4a71fc8c64484076)<br>
+<strong>分析日期</strong>: 2026-05-08<br>
+<strong>知识库对照</strong>: Al Brooks 价格行为三部曲（趋势篇、区间篇、反转篇）+ Reading Price Charts Bar by Bar</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 文章核心框架</h2>
+
+  <p>本文构建了一套<strong>层级化的价格行为学习体系</strong>，将价格行为交易从"背形态"提升为"建构通用判别映射"。核心论点是：</p>
+
+  <blockquote><p>价格行为交易不是背诵 -- 不是记住"双底就买、双顶就卖"。它是一套通用判别规则，用来解决从未见过的新 K 线图。</p></blockquote>
+
+  <p>全文按五个认知层级组织：</p>
+
+  <table>
+<thead><tr><th>层级</th><th>名称</th><th>核心功能</th></tr></thead>
+<tbody>
+<tr><td>第一层</td><td>输入/输出空间</td><td>定义知识适用范围与能力目标</td></tr>
+<tr><td>第二层</td><td>对象层</td><td>可观察的具体现象（市场状态、K线形态）</td></tr>
+<tr><td>第三层</td><td>共象层</td><td>抽象规则与通用判别模型</td></tr>
+<tr><td>第四层</td><td>联结层</td><td>概念间关系与决策树</td></tr>
+<tr><td>第五层</td><td>验证层</td><td>学习效果检验与错误诊断</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 三种市场状态详解</h2>
+
+  <h3>2.1 突破 (Spike / Breakout)</h3>
+
+  <table>
+<thead><tr><th>特征维度</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>K线形态</td><td>连续多根大实体趋势K线，收盘在极值附近，几乎无影线</td></tr>
+<tr><td>K线重叠</td><td>相邻K线之间几乎没有重叠</td></tr>
+<tr><td>回调</td><td>无明显回调</td></tr>
+<tr><td>缺口</td><td>存在缺口且保持敞开</td></tr>
+<tr><td>EMA关系</td><td>连续20+根K线完全脱离20EMA（均线缺口K线）</td></tr>
+<tr><td>时间占比</td><td>市场仅10%的时间处于突破中</td></tr>
+<tr><td>风险特征</td><td>概率最高，但止损最远（风险大）</td></tr>
+</tbody>
+</table>
+
+  <h3>2.2 通道 (Channel)</h3>
+
+  <p>通道是突破后出现第一次回调形成的结构，分为两个子类型：</p>
+
+  <table>
+<thead><tr><th>类型</th><th>回调深度</th><th>回调持续K线数</th><th>交易方向</th><th>确认所需K线</th></tr></thead>
+<tbody>
+<tr><td>紧密通道 (Tight)</td><td>< 2倍平均K线高度</td><td>1-3根</td><td>只能顺势</td><td>更高时间周期看即突破</td></tr>
+<tr><td>宽幅通道 (Broad)</td><td>> 2-3倍平均K线高度</td><td>5-30根</td><td>顺势波段 + 逆势剥头皮</td><td>200-300根（至少3个波段）</td></tr>
+</tbody>
+</table>
+
+  <h3>2.3 交易区间 (Trading Range)</h3>
+
+  <table>
+<thead><tr><th>特征维度</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>横盘K线数</td><td>达到20根或更多</td></tr>
+<tr><td>K线形态</td><td>大量K线重叠，十字星和长影线频繁出现</td></tr>
+<tr><td>节奏</td><td>每走2-3根K线就反转</td></tr>
+<tr><td>突破概率</td><td>向上/向下各50%</td></tr>
+<tr><td>突破失败率</td><td>80%的突破尝试最终失败</td></tr>
+<tr><td>核心策略</td><td>BLSHS（Buy Low, Sell High, Scalp）</td></tr>
+</tbody>
+</table>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>Qdrant 检索结果（得分 0.7066）中 Al Brooks 在《Trading Price Action: Reversals》中明确指出：</p>
+
+  <blockquote><p>"While in the trading range phase, signals are often unclear, and there is a sense of uncertainty. Most of the signals will be micro double bottoms and tops, and small final flag reversals. This is lower probability trading, and traders have to be careful and quick to take profits (scalp)."</p></blockquote>
+
+  <p>这与文章描述的"80%突破失败"和"BLSHS策略"完全一致。Al Brooks 在《Trading Price Action: Ranges》（得分 0.7008）中也讨论了 tight trading range 中顺势交易更优的规则：</p>
+
+  <blockquote><p>"If there was a trend leading up to the tight trading range, the with-trend trades are more likely to be winners."</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> Always In Direction（始终在场方向）</h2>
+
+  <h3>3.1 定义</h3>
+
+  <blockquote><p>如果此刻被强制持仓，基于理性和概率你会做多还是做空？</p></blockquote>
+
+  <h3>3.2 Always In Long 识别标准</h3>
+
+  <table>
+<thead><tr><th>序号</th><th>标准</th><th>强度</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>3-4根连续大实体阳线，收盘在最高点附近，实体越来越大</td><td>强</td></tr>
+<tr><td>2</td><td>一根超级大阳线，收盘突破过去20-40根K线的高点</td><td>极强</td></tr>
+<tr><td>3</td><td>两根中等偏大阳线连续收在极值，突破前期主要 Lower High</td><td>中</td></tr>
+</tbody>
+</table>
+
+  <h3>3.3 Always In Short 识别标准</h3>
+
+  <table>
+<thead><tr><th>序号</th><th>标准</th><th>强度</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>3-4根连续大实体阴线，收盘在最低点附近</td><td>强</td></tr>
+<tr><td>2</td><td>屏幕上最大的单根阴线，收盘跌破所有近期低点</td><td>极强</td></tr>
+<tr><td>3</td><td>连续8-10根K线无多头实体（空头微型通道）</td><td>中强</td></tr>
+</tbody>
+</table>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>Al Brooks 在《Reading Price Charts Bar by Bar》（得分 0.7017）中讨论了 "Signs of Strength" 作为趋势判断的核心要素：</p>
+
+  <blockquote><p>"Two Legs, Signs of Strength, Common Trend Patterns" -- Brooks 将两腿推动、强势信号作为趋势判断的基础框架，与本文 Always In 的 K 线证据链方法高度吻合。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 入场设置体系</h2>
+
+  <h3>4.1 趋势顺势入场：K线计数法</h3>
+
+  <table>
+<thead><tr><th>入场类型</th><th>定义</th><th>概率等级</th><th>适用场景</th></tr></thead>
+<tbody>
+<tr><td><strong>H1/L1</strong></td><td>突破后第一次回调的第一根突破前K线高点的K线</td><td>极强趋势中最佳，弱趋势中极低</td><td>紧密通道/强突破</td></tr>
+<tr><td><strong>H2/L2</strong></td><td>H1失败后的第二次突破 = 小型双底旗形</td><td>最高概率（双重买盘）</td><td>所有趋势中的"甜蜜点"</td></tr>
+<tr><td><strong>H3/L3</strong></td><td>三段式回调 = 楔形旗形</td><td>高胜率（尤其信号棒收极值时）</td><td>ABC三浪/楔形回调</td></tr>
+<tr><td><strong>H4/L4</strong></td><td>"H2+H2"组合 = 复杂底部</td><td>中等</td><td>极深复杂回调/宽幅回调</td></tr>
+<tr><td><strong>H5+</strong></td><td>5-6腿下跌</td><td>趋势已反转</td><td>停止寻找买点，改做反方向</td></tr>
+</tbody>
+</table>
+
+  <h3>4.2 突破回踩入场 (Breakout Pullback)</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>要求</th></tr></thead>
+<tbody>
+<tr><td>前提</td><td>出现强劲突破（连续大实体趋势K线）</td></tr>
+<tr><td>入场时机</td><td>市场回调，回踩突破点</td></tr>
+<tr><td>最强信号</td><td>负缺口/微型缺口 = 回踩测试成功</td></tr>
+<tr><td>入场位置</td><td>在顺势反转K线最高/低点上方1 Tick</td></tr>
+</tbody>
+</table>
+
+  <h3>4.3 二次入场 (Second Entry)</h3>
+
+  <table>
+<thead><tr><th>要素</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>原理</td><td>第一次反转尝试往往失败（80%规则惯性）</td></tr>
+<tr><td>方法</td><td>等待微型双底/双顶，第二次入场胜率显著提高</td></tr>
+<tr><td>新手建议</td><td>不做第一次信号，等 Second Entry</td></tr>
+</tbody>
+</table>
+
+  <h3>4.4 订单类型选择</h3>
+
+  <table>
+<thead><tr><th>订单类型</th><th>适用场景</th><th>使用资格</th></tr></thead>
+<tbody>
+<tr><td>Stop Order（停损单）</td><td>强趋势/通道中顺势入场</td><td>新手唯一推荐</td></tr>
+<tr><td>Limit Order（限价单）</td><td>交易区间高抛低吸</td><td>仅限专业交易者</td></tr>
+<tr><td>Market Order（市价单）</td><td>极强动能怕错过</td><td>极少数场景</td></tr>
+</tbody>
+</table>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>在 Qdrant 结果（得分 0.7001）中，Al Brooks 明确列出了入场后的关键价格水平：</p>
+
+  <blockquote><p>"Entry bar and signal bar protective stops... Breakout Test... Huge trend bar opposite extreme"</p></blockquote>
+
+  <p>这直接对应了文章中的"信号棒止损"和"结构止损"两种止损放置逻辑。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 止损与资金管理</h2>
+
+  <h3>5.1 三种止损标准</h3>
+
+  <table>
+<thead><tr><th>止损类型</th><th>放置位置</th><th>优点</th><th>缺点</th></tr></thead>
+<tbody>
+<tr><td>波段止损</td><td>最近一个主要HL/LH下方/上方1 Tick</td><td>最正确</td><td>风险最大</td></tr>
+<tr><td>信号棒止损</td><td>信号K线极值 ± 1 Tick</td><td>风险小</td><td>胜率低</td></tr>
+<tr><td>追踪止损</td><td>每次创新高/低后上移至新的主要HL/LH</td><td>保护利润</td><td>需要纪律执行</td></tr>
+</tbody>
+</table>
+
+  <h3>5.2 资金管理硬规则</h3>
+
+  <pre>止损距离 x 仓位 = 单笔风险 &lt;= 账户的 1%-3%</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 主要趋势反转 (MTR) 判别模型</h2>
+
+  <h3>6.1 前置条件流程</h3>
+
+  <pre>既存趋势
+  → 一波强劲次要反转（打破主要趋势线，&gt;=10根K线，出现均线缺口K线）
+    → 原趋势尝试恢复，测试前期极值
+      → 测试处动能衰竭 + 出现反向信号棒
+        → 二次反转
+          → MTR入场</pre>
+
+  <h3>6.2 MTR vs 小反转区分</h3>
+
+  <table>
+<thead><tr><th>维度</th><th>小反转 (Minor Reversal)</th><th>大反转 (MTR)</th></tr></thead>
+<tbody>
+<tr><td>K线数量</td><td>3-5根，少于10根</td><td>10-20+根</td></tr>
+<tr><td>结果</td><td>变成原趋势的旗形/交易区间</td><td>反方向的新波段趋势</td></tr>
+<tr><td>最低目标</td><td>无明确目标</td><td>TBTL（10根K线+两条腿）</td></tr>
+</tbody>
+</table>
+
+  <h3>6.3 具体反转形态</h3>
+
+  <table>
+<thead><tr><th>形态</th><th>特征</th></tr></thead>
+<tbody>
+<tr><td>双顶/双底</td><td>大多数MTR的变体；第二次极值可略高/略低/相同</td></tr>
+<tr><td>楔形反转</td><td>三次推升后失败；收敛的倾斜通道</td></tr>
+<tr><td>最终旗形</td><td>趋势运行20+根K线后的末期横盘；突破后立即反转</td></tr>
+</tbody>
+</table>
+
+  <h3>6.4 关键参数</h3>
+
+  <table>
+<thead><tr><th>参数</th><th>值</th></tr></thead>
+<tbody>
+<tr><td>MTR胜率</td><td>约40%</td></tr>
+<tr><td>盈亏比</td><td>>= 2:1</td></tr>
+<tr><td>TBTL最低目标</td><td>10根K线 + 两条腿</td></tr>
+</tbody>
+</table>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>Al Brooks 在《Trading Price Action: Reversals》中（得分 0.7066）讨论了反转交易中低胜率高盈亏比的特征：</p>
+
+  <blockquote><p>"This relatively low-probability swing long has a positive trader's equation because the reward is much larger than the risk."</p></blockquote>
+
+  <p>这与文章的 MTR 模型完全一致：胜率约40%但盈亏比>=2:1。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 信号棒质量判别模型</h2>
+
+  <h3>7.1 好信号棒特征</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>收盘位置</td><td>收盘在极值附近（做多->收盘在中点以上，最好在最高点，无上影线）</td></tr>
+<tr><td>实体大小</td><td>较大的顺方向实体</td></tr>
+<tr><td>K线重叠</td><td>与前面K线重叠少</td></tr>
+</tbody>
+</table>
+
+  <h3>7.2 差信号棒特征</h3>
+
+  <table>
+<thead><tr><th>特征</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td>影线</td><td>长影线/十字星/极小实体</td></tr>
+<tr><td>颜色</td><td>实体颜色与交易方向相反</td></tr>
+<tr><td>特殊</td><td>内包线（特殊场景除外）</td></tr>
+</tbody>
+</table>
+
+  <h3>7.3 核心规则</h3>
+
+  <blockquote><p><strong>上下文 > 信号棒本身</strong><br>
+- 上下文极佳 + 差信号棒 -> 可以入场<br>
+- 上下文差 + 完美信号棒 -> 是陷阱</p></blockquote>
+
+  <h3>7.4 验证链</h3>
+
+  <pre>信号棒 -&gt; Entry Bar（顺方向强趋势K线）-&gt; Follow-Through Bar（确认棒）</pre>
+
+  <table>
+<thead><tr><th>验证结果</th><th>判断</th></tr></thead>
+<tbody>
+<tr><td>好跟随棒</td><td>突破/反转真实</td></tr>
+<tr><td>差跟随棒（十字星/反向K线）</td><td>突破失败信号</td></tr>
+</tbody>
+</table>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>在 Qdrant 结果（得分 0.6966）中 Al Brooks 在《Trading Price Action: Ranges》索引中定义了：</p>
+
+  <blockquote><p>"Strong bear reversal bar characteristics... Strong bull reversal bar characteristics... Strong trend characteristics"</p></blockquote>
+
+  <p>这确认了信号棒质量判别是一个被 Al Brooks 系统化定义的领域。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 交易区间规则体系</h2>
+
+  <h3>8.1 80%规则</h3>
+
+  <blockquote><p>交易区间中80%的突破尝试最终失败并反转回区间内。</p></blockquote>
+
+  <h3>8.2 BLSHS 策略</h3>
+
+  <table>
+<thead><tr><th>区间位置</th><th>操作</th><th>订单类型</th></tr></thead>
+<tbody>
+<tr><td>区间下1/3</td><td>做多</td><td>限价单</td></tr>
+<tr><td>区间中间1/3</td><td>什么都不做</td><td>--</td></tr>
+<tr><td>区间上1/3</td><td>做空</td><td>限价单</td></tr>
+</tbody>
+</table>
+
+  <ul>
+
+    <li>只做剥头皮，不做波段</li>
+
+    <li>使用限价单在前期高/低点外侧挂单</li>
+
+  </ul>
+
+  <h3>8.3 真突破 vs 假突破</h3>
+
+  <table>
+<thead><tr><th>真突破特征</th><th>假突破特征</th></tr></thead>
+<tbody>
+<tr><td>连续大实体趋势K线</td><td>突破后紧跟十字星/反向K线</td></tr>
+<tr><td>收盘在极值附近</td><td>长反向影线</td></tr>
+<tr><td>K线间无重叠</td><td>缺口很快被填补</td></tr>
+<tr><td>缺口保持敞开</td><td>差的Follow-Through</td></tr>
+</tbody>
+</table>
+
+  <h3>8.4 Failed Breakout 后反向交易</h3>
+
+  <ol>
+
+    <li>观察突破后的"失望情绪"（差跟随棒 -> 追突破者被迫平仓）</li>
+
+    <li>等待二次入场（微型双顶/底）</li>
+
+    <li>反向开仓</li>
+
+    <li><strong>2nd Leg Traps</strong>：强劲的第二段突破 = 套住散户的陷阱</li>
+
+  </ol>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>Al Brooks 在《Trading Price Action: Ranges》（得分 0.7008）中详细讨论了 tight trading range 中的操作：</p>
+
+  <blockquote><p>"Aggressive traders are buying below the low of the prior bar or shorting above the high of the prior bar, and are scalping out with a small profit."</p></blockquote>
+
+  <p>以及（得分 0.6982）：</p>
+
+  <blockquote><p>"An alternative to trying to get out at breakeven is to hold but use a wide stop beyond the range, but this is a less sound approach mathematically."</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s9">
+
+  <h2><span class="section-num">九</span> 量度目标计算</h2>
+
+  <table>
+<thead><tr><th>目标类型</th><th>计算方法</th></tr></thead>
+<tbody>
+<tr><td>AB=CD</td><td>Leg 1起点到终点的高度，从Leg 2起点等距投射</td></tr>
+<tr><td>Spike & Channel反转</td><td>通道被反向突破后，目标 = 通道起点</td></tr>
+<tr><td>TR突破目标</td><td>区间高度，从突破点等距投射</td></tr>
+<tr><td>测量缺口</td><td>缺口通常在趋势中点，从起点到缺口中点距离 x 2 = 目标</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s10">
+
+  <h2><span class="section-num">十</span> Scalp vs Swing 选择模型</h2>
+
+  <table>
+<thead><tr><th>市场状态</th><th>交易方式</th><th>Reward vs Risk</th><th>胜率</th></tr></thead>
+<tbody>
+<tr><td>强突破/MTR</td><td>Swing</td><td>Reward >= 2x Risk</td><td>约40%</td></tr>
+<tr><td>交易区间/逆势</td><td>Scalp</td><td>Reward < Risk</td><td>60-90%</td></tr>
+<tr><td>宽幅通道</td><td>顺势Swing + 逆势Scalp</td><td>混合盈亏比</td><td>视方向而定</td></tr>
+</tbody>
+</table>
+
+  <h3>量化标准（E-Mini）</h3>
+
+  <table>
+<thead><tr><th>类型</th><th>最小利润</th></tr></thead>
+<tbody>
+<tr><td>Scalp</td><td>1点（4 ticks）</td></tr>
+<tr><td>Swing</td><td>4点或更多</td></tr>
+<tr><td>剥头皮目标</td><td>>= 最近平均K线高度 >= 日均波幅5%-10%</td></tr>
+</tbody>
+</table>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>Al Brooks 在 Qdrant 结果（得分 0.7001）中给出了具体的量化目标：</p>
+
+  <blockquote><p>"Common targets for scalp and swing positions: in the Emini, 5-6 ticks for a 4-tick scalp, and 3 or 4 points for a 2-legged Countertrend move."</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s11">
+
+  <h2><span class="section-num">十一</span> 完整交易决策流程</h2>
+
+  <pre>第1步：看左边（Context）
+  -&gt; 确定支撑/阻力、均线、前期TR和量度目标
+
+第2步：二元决策
+  Q1: 趋势还是交易区间？
+    -&gt; 趋势: Q2: Spike还是Channel？
+      -&gt; Spike: 绝对顺势，可追单，减仓做Swing
+      -&gt; Channel: Q3: Tight还是Broad？
+        -&gt; Tight: 只能顺势
+        -&gt; Broad: 双向交易
+    -&gt; 交易区间: BLSHS（低买高卖，只做Scalp）
+
+第3步：确定Always In Direction
+  &quot;如果被强制持仓，做多还是做空？&quot; -&gt; 只顺这个方向找机会
+
+第4步：寻找入场信号
+  顺势 -&gt; H2/L2、BP、H1(强趋势)
+  逆势 -&gt; MTR、Failed BO、Second Entry
+
+第5步：交易者方程式
+  (胜率 x 回报) &gt; (失败率 x 风险) -&gt; Yes -&gt; 下单
+                                -&gt; No -&gt; 放弃
+
+第6步：仓位管理
+  止损宽 -&gt; 仓位减半
+  单笔风险 &lt;= 账户1%-3%</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s12">
+
+  <h2><span class="section-num">十二</span> 交易者方程式</h2>
+
+  <h3>核心公式</h3>
+
+  <pre>(胜率 x 潜在回报) &gt; (失败率 x 风险)</pre>
+
+  <h3>永恒的权衡</h3>
+
+  <table>
+<thead><tr><th>策略类型</th><th>胜率</th><th>盈亏比</th><th>心理特征</th></tr></thead>
+<tbody>
+<tr><td>高胜率策略</td><td>> 60%</td><td>极差（宽止损/小利润）</td><td>经常赢，但一次大亏就完了</td></tr>
+<tr><td>高盈亏比策略</td><td>约40%</td><td>>= 2:1</td><td>经常亏，但一次大赚全回来</td></tr>
+</tbody>
+</table>
+
+  <h3>40/60法则</h3>
+
+  <blockquote><p>在任何图表上90%的时间里，买入或卖出的胜率都在40%-60%之间。</p></blockquote>
+
+  <h3>Al Brooks 对照</h3>
+
+  <p>Al Brooks 在《Reversals》（得分 0.6956）中确认了这一框架：</p>
+
+  <blockquote><p>"other setup with a positive trader's equation, even if it is not a best trade, including some scalps where the potential reward is less than the risk and the probability is 80 percent, and swing setups where the potential reward is much larger than the risk but the probability is only about 40 percent."</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s13">
+
+  <h2><span class="section-num">十三</span> 学习阶段路径</h2>
+
+  <h3>13.1 新手期</h3>
+
+  <table>
+<thead><tr><th>允许做</th><th>禁止做</th></tr></thead>
+<tbody>
+<tr><td>只用Stop Order顺势入场</td><td>Limit Order</td></tr>
+<tr><td>只做Swing（>= 2:1盈亏比）</td><td>Scalp</td></tr>
+<tr><td>等Second Entry</td><td>追第一次信号</td></tr>
+<tr><td>单次入场 + 结构止损</td><td>加仓/分批建仓</td></tr>
+<tr><td>用"不在乎大小"的仓位</td><td>紧密交易区间中操作</td></tr>
+</tbody>
+</table>
+
+  <h3>13.2 成熟期</h3>
+
+  <table>
+<thead><tr><th>新增能力</th></tr></thead>
+<tbody>
+<tr><td>引入Limit Order（BLSHS）</td></tr>
+<tr><td>宽止损 + 分批建仓（仓位20%）</td></tr>
+<tr><td>市价单追极强动能</td></tr>
+</tbody>
+</table>
+
+  <h3>13.3 验证成功的标准</h3>
+
+  <ul>
+
+    <li>[ ] 能在任何新图表上5秒内判断市场状态（Spike/Channel/TR）</li>
+
+    <li>[ ] 能说出Always In方向并给出K线证据</li>
+
+    <li>[ ] 不会在交易区间中追突破</li>
+
+    <li>[ ] 每一笔交易都能通过交易者方程式检验</li>
+
+    <li>[ ] 被打止损时毫无情绪波动</li>
+
+    <li>[ ] 从不在脑中设止损，每次都有硬止损</li>
+
+  </ul>
+
+<hr>
+
+</div>
+
+<div class="section" id="s14">
+
+  <h2><span class="section-num">十四</span> 知识坍缩诊断（错误学习判断）</h2>
+
+  <table>
+<thead><tr><th>坍缩类型</th><th>症状</th><th>根因</th></tr></thead>
+<tbody>
+<tr><td>上层丢失（共象层缺失）</td><td>"我只会做双底买入"、"这个图看不懂"、"我知道理论但做不到"</td><td>只记住具体形态，没建构通用判别规则</td></tr>
+<tr><td>下层丢失（对象层缺失）</td><td>"H2就是第二次回调买入"但看不出哪根是H2</td><td>有概念无对象识别能力</td></tr>
+<tr><td>记言代学</td><td>能背"80%突破失败"但看到强突破仍追入</td><td>知识未内化为决策能力</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s15">
+
+  <h2><span class="section-num">十五</span> 常见错误清单</h2>
+
+  <table>
+<thead><tr><th>错误</th><th>表现</th><th>纠正</th></tr></thead>
+<tbody>
+<tr><td>只关注风险，无视胜率和回报</td><td>逆势抄底摸顶（止损小但胜率极低）</td><td>用交易者方程式检验每一笔</td></tr>
+<tr><td>截断利润，让亏损奔跑</td><td>盈利时秒平，亏损时撤止损</td><td>硬止损 + 波段持仓纪律</td></tr>
+<tr><td>臭鼬止损</td><td>止损设太紧（仅信号棒下方）</td><td>放在主要结构点</td></tr>
+<tr><td>盲目加仓</td><td>模仿机构分批建仓但资金不够</td><td>新手只单次入场</td></tr>
+<tr><td>沉迷完美形态</td><td>追求高胜率+高回报+低风险</td><td>接受权衡，执行方程式</td></tr>
+<tr><td>拟人化市场</td><td>"市场针对我"、"它会回来的"</td><td>市场是算法，无情感</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s16">
+
+  <h2><span class="section-num">十六</span> 回溯机制（学习失败时的诊断路径）</h2>
+
+  <pre>判断错误
+  -&gt; 你是否正确识别了市场状态？（对象层）
+    -&gt; 否: 重新搜集该状态的更多具体样例
+    -&gt; 是: 你是否正确应用了规则？（共象层）
+      -&gt; 否: 重新搜集该规则的更多具体样例
+      -&gt; 是: 你的决策树走对了吗？（联结层）
+        -&gt; 否: 重新练习决策流程
+        -&gt; 是: 这是&quot;市场风险&quot;（好交易也会亏），接受它</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s17">
+
+  <h2><span class="section-num">十七</span> 核心术语速查</h2>
+
+  <table>
+<thead><tr><th>术语</th><th>英文</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>始终在场方向</td><td>Always In Direction</td><td>被强制持仓时的最优方向</td></tr>
+<tr><td>信号棒</td><td>Signal Bar</td><td>入场前的信号K线</td></tr>
+<tr><td>入场棒</td><td>Entry Bar</td><td>订单被触发的那根K线</td></tr>
+<tr><td>跟随棒</td><td>Follow-Through Bar</td><td>入场后的确认K线</td></tr>
+<tr><td>第二次回调突破</td><td>H2/L2</td><td>趋势中第二次回调突破 = 最高概率入场</td></tr>
+<tr><td>主要趋势反转</td><td>MTR</td><td>胜率40%，盈亏比>=2:1</td></tr>
+<tr><td>低买高卖剥头皮</td><td>BLSHS</td><td>Buy Low, Sell High, Scalp</td></tr>
+<tr><td>量度目标</td><td>Measured Move</td><td>AB=CD等距目标投射</td></tr>
+<tr><td>80%规则</td><td>80% Rule</td><td>交易区间中80%突破失败</td></tr>
+<tr><td>交易者方程式</td><td>Trader's Equation</td><td>(P x R) > ((1-P) x Risk)</td></tr>
+<tr><td>十根两腿</td><td>TBTL</td><td>Ten Bars Two Legs（MTR最低目标）</td></tr>
+<tr><td>分批建仓</td><td>Scaling In</td><td>仅限专业交易者</td></tr>
+<tr><td>缺口K线</td><td>Gap Bar</td><td>均线缺口/微型缺口/测量缺口</td></tr>
+<tr><td>突破回踩</td><td>Breakout Pullback</td><td>突破后回踩测试</td></tr>
+<tr><td>假突破</td><td>Failed Breakout</td><td>突破失败 -> 反向交易机会</td></tr>
+<tr><td>第二段陷阱</td><td>2nd Leg Trap</td><td>诱使散户追涨杀跌</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s18">
+
+  <h2><span class="section-num">18</span> Al Brooks 知识库交叉对照总结</h2>
+
+  <p>通过对 Qdrant 向量数据库 "price-action" 集合的检索，本文的核心概念在 Al Brooks 的原著中均有系统的对应：</p>
+
+  <table>
+<thead><tr><th>本文概念</th><th>Al Brooks 对应内容</th><th>吻合度</th></tr></thead>
+<tbody>
+<tr><td>三种市场状态 (Spike/Channel/TR)</td><td>Reading Price Charts Bar by Bar 第三章 "Trends" + "Tight Channels and Spike and Channel"</td><td>极高</td></tr>
+<tr><td>Always In Direction</td><td>Signs of Strength / Trend from the Open / Reversal Day</td><td>高</td></tr>
+<tr><td>H2/L2 入场</td><td>Second Entry / Low 2 / High 2（价格行为三部曲核心概念）</td><td>极高</td></tr>
+<tr><td>信号棒质量</td><td>Strong Bull/Bear Reversal Bar Characteristics（区间篇附录）</td><td>极高</td></tr>
+<tr><td>MTR 反转模型</td><td>Trading Price Action: Reversals 全书</td><td>极高</td></tr>
+<tr><td>交易区间 80% 规则</td><td>Trading Price Action: Ranges 中 breakouts 失败率的系统讨论</td><td>高</td></tr>
+<tr><td>交易者方程式</td><td>Trader's Equation -- Al Brooks 贯穿全书的核心理念</td><td>极高</td></tr>
+<tr><td>Scalp vs Swing</td><td>Common targets for scalp and swing positions（Bar by Bar）</td><td>高</td></tr>
+<tr><td>Breakout Pullback</td><td>Breakout Test / Entry price（Bar by Bar）</td><td>高</td></tr>
+<tr><td>Measured Move</td><td>AB=CD / Measured Move targets（Trends & Ranges）</td><td>高</td></tr>
+</tbody>
+</table>
+
+  <p><strong>结论</strong>：本文是对 Al Brooks 价格行为交易体系的<strong>中文化结构化重述与教学分层</strong>，作者 victorjia 将 Brooks 分散在三部曲和 Bar by Bar 中的概念按认知层级重新组织，形成了一套从"对象识别"到"规则抽象"再到"决策树"的完整学习框架。文章的核心创新在于<strong>学习层级模型</strong>（对象-共象-联结-验证-回溯），这是对 Brooks 原著教学方法的系统化提炼，而非简单的翻译或总结。</p>
+
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格行为学交易手册分析：Regime §1.1a -- TR 第一性原理</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>价格行为学交易手册分析：Regime §1.1a -- TR 第一性原理</h1>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">TR 第一性原理</a></li>
+    <li><a href="#s2">80% 突破失败的机制：Buy Vacuum</a></li>
+    <li><a href="#s3">限价单 vs 止损单：数学推导</a></li>
+    <li><a href="#s4">TR 中止损单可接受的严格条件</a></li>
+    <li><a href="#s5">跨时间框架视角</a></li>
+    <li><a href="#s6">Regime §1.1a 系列总结</a></li>
+    <li><a href="#s7">关键洞察</a></li>
+  </ol>
+</div>
+
+<blockquote><p></p></blockquote>
+
+  <blockquote><p>来源：[价格行为学交易手册（专题）：Regime §1.1a (7)](https://mp.weixin.qq.com/s?__biz=Mzg3OTgwODE5NQ==&mid=2247486790&idx=1&sn=d15d715e22e05c60c5822f82a4be24d2) × Qdrant <code>price-action</code> 向量库（Al Brooks 原著）</p></blockquote>
+
+  <blockquote><p>日期：2026年4月 | 作者：victorjia</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> TR 第一性原理</h2>
+
+  <blockquote><p>"All trading ranges are just pullbacks on higher time frame charts." -- Al Brooks</p></blockquote>
+
+  <h3>TR 的两个结构铁律</h3>
+
+  <table>
+<thead><tr><th>铁律</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>所有 TR = 更高 TF 的回调</strong></td><td>5 分钟图上混乱的 TR，在 60 分钟图上通常只是一个简单的旗形</td></tr>
+<tr><td><strong>所有通道 = 倾斜的 TR</strong></td><td>上升通道是多头微弱主导的斜向 TR，下降通道是空头主导的斜向 TR</td></tr>
+</tbody>
+</table>
+
+  <h3>TR 的方向属性</h3>
+
+  <p>TR 本质上是<strong>延续形态</strong>（continuation pattern），最终以之前趋势方向突破告终（80% 情况）。</p>
+
+<hr>
+
+</div>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 80% 突破失败的机制：Buy Vacuum</h2>
+
+  <h3>突破成功率偏离 80% 失败规律的条件</h3>
+
+  <table>
+<thead><tr><th>条件</th><th>成功率</th></tr></thead>
+<tbody>
+<tr><td>强势 Spike（2 根以上连续强趋势 K，大实体，极小重叠）</td><td><strong>60%-70%</strong></td></tr>
+<tr><td>强势趋势后形成的 TTR 突破（延续方向）</td><td><strong>51%-55%</strong></td></tr>
+<tr><td>成交量为近期均值 10-20 倍的突破</td><td><strong>显著提升</strong></td></tr>
+</tbody>
+</table>
+
+  <h3>Buy Vacuum 的精确机制</h3>
+
+  <table>
+<thead><tr><th>步骤</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>多头在 TR 顶部停止买入（获利了结），机构空头将 TR 顶部视为「昂贵的好价值」积极卖空</td></tr>
+<tr><td>2</td><td>冲至 TR 顶部的动能只是空头暂时退场等待更好价位形成的「真空」</td></tr>
+<tr><td>3</td><td>一旦触及阻力，多空双方同时卖出</td></tr>
+<tr><td>4</td><td>价格被「磁力」拉回 TR 中间公允价值区</td></tr>
+</tbody>
+</table>
+
+  <blockquote><p>Buy Vacuum = 顶部不是买盘推动的，而是卖盘暂时撤退形成的真空。真空被刺破后，多空同时卖出，价格必然回落。</p></blockquote>
+
+<hr>
+
+</div>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 限价单 vs 止损单：数学推导</h2>
+
+  <h3>根本区别</h3>
+
+  <table>
+<thead><tr><th>维度</th><th>止损单</th><th>限价单</th></tr></thead>
+<tbody>
+<tr><td><strong>入场机制</strong></td><td>高买低卖（押注突破成功）</td><td>逆短期动能入场</td></tr>
+<tr><td><strong>TR 中胜率</strong></td><td>20%（80% 突破失败）</td><td>高于 50%（Fade 机制）</td></tr>
+<tr><td><strong>数学逻辑</strong></td><td>在 80% 失败率的市场中押注 20% 事件</td><td>在 80% 失败率的市场中押注失败</td></tr>
+<tr><td><strong>适用环境</strong></td><td>趋势（突破延续概率高）</td><td>TR（突破失败概率高）</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> TR 中止损单可接受的严格条件</h2>
+
+  <p><strong>仅以下 4 种情况可以在 TR 中使用止损单：</strong></p>
+
+  <table>
+<thead><tr><th>条件</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>1. TR 极端处的二次入场</strong></td><td>类双顶/双底，市场已明确转向</td></tr>
+<tr><td><strong>2. 强势趋势中的小旗形</strong></td><td>强空头 Spike 后 4 根 K 暂停</td></tr>
+<tr><td><strong>3. 突破回调（BOP）</strong></td><td>等突破发生后的回调，趋势恢复时入场</td></tr>
+<tr><td><strong>4. TR 顶部明确下行 or 底部明确上行</strong></td><td>方向已明确确立时才用止损单</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 跨时间框架视角</h2>
+
+  <h3>核心洞察</h3>
+
+  <p>5 分钟图上的混乱 TR → 60 分钟图上的简单旗形。</p>
+
+  <p>这意味着：</p>
+
+  <ul>
+
+    <li>你在低 TF 看到的"无方向"，在高 TF 上可能是明确的趋势回调</li>
+
+    <li>低 TF 的交易机会 = 高 TF 的趋势延续入场</li>
+
+    <li>如果低 TF 的 TR 让你困惑，升一个 TF 看大结构</li>
+
+  </ul>
+
+  <h3>操作推论</h3>
+
+  <table>
+<thead><tr><th>TF 视角</th><th>操作含义</th></tr></thead>
+<tbody>
+<tr><td><strong>低 TF 看 TR</strong></td><td>限价单 Fade，双向 scalp</td></tr>
+<tr><td><strong>高 TF 看回调</strong></td><td>顺势入场机会，等 TR 向趋势方向突破</td></tr>
+<tr><td><strong>两者结合</strong></td><td>在低 TF 的 TR 中使用限价单 Fade，但在 TR 边界注意高 TF 突破机会</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+</div>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> Regime §1.1a 系列总结</h2>
+
+  <h3>完整知识框架</h3>
+
+  <table>
+<thead><tr><th>章节</th><th>主题</th><th>核心贡献</th></tr></thead>
+<tbody>
+<tr><td>[§1.1a (1)](./Regime-§1.1a-1.md)</td><td>趋势内部阶段总论</td><td>三层定义 + Spike 第一性原理 + Bar-by-bar 核心问题</td></tr>
+<tr><td>[§1.1a (2)](./Regime-§1.1a-2.md)</td><td>Spike 与 Channel 阶段</td><td>阶段识别标准 + 下单方式切换 + 三种通道类型</td></tr>
+<tr><td>[§1.1a (3)](./Regime-§1.1a-3.md)</td><td>Channel → TR 过渡</td><td>20 根 K 标准 + SPT 定义与识别</td></tr>
+<tr><td>[§1.1a (4)](./Regime-§1.1a-4.md)</td><td>SPT 精确规则</td><td>EMA 时间窗口 + 生命周期 + 趋势终止量化标准</td></tr>
+<tr><td>[§1.1a (5)](./Regime-§1.1a-5.md)</td><td>通道类型与交易规则</td><td>四种通道操作 + 突破"两腿下跌" + 趋势末端信号</td></tr>
+<tr><td>[§1.1a (6)](./Regime-§1.1a-6.md)</td><td>Barb Wire 精确规则</td><td>TTR/Barb Wire 识别 + EMA 远近规则 + 概率数据</td></tr>
+<tr><td>[§1.1a (7)](./Regime-§1.1a-7.md) (本篇)</td><td>TR 第一性原理</td><td>Buy Vacuum 机制 + 限价单数学 + 止损单四条件</td></tr>
+</tbody>
+</table>
+
+  <h3>从 §1.1 到 §1.1a (7) 的完整决策链</h3>
+
+  <pre>§1.1: 这是什么世界？（趋势 / TR / 弱趋势）
+  ↓
+§1.1a (1): 趋势的本质是什么？（三层定义 + Bar-by-bar 问题）
+  ↓
+§1.1a (2): 趋势在哪个阶段？（Spike → 市价追 / Channel → 等回调）
+  ↓
+§1.1a (3): Channel 何时转 TR？（20 根 K + 小回调趋势特征）
+  ↓
+§1.1a (4): SPT 怎么精确操作？（时间窗口 + 止损管理 + 终止信号）
+  ↓
+§1.1a (5): 不同通道怎么交易？（四种通道操作 + 突破后走势）
+  ↓
+§1.1a (6): Barb Wire 怎么处理？（识别 + Fade + 概率 + EMA 远近）
+  ↓
+§1.1a (7): TR 的根本原理？（Buy Vacuum + 限价单数学 + 跨 TF 视角）</pre>
+
+<hr>
+
+</div>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 关键洞察</h2>
+
+  <h3>本文核心价值</h3>
+
+  <ol>
+
+    <li><strong>"所有 TR 都是更高 TF 的回调"</strong> 是 TR 理论的基石——它统一了 TR 和趋势的关系</li>
+
+    <li><strong>"所有通道 = 倾斜的 TR"</strong> 将通道的独立概念消解为 TR 的子类，极大的简化了认知框架</li>
+
+    <li><strong>Buy Vacuum 机制</strong>解释了 TR 突破失败率达 80% 的根本原因——不是"概率"，而是可精确描述的买卖双方行为</li>
+
+    <li><strong>限价单 vs 止损单的数学</strong>给出了两个下单类型的概率论基础</li>
+
+    <li><strong>TR 中止损单四条件</strong>将"TR 中不要用止损单"的笼统规则细化为可操作条件</li>
+
+  </ol>
+
+  <h3>常见陷阱</h3>
+
+  <table>
+<thead><tr><th>陷阱</th><th>表现</th><th>对策</th></tr></thead>
+<tbody>
+<tr><td>TR 中追突破</td><td>在 80% 失败率的市场押注突破</td><td>TR 中默认用限价单 Fade</td></tr>
+<tr><td>低 TF 困惑</td><td>在 5m TR 中失去方向</td><td>升 TF 看大结构</td></tr>
+<tr><td>忽略成交量</td><td>正常成交量的突破按 80% 失败处理</td><td>10-20 倍成交量突破 = 成功率提升</td></tr>
+<tr><td>TR 中止损单滥用</td><td>不满足四条件就用止损单</td><td>仅四条件可接受</td></tr>
+</tbody>
+</table>
+
+</div>
+
+</div>
+</body>
+</html>
