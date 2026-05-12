@@ -70,3 +70,12 @@ def test_force_close_at_price():
     assert fill.action == "close"
     assert fill.price == pytest.approx(2994.0)   # 卖出 -1 跳
     assert fill.reason == "eod"
+
+
+def test_force_close_clears_pending():
+    """force_close 必须清空任何待成交订单，避免爆仓/日末强平后下一根 K 还冒出幽灵成交。"""
+    b = Broker(tick_size=1.0, slippage_ticks=1, fee_per_lot=3.0)
+    b.submit(Order(action="open_long", qty=1, reason="stale"))
+    b.force_close(time="tN", qty=1, side="long", price=2995.0, reason="liquidate")
+    # 下一根 K 到来时不应再成交原来的 open_long
+    assert b.execute_on_open(_bar(time="t+1", o=3000.0)) is None

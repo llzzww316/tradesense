@@ -54,6 +54,8 @@ class Broker:
     def force_close(self, time: str, qty: int, side: Side, price: float,
                     reason: str = "") -> Fill:
         exec_price = self._slip(price, "close", side)
+        self._pending = None
+        self._pending_close_side = None
         return Fill(
             time=time, action="close", qty=qty,
             price=exec_price, fee=self.fee_per_lot * qty, reason=reason,
