@@ -112,6 +112,34 @@ MCP 是 **stdio 模式**，直接调用 `kline_service` 读取本机通达信 VI
 - 日线：`1d`。
 - 未实现的周期（如前端的 `4h`）不要写进后端能力说明。
 
+## 回测模块（`backtest/`）
+
+事件驱动回测，Python on_bar 策略接入：
+
+- `backtest/models.py` — 数据类（Bar/Order/Fill/Trade/Position/BacktestConfig/BacktestResult/EquityPoint）
+- `backtest/account.py` — Account（权益 = 初始 + 已实现 - 手续费 + 浮盈；available = 权益 - 占用保证金；available<0 即爆仓）
+- `backtest/broker.py` — 按"下一根 K 开盘 ± 滑点"成交；日末 / 爆仓用 `force_close`
+- `backtest/context.py` — `on_bar(bar, ctx)` 的上下文：`ctx.closes / ctx.position_side / ctx.buy() / ctx.sell() / ctx.close() / ctx.state`
+- `backtest/registry.py` — `@register_strategy("name")` 全局注册
+- `backtest/strategies/` — 内置策略（double_ma 示范）
+- `backtest/engine.py` — 串联 account+broker+strategy 的事件循环，含日内强平与爆仓处理
+- `backtest/metrics.py` — 年化 / 最大回撤 / Sharpe / Calmar / 胜率 / 盈亏比 / 连胜连败 / 平均持仓
+- `backtest/api.py` — `GET /api/backtest/strategies` / `POST /api/backtest/run`
+
+### 关键规则
+- 信号在 K(t) 收盘产生 → K(t+1) 开盘 ± slippage 成交（避免 look-ahead）
+- 滑点按"跳"配置：`slippage_ticks * tick_size`；开多/平空 +N 跳，开空/平多 -N 跳
+- 手续费：`fee_per_lot * qty`，开平各收一次
+- 保证金：`price * qty * tick_value * margin_rate / tick_size`，开仓时占用
+- 不支持反手 / 加仓 / 部分平仓（第一期简化）
+- `intraday_only=True` → 每日最后一根 K 收盘后自动反向单，次日第一根开盘或当日 close 强平
+- 爆仓：available<0 当根即触发，下一根开盘或当前 close 强平，结果 `liquidated=True`
+
+### symbols.json 新增字段
+- `tick_size` — 每跳价格（元/单位）
+- `margin_rate` — 保证金比例
+- `fee_per_lot` — 每手每次手续费
+
 ## 依赖
 
 `requirements.txt`：`fastapi`、`uvicorn`、`pandas`、`tdxpy`、`mcp`。MCP 不再需要 `httpx`（已内嵌调用）。
