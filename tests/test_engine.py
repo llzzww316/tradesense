@@ -118,3 +118,34 @@ def test_intraday_force_close_at_day_end():
     assert any(f.action == "close" and "eod" in f.reason for f in result.fills)
     # 最终不持仓
     assert result.metrics["final_position"] == "flat"
+
+
+def test_intraday_equity_point_uses_close_not_post_flatten():
+    """日末强平时，当根的 EquityPoint.equity 应等于 close 价下的浮盈权益，
+    而不是已经扣完手续费、退完保证金的 flatten 后权益。"""
+    import pandas as pd
+
+    @register_strategy("hold_long3")
+    def strat(bar, ctx, **kw):
+        if len(ctx.history) == 1 and ctx.position_side is None:
+            ctx.buy(1, reason="open")
+
+    # 一天两根：open=3000, close=3005（第二根）
+    # 开仓在第 2 根 open=3000（第 1 根信号，第 2 根成交），fee=3
+    # 第 2 根是当日最后一根：close=3005，浮盈 = 5*10 = 50
+    # 预期 equity_curve[-1].equity = 100000 - 3 + 50 = 100047
+    # 错误顺序会得到 flatten 后的 equity = 100000 + 50 - 6 = 100044
+    rows = [
+        {"bob": pd.Timestamp("2025-10-01 09:00:00"), "open": 3000.0, "high": 3001.0,
+         "low": 2999.0, "close": 3000.0, "volume": 100},
+        {"bob": pd.Timestamp("2025-10-01 14:00:00"), "open": 3000.0, "high": 3006.0,
+         "low": 2999.0, "close": 3005.0, "volume": 100},
+    ]
+    df = pd.DataFrame(rows)
+    result = BacktestEngine(
+        _cfg(strategy="hold_long3", intraday_only=True), df
+    ).run()
+
+    assert result.equity_curve[-1].equity == pytest.approx(100047.0)
+    # force close 事件存在且有 eod 原因
+    assert any(f.action == "close" and "eod" in f.reason for f in result.fills)

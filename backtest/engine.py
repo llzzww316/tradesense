@@ -111,7 +111,15 @@ class BacktestEngine:
                     if self.account.position is not None:
                         self.broker.submit(order, close_side=self.account.position.side)
 
-            # --- 日末强平（仅 intraday_only） ---
+            # --- 收盘结算 + 权益点（以 close 价做 mark-to-market） ---
+            self.account.update_on_close(bar.close)
+            peak_equity = max(peak_equity, self.account.equity)
+            dd = self.account.equity - peak_equity   # ≤ 0
+            equity_curve.append(EquityPoint(time=bar.time, equity=self.account.equity, drawdown=dd))
+
+            # --- 日末强平（仅 intraday_only）---
+            # 注意：必须放在上面的权益点记录之后，这样当根 EquityPoint.equity
+            # 反映的是 close 价下的浮盈权益，而不是 flatten 后的现金。
             if self.config.intraday_only:
                 cur_date = bar.time.split(" ")[0]
                 is_last_of_day = (i == len(bars) - 1) or (
@@ -129,12 +137,6 @@ class BacktestEngine:
                         trades.append(_close_fill_to_trade(force, open_ctx))
                         open_ctx = None
                     self.ctx._set_position(None, 0)
-
-            # --- 收盘结算 + 权益点 ---
-            self.account.update_on_close(bar.close)
-            peak_equity = max(peak_equity, self.account.equity)
-            dd = self.account.equity - peak_equity   # ≤ 0
-            equity_curve.append(EquityPoint(time=bar.time, equity=self.account.equity, drawdown=dd))
 
             # --- 爆仓 → 下一根开盘强平，随后停止新开仓 ---
             if self.account.is_liquidated() and liquidated_at is None:
