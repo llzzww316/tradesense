@@ -74,6 +74,9 @@ def compute_metrics(
     else:
         if len(equity_curve) <= 1:
             annual = total_return
+        elif 1 + total_return <= 0:
+            # 权益已归零/转负（爆仓），复利年化无定义，退化为线性回报
+            annual = total_return
         else:
             years = len(equity_curve) / bars_per_year
             annual = ((1 + total_return) ** (1 / years)) - 1 if years > 0 else total_return
