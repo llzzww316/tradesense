@@ -93,3 +93,22 @@ def test_reject_reverse_before_close():
     a.apply_fill(Fill(time="t1", action="open_long", qty=1, price=3000.0, fee=3.0))
     with pytest.raises(ValueError):
         a.apply_fill(Fill(time="t2", action="open_short", qty=1, price=3000.0, fee=3.0))
+
+
+def test_rejected_open_does_not_charge_fee():
+    """被拒绝的开仓不应累计手续费。"""
+    a = _mk_account()
+    a.apply_fill(Fill(time="t1", action="open_long", qty=1, price=3000.0, fee=3.0))
+    before = a.total_fee
+    with pytest.raises(ValueError):
+        a.apply_fill(Fill(time="t2", action="open_short", qty=1, price=3000.0, fee=3.0))
+    assert a.total_fee == before  # 仍是 3.0，不应因被拒绝的反手多扣一次
+
+
+def test_rejected_partial_close_does_not_charge_fee():
+    a = _mk_account()
+    a.apply_fill(Fill(time="t1", action="open_long", qty=2, price=3000.0, fee=6.0))
+    before = a.total_fee
+    with pytest.raises(ValueError):
+        a.apply_fill(Fill(time="t2", action="close", qty=1, price=3005.0, fee=3.0))
+    assert a.total_fee == before

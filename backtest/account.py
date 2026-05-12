@@ -18,7 +18,6 @@ class Account:
         self.realized_pnl: float = 0.0
         self.total_fee: float = 0.0
         self.unrealized_pnl: float = 0.0
-        self._last_close: Optional[float] = None
 
     @property
     def equity(self) -> float:
@@ -36,8 +35,6 @@ class Account:
         return ticks * self.tick_value * qty * sign
 
     def apply_fill(self, fill: Fill) -> None:
-        self.total_fee += fill.fee
-
         if fill.action in ("open_long", "open_short"):
             if self.position is not None:
                 raise ValueError("持仓中，不支持反手 / 加仓；请先平仓")
@@ -47,6 +44,7 @@ class Account:
                 side=side, qty=fill.qty, avg_price=fill.price,
                 opened_time=fill.time, margin=margin,
             )
+            self.total_fee += fill.fee
             return
 
         if fill.action == "close":
@@ -63,12 +61,12 @@ class Account:
             self.realized_pnl += pnl
             self.position = None
             self.unrealized_pnl = 0.0
+            self.total_fee += fill.fee
             return
 
         raise ValueError(f"未知 fill.action: {fill.action}")
 
     def update_on_close(self, close_price: float) -> None:
-        self._last_close = close_price
         if self.position is None:
             self.unrealized_pnl = 0.0
             return
