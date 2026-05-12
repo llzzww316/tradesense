@@ -38,15 +38,20 @@ let lastResult = null;
 
 // ---- 初始化品种 + 策略下拉 ----
 async function initLists() {
-    const [symResp, stratResp] = await Promise.all([
-        fetch(`${API_BASE}/symbols`).then(r => r.json()),
-        fetch(`${API_BASE}/backtest/strategies`).then(r => r.json()),
-    ]);
-    for (const name of Object.keys(symResp.symbols || {})) {
-        refs.symbol.appendChild(new Option(name, name));
-    }
-    for (const s of stratResp.strategies || []) {
-        refs.strategy.appendChild(new Option(s, s));
+    try {
+        const [symResp, stratResp] = await Promise.all([
+            fetch(`${API_BASE}/symbols`).then(r => r.ok ? r.json() : Promise.reject(new Error(`GET /symbols HTTP ${r.status}`))),
+            fetch(`${API_BASE}/backtest/strategies`).then(r => r.ok ? r.json() : Promise.reject(new Error(`GET /backtest/strategies HTTP ${r.status}`))),
+        ]);
+        for (const name of Object.keys(symResp.symbols || {})) {
+            refs.symbol.appendChild(new Option(name, name));
+        }
+        for (const s of stratResp.strategies || []) {
+            refs.strategy.appendChild(new Option(s, s));
+        }
+    } catch (e) {
+        refs.status.textContent = "加载品种/策略列表失败: " + e.message;
+        refs.status.classList.remove("hidden");
     }
 }
 
@@ -167,7 +172,7 @@ function render(data) {
 function renderMetrics(m, data) {
     const pct = v => (v == null ? "-" : (v * 100).toFixed(2) + "%");
     const num = v => (v == null ? "-" : Number(v).toFixed(2));
-    const warn = data.liquidated ? `<div class="alert-warn">⚠ 回测中途爆仓，触发时间：${data.liquidated_at}</div>` : "";
+    const warn = data.liquidated ? `<div class="alert-warn">⚠ 回测中途爆仓，触发时间：${escape(data.liquidated_at)}</div>` : "";
     return `
         ${warn}
         <div class="metrics-grid">
