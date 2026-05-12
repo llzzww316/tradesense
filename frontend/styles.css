@@ -269,3 +269,23 @@ button:disabled {
     min-width: 200px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
+
+/* ---- 回测页 ---- */
+.nav-link { color: #1976d2; text-decoration: none; margin-right: 12px; }
+.nav-link:hover { text-decoration: underline; }
+
+.bt-metrics { padding: 12px 16px; border-top: 1px solid #eee; }
+.bt-metrics .muted { color: #888; }
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px 16px;
+}
+.metrics-grid > div { display: flex; flex-direction: column; }
+.metrics-grid label { font-size: 12px; color: #888; }
+.metrics-grid b { font-size: 15px; color: #222; }
+.alert-warn { background: #fff3cd; color: #8a6d00; padding: 6px 10px; margin-bottom: 10px; border-radius: 4px; }
+td.long { color: #ef5350; }
+td.short { color: #26a69a; }
+td.pnl-win { color: #2e7d32; font-weight: 600; }
+td.pnl-loss { color: #c62828; font-weight: 600; }

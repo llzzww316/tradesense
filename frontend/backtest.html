@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeSense - 回测</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">TradeSense · 回测</div>
+        <div class="controls">
+            <a class="nav-link" href="/">← 回到回放</a>
+            <select id="bt-symbol"></select>
+            <select id="bt-period">
+                <option value="5m" selected>5分钟</option>
+                <option value="15m">15分钟</option>
+                <option value="60m">60分钟</option>
+                <option value="1d">日线</option>
+            </select>
+            <label>开始<input type="date" id="bt-start" class="date-input"></label>
+            <label>结束<input type="date" id="bt-end" class="date-input"></label>
+            <select id="bt-strategy"></select>
+            <input id="bt-params" placeholder='{"fast":5,"slow":20}' value='{"fast":5,"slow":20}' style="width:240px">
+            <input id="bt-capital" type="number" value="100000" min="1000" step="1000" title="初始资金">
+            <input id="bt-slippage" type="number" value="1" min="0" step="1" title="滑点（跳）">
+            <input id="bt-tick-size" type="number" step="0.1" title="每跳价格（元）留空=默认">
+            <input id="bt-tick-value" type="number" step="1" title="每跳价值（元/手）留空=默认">
+            <input id="bt-fee" type="number" step="0.1" title="每手每次手续费 留空=默认">
+            <input id="bt-margin" type="number" step="0.01" min="0" max="1" title="保证金率 留空=默认">
+            <label><input id="bt-intraday" type="checkbox"> 日内</label>
+            <button id="bt-run" class="primary">运行回测</button>
+        </div>
+    </div>
+    <div class="chart-container">
+        <div id="bt-chart"></div>
+        <div id="bt-equity-chart" style="height:160px;margin-top:8px"></div>
+        <div class="status hidden" id="bt-status"></div>
+    </div>
+    <div class="bt-metrics" id="bt-metrics">
+        <div class="muted">请先运行回测</div>
+    </div>
+    <div class="trade-log">
+        <div class="trade-log-toolbar">
+            <span class="trade-log-title">交易明细</span>
+            <button type="button" id="bt-export">导出 CSV</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>开仓时间</th><th>平仓时间</th><th>方向</th><th>手数</th>
+                    <th>开仓价</th><th>平仓价</th><th>持仓K数</th>
+                    <th>毛盈亏</th><th>手续费</th><th>净盈亏</th>
+                    <th>开仓理由</th><th>平仓理由</th>
+                </tr>
+            </thead>
+            <tbody id="bt-trade-body">
+                <tr><td colspan="12" class="muted">暂无交易</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="backtest.js" defer></script>
+</body>
+</html>
