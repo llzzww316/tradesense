@@ -129,6 +129,9 @@ async def get_replay_data(
 
 app.include_router(api_router)
 
+from backtest.api import router as backtest_router
+app.include_router(backtest_router)
+
 
 def _serve_frontend() -> None:
     """把 frontend/ 挂到根路径。/api/* 由 api_router 拦截，StaticFiles 只接管其余请求。"""

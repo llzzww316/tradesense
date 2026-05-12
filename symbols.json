@@ -5,6 +5,9 @@
       "mootdx_market": 30,
       "mootdx_code": "RB2610",
       "tick_value": 10,
+      "tick_size": 1,
+      "margin_rate": 0.10,
+      "fee_per_lot": 3,
       "exchange": "上期所"
     },
     "热卷": {
@@ -12,6 +15,9 @@
       "mootdx_market": 30,
       "mootdx_code": "HC2610",
       "tick_value": 10,
+      "tick_size": 1,
+      "margin_rate": 0.10,
+      "fee_per_lot": 3,
       "exchange": "上期所"
     },
     "PVC": {
@@ -19,6 +25,9 @@
       "mootdx_market": 29,
       "mootdx_code": "V2609",
       "tick_value": 5,
+      "tick_size": 1,
+      "margin_rate": 0.09,
+      "fee_per_lot": 2,
       "exchange": "大商所"
     },
     "纯碱": {
@@ -26,9 +35,12 @@
       "mootdx_market": 28,
       "mootdx_code": "SA2510",
       "tick_value": 20,
+      "tick_size": 1,
+      "margin_rate": 0.12,
+      "fee_per_lot": 3.5,
       "exchange": "郑商所"
     }
   },
-  "updated_at": "2026-04-27",
-  "note": "主力合约换月时修改此文件，然后重启后端服务"
+  "updated_at": "2026-05-12",
+  "note": "主力合约换月时修改此文件，tick_size/margin_rate/fee_per_lot 为回测默认值"
 }
