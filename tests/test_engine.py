@@ -149,3 +149,26 @@ def test_intraday_equity_point_uses_close_not_post_flatten():
     assert result.equity_curve[-1].equity == pytest.approx(100047.0)
     # force close 事件存在且有 eod 原因
     assert any(f.action == "close" and "eod" in f.reason for f in result.fills)
+
+
+def test_equity_curve_extends_flat_after_liquidation():
+    """爆仓后权益曲线必须覆盖所有 bar，不能提前截断。"""
+    import pandas as pd
+
+    @register_strategy("hold_long4")
+    def strat(bar, ctx, **kw):
+        if len(ctx.history) == 1 and ctx.position_side is None:
+            ctx.buy(1, reason="all in")
+
+    # 长序列：暴跌后再跑几根，确认曲线延伸
+    closes = [3000, 3000, 3000, 2000, 1900, 1800, 1700]
+    df = _make_df(closes)
+    result = BacktestEngine(
+        _cfg(strategy="hold_long4", initial_capital=4000.0), df
+    ).run()
+
+    assert result.liquidated is True
+    assert len(result.equity_curve) == len(df)   # 每根 bar 都有 equity point
+    # 爆仓后账户已无持仓，equity 为常数（已实现盈亏 - 手续费）
+    last_two = result.equity_curve[-2:]
+    assert last_two[0].equity == pytest.approx(last_two[1].equity)
