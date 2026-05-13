@@ -125,7 +125,9 @@ def _read_minute(path: Path, period: str = "5m") -> pd.DataFrame:
 
     # lc5 文件包含 5/15/30/60 分钟数据，需要按 period 重采样
     if period in ("15m", "30m", "60m", "1h"):
-        rule = period.replace("1h", "60T")
+        # 用 "Nmin"：pandas 1.5/2.x 都认；曾用小写 "15m"/"30m"/"60m"，
+        # 会被解析为 MonthEnd，把整段行情塞进一根月末 K。
+        rule = f"{PERIOD_MINUTES[period]}min"
         df = df.set_index("bob")
         resampled = df.resample(rule).agg({
             "open": "first",
@@ -200,9 +202,12 @@ def fetch_kline_by_date(
     period: str,
     start_date: str = None,
     end_date: str = None,
-    count: int = 800,
+    count: int | None = 800,
 ) -> pd.DataFrame:
-    """获取 K 线并按日期过滤。有日期时先过滤全量再 tail(count)，避免 tail 先截掉了所选日期。"""
+    """获取 K 线并按日期过滤。有日期时先过滤全量再 tail(count)，避免 tail 先截掉了所选日期。
+
+    count=None 表示不截断，适合回测想吃下整段日期区间时使用。
+    """
     has_date = bool(start_date or end_date)
     df = fetch_kline(market, symbol, period, count=None if has_date else count)
 
@@ -217,7 +222,7 @@ def fetch_kline_by_date(
         end_ts = pd.Timestamp(end_date) + timedelta(days=1)
         df = df[df["bob"] < end_ts]
 
-    if has_date:
+    if has_date and count is not None:
         df = df.tail(count)
 
     return df.reset_index(drop=True)
