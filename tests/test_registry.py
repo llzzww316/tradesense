@@ -1,10 +1,18 @@
 """registry: 用装饰器注册策略函数，引擎按名字查找。"""
 import pytest
-from backtest.registry import register_strategy, get_strategy, list_strategies, _clear_registry_for_test
+from backtest.registry import _STRATEGIES, register_strategy, get_strategy, list_strategies
 
 
-def setup_function():
-    _clear_registry_for_test()
+@pytest.fixture(autouse=True)
+def _isolated_registry():
+    """测试完恢复注册表，避免污染 test_api 里依赖 double_ma 的用例。"""
+    snapshot = dict(_STRATEGIES)
+    _STRATEGIES.clear()
+    try:
+        yield
+    finally:
+        _STRATEGIES.clear()
+        _STRATEGIES.update(snapshot)
 
 
 def test_register_and_fetch():

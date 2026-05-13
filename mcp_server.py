@@ -161,7 +161,7 @@ def _tool_get_klines(args: dict) -> dict:
     except (TypeError, ValueError):
         request_count = 100
     if has_calendar and not has_range_pair:
-        request_count = min(max(request_count, 2000), 2000)
+        request_count = 2000
 
     data = svc.get_replay_payload(
         symbol=symbol_input,

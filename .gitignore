@@ -8,3 +8,4 @@ dist/
 build/
 .env
 /.playwright-mcp
+.pytest_cache/

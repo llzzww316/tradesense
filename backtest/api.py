@@ -63,9 +63,12 @@ async def run_backtest(req: RunBacktestRequest) -> dict:
     if market is None or not contract:
         raise HTTPException(400, detail="品种缺少 mootdx_market / mootdx_code 配置")
 
+    # 有日期区间时不截断，让区间内全部 K 线进回测；无区间时保留 5000 根作为兜底上限
+    has_date = bool(req.start_date or req.end_date)
     df = fetch_kline_by_date(
         market=market, symbol=contract, period=req.period,
-        start_date=req.start_date, end_date=req.end_date, count=5000,
+        start_date=req.start_date, end_date=req.end_date,
+        count=None if has_date else 5000,
     )
     if df.empty:
         raise HTTPException(404, detail="回测区间内无 K 线数据")

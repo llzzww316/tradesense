@@ -52,7 +52,6 @@ class BacktestEngine:
         equity_curve: list[EquityPoint] = []
         peak_equity = self.config.initial_capital
         liquidated_at: str | None = None
-        liquidated_flag = False
 
         # 记录"开仓信息"用来在平仓时合成 Trade
         open_ctx: dict | None = None
@@ -79,7 +78,7 @@ class BacktestEngine:
 
         for i, bar in enumerate(bars):
             # --- 爆仓后：账户已平，跳过策略/下单/EOD/再次爆仓判定，只继续延伸权益曲线 ---
-            if liquidated_flag:
+            if liquidated_at is not None:
                 self.account.update_on_close(bar.close)
                 peak_equity = max(peak_equity, self.account.equity)
                 dd = self.account.equity - peak_equity
@@ -163,7 +162,6 @@ class BacktestEngine:
                         trades.append(_close_fill_to_trade(force, open_ctx))
                         open_ctx = None
                     self.ctx._set_position(None, 0)
-                liquidated_flag = True
 
         metrics = compute_metrics(
             equity_curve=equity_curve,

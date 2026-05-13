@@ -17,44 +17,8 @@ let replayWindowEnd = null;
 let pendingPreserveWindow = false;
 
 /**
- * API 根地址（无尾部斜杠）。REST 挂载在服务端 `/api` 下。
- * 优先级：
- * 1) html 根节点 data-api-base — 形如 http://主机:8765/api；空字符串可与页面同源拼接 /api（极少用）
- * 2) localStorage tradesense_api_base
- * 3) 页面为 http(s) 且端口为 8765 — 同源整合模式，默认 /api（`uv run python server.py` 场景）
- * 4) localhost / 127.0.0.1 且非 8765（如 npm http-server）— 指向本机 http(s)://:8765/api
- * 5) 否则 "" — 同源相对路径；仅当外层反向代理也把 API 暴露在 /api 时适用
+ * `resolveApiBase` / `toChartTime` 在 shared.js 中定义，先于本文件以 `defer` 加载。
  */
-function resolveApiBase() {
-    if (document.documentElement.hasAttribute("data-api-base")) {
-        return document.documentElement.getAttribute("data-api-base").trim().replace(/\/$/, "");
-    }
-    try {
-        const ls = localStorage.getItem("tradesense_api_base");
-        if (ls != null && ls.trim() !== "") {
-            return ls.trim().replace(/\/$/, "");
-        }
-    } catch (_) {
-        /* ignore */
-    }
-    const { protocol, hostname, port } = window.location;
-    const effectivePort = port || (protocol === "https:" ? "443" : "80");
-
-    const onHttp =
-        typeof protocol === "string" &&
-        (protocol === "http:" || protocol === "https:");
-    if (onHttp && effectivePort === "8765") {
-        return "/api";
-    }
-    if (
-        (hostname === "localhost" || hostname === "127.0.0.1") &&
-        effectivePort !== "8765"
-    ) {
-        return `${protocol}//${hostname}:8765/api`.replace(/\/$/, "");
-    }
-    return "";
-}
-
 const API_BASE = resolveApiBase();
 
 let TICK_VALUE = {};
@@ -326,21 +290,6 @@ function scheduleReloadOnPeriodChange() {
     }, 250);
 }
 
-// 转换时间格式为Lightweight Charts需要的Unix时间戳（秒）
-// 时间字符串格式: "2026-03-25 13:35:00" (北京时间 UTC+8)
-function toChartTime(timeStr) {
-    // 手动解析日期字符串
-    const parts = timeStr.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-    if (parts) {
-        const [, yyyy, MM, dd, hh, mm, ss] = parts.map(Number);
-        // 直接用北京时间创建UTC时间戳
-        // Date.UTC returns milliseconds, divide by 1000 for seconds
-        return Math.floor(Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) / 1000);
-    }
-    const date = new Date(timeStr);
-    return Math.floor(date.getTime() / 1000);
-}
-
 // 更新图表
 function updateChart() {
     if (displayBars.length === 0) return;
@@ -469,14 +418,18 @@ function play() {
     const speed = parseInt(el.speedSelect.value);
     
     playInterval = setInterval(() => {
-        currentStepIndex++;
+        // 已到末根 → 停播；不要先自增再判断，否则末根永远不会被 updateChart 画出来
         if (currentStepIndex >= stepBars.length - 1) {
             stopPlay();
             return;
         }
+        currentStepIndex++;
         updateChart();
         updateUI();
         updateSimAccountOnStep();
+        if (currentStepIndex >= stepBars.length - 1) {
+            stopPlay();
+        }
     }, speed);
     
     updateUI();

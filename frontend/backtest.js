@@ -1,22 +1,4 @@
-// ---- API 基址与 index.html 逻辑对齐 ----
-function resolveApiBase() {
-    const root = document.documentElement;
-    if (root.hasAttribute("data-api-base")) {
-        return root.getAttribute("data-api-base").trim().replace(/\/$/, "");
-    }
-    try {
-        const ls = localStorage.getItem("tradesense_api_base");
-        if (ls) return ls.trim().replace(/\/$/, "");
-    } catch (_) { /* ignore */ }
-    const { protocol, hostname, port } = window.location;
-    const effectivePort = port || (protocol === "https:" ? "443" : "80");
-    const onHttp = protocol === "http:" || protocol === "https:";
-    if (onHttp && effectivePort === "8765") return "/api";
-    if ((hostname === "localhost" || hostname === "127.0.0.1") && effectivePort !== "8765") {
-        return `${protocol}//${hostname}:8765/api`.replace(/\/$/, "");
-    }
-    return "";
-}
+// `resolveApiBase` / `toChartTime` 在 shared.js 中定义，先于本文件以 `defer` 加载。
 const API_BASE = resolveApiBase();
 
 // ---- DOM refs ----
@@ -68,8 +50,6 @@ function initCharts() {
     });
     equitySeries = equityChart.addLineSeries({ color: "#1976d2", lineWidth: 2 });
 }
-
-function toChartTime(s) { return Math.floor(new Date(s.replace(" ", "T") + "Z").getTime() / 1000); }
 
 // ---- 运行回测 ----
 async function run() {

@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from backtest.engine import BacktestEngine
 from backtest.models import BacktestConfig
-from backtest.registry import register_strategy, _clear_registry_for_test
+from backtest.registry import _STRATEGIES, register_strategy
 
 
 def _make_df(closes: list[float], start="2025-10-01 09:00:00", minutes=5) -> pd.DataFrame:
@@ -32,8 +32,16 @@ def _cfg(strategy="buy_and_hold", **overrides):
     return BacktestConfig(**base)
 
 
-def setup_function():
-    _clear_registry_for_test()
+@pytest.fixture(autouse=True)
+def _isolated_registry():
+    """临时私有注册表：测试里注册的策略不会污染到其它 test 模块（如 test_api）。"""
+    snapshot = dict(_STRATEGIES)
+    _STRATEGIES.clear()
+    try:
+        yield
+    finally:
+        _STRATEGIES.clear()
+        _STRATEGIES.update(snapshot)
 
 
 def test_single_buy_then_close_pnl():
