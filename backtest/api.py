@@ -11,7 +11,7 @@ import backtest.strategies  # noqa: F401  触发内置策略注册
 
 from backtest.engine import BacktestEngine
 from backtest.models import BacktestConfig
-from backtest.registry import get_strategy, list_strategies
+from backtest.registry import get_strategy, get_strategy_params, list_strategies
 from config import get_symbols_config
 from data_provider import fetch_kline_by_date
 
@@ -38,7 +38,10 @@ class RunBacktestRequest(BaseModel):
 
 @router.get("/strategies")
 async def list_all() -> dict:
-    return {"strategies": list_strategies()}
+    strategies = []
+    for name in list_strategies():
+        strategies.append({"name": name, "params": get_strategy_params(name)})
+    return {"strategies": strategies}
 
 
 @router.post("/run")
