@@ -9,34 +9,47 @@
     <script src="shared.js" defer></script>
 </head>
 <body>
-    <div class="header">
+    <div class="header bt-header">
         <div class="logo">TradeSense · 回测</div>
         <div class="controls">
-            <a class="nav-link" href="/">← 回到回放</a>
-            <select id="bt-symbol"></select>
-            <select id="bt-period">
-                <option value="5m" selected>5分钟</option>
-                <option value="15m">15分钟</option>
-                <option value="60m">60分钟</option>
-                <option value="1d">日线</option>
-            </select>
-            <label>开始<input type="date" id="bt-start" class="date-input"></label>
-            <label>结束<input type="date" id="bt-end" class="date-input"></label>
-            <select id="bt-strategy"></select>
-            <input id="bt-params" placeholder='{"fast":5,"slow":20}' value='{"fast":5,"slow":20}' style="width:240px">
-            <input id="bt-capital" type="number" value="100000" min="1000" step="1000" title="初始资金">
-            <input id="bt-slippage" type="number" value="1" min="0" step="1" title="滑点（跳）">
-            <input id="bt-tick-size" type="number" step="0.1" title="每跳价格（元）留空=默认">
-            <input id="bt-tick-value" type="number" step="1" title="每跳价值（元/手）留空=默认">
-            <input id="bt-fee" type="number" step="0.1" title="每手每次手续费 留空=默认">
-            <input id="bt-margin" type="number" step="0.01" min="0" max="1" title="保证金率 留空=默认">
-            <label><input id="bt-intraday" type="checkbox"> 日内</label>
-            <button id="bt-run" class="primary">运行回测</button>
+            <!-- 第一行：策略配置 -->
+            <div class="bt-row bt-row1">
+                <a class="nav-btn" href="/">← 回放</a>
+                <select id="bt-symbol" aria-label="品种"></select>
+                <select id="bt-contract" disabled aria-label="合约" title="可选合约，留空则使用默认主力合约">
+                    <option value="">默认主力</option>
+                </select>
+                <select id="bt-period" aria-label="周期">
+                    <option value="5m" selected>5分钟</option>
+                    <option value="15m">15分钟</option>
+                    <option value="60m">60分钟</option>
+                    <option value="1d">日线</option>
+                </select>
+                <label>开始 <input type="date" id="bt-start"></label>
+                <label>结束 <input type="date" id="bt-end"></label>
+                <select id="bt-strategy" aria-label="策略"></select>
+                <span id="bt-params" class="bt-params-box"></span>
+                <button id="bt-run" class="primary">运行回测</button>
+            </div>
+            <!-- 第二行：账户参数 -->
+            <div class="bt-row bt-row2">
+                <label>初始资金 <input id="bt-capital" type="number" value="100000" min="1000" step="1000"></label>
+                <label>滑点(跳) <input id="bt-slippage" type="number" value="1" min="0" step="1"></label>
+                <label>每跳价格 <input id="bt-tick-size" type="number" step="0.1" placeholder="默认"></label>
+                <label>每跳价值 <input id="bt-tick-value" type="number" step="1" placeholder="默认"></label>
+                <label>手续费 <input id="bt-fee" type="number" step="0.1" placeholder="默认"></label>
+                <label>保证金率 <input id="bt-margin" type="number" step="0.01" min="0" max="1" placeholder="默认"></label>
+                <label class="bt-checkbox-label"><input id="bt-intraday" type="checkbox"> 日内强平</label>
+            </div>
         </div>
     </div>
-    <div class="chart-container">
-        <div id="bt-chart"></div>
-        <div id="bt-equity-chart" style="height:160px;margin-top:8px"></div>
+    <div class="chart-container bt-charts">
+        <div id="bt-chart">
+            <div class="chart-empty" id="bt-chart-empty">运行回测后显示 K 线图</div>
+        </div>
+        <div id="bt-equity-chart">
+            <div class="chart-empty" id="bt-equity-empty">运行回测后显示权益曲线</div>
+        </div>
         <div class="status hidden" id="bt-status"></div>
     </div>
     <div class="bt-metrics" id="bt-metrics">
