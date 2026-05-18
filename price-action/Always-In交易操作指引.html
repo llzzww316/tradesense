@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Always In 交易操作指引</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.checklist { list-style: none; padding-left: 0; }
+.checklist li { padding: 0.5rem 0 0.5rem 2rem; position: relative; }
+.checklist li::before { content: '☐'; position: absolute; left: 0; font-size: 1.1rem; color: var(--accent); }
+.checklist li.checked::before { content: '☑'; }
+.step-flow { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; align-items: center; }
+.step-flow .step {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.6rem 1rem; font-size: 0.88rem; font-weight: 600; white-space: nowrap;
+}
+.step-flow .step.active { border-color: var(--accent); background: rgba(245,158,11,0.08); color: var(--accent); }
+.step-flow .step.done { border-color: var(--accent3); color: var(--accent3); }
+.step-flow .arrow { color: var(--muted); font-size: 1.2rem; }
+.risk-ruler {
+  display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0;
+  font-size: 0.88rem;
+}
+.risk-ruler .bar {
+  height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent3), var(--accent), var(--accent2));
+  flex: 1; position: relative;
+}
+.risk-ruler .mark {
+  position: absolute; top: -18px; font-size: 0.75rem; color: var(--muted); white-space: nowrap;
+}
+.warning-box {
+  background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 8px; padding: 1rem 1.25rem; margin: 0.75rem 0;
+  display: flex; gap: 0.75rem; align-items: flex-start;
+}
+.warning-box .icon { font-size: 1.3rem; flex-shrink: 0; }
+.warning-box .text { font-size: 0.9rem; }
+.tip-box {
+  background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 8px; padding: 1rem 1.25rem; margin: 0.75rem 0;
+  display: flex; gap: 0.75rem; align-items: flex-start;
+}
+.tip-box .icon { font-size: 1.3rem; flex-shrink: 0; }
+.tip-box .text { font-size: 0.9rem; }
+.trade-journal {
+  width: 100%; border-collapse: collapse; font-size: 0.85rem;
+}
+.trade-journal th { font-size: 0.78rem; }
+.trade-journal td { vertical-align: top; }
+.trade-journal input, .trade-journal select {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--fg); padding: 0.3rem 0.5rem; width: 100%; font-size: 0.85rem;
+}
+.trade-journal input:focus, .trade-journal select:focus {
+  outline: none; border-color: var(--accent);
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Always In <span>交易操作指引</span></h1>
+  <div class="subtitle">基于 Al Brooks 价格行为体系 + 回测验证 — 从方向判断到入场离场的完整实操手册</div>
+  <div class="core-thesis">"如果此刻你必须持仓、不能空仓，凭理性与概率会选哪个方向？"</div>
+</div>
+
+<div class="container">
+
+<!-- 目录 -->
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">核心理念：什么是 Always In</a></li>
+    <li><a href="#s2">开盘三问：判断市场状态</a></li>
+    <li><a href="#s3">6 项清单：锁定 AI 方向</a></li>
+    <li><a href="#s4">H2/L2 二次入场：等对手方失败两次</a></li>
+    <li><a href="#s5">止损设置：摆动点极值外</a></li>
+    <li><a href="#s6">离场优先级：5 级决策链</a></li>
+    <li><a href="#s7">TR 区间：不打</a></li>
+    <li><a href="#s8">AI 翻转：最危险的决策</a></li>
+    <li><a href="#s9">品种与周期选择</a></li>
+    <li><a href="#s10">完整交易检查清单</a></li>
+    <li><a href="#s11">交易日志模板</a></li>
+    <li><a href="#s12">三句铁律</a></li>
+  </ol>
+</div>
+
+<!-- 第1节 -->
+<div class="section" id="s1">
+<h2><span class="section-num">1</span> 核心理念：什么是 Always In</h2>
+
+<p>Always In Direction（始终在场方向）是 Al Brooks 体系中最核心的决策工具。它不是预测，而是一种<strong>强制二选一的思维框架</strong>：</p>
+
+<div class="card highlight">
+  <p><strong>定义</strong>：如果此刻你必须持仓、不能空仓，凭理性与概率会选哪个方向？</p>
+</div>
+
+<p>这个框架的价值在于：</p>
+<div class="insight-grid">
+  <div class="insight-item">
+    <div class="num">1</div>
+    <div class="label"><strong>过滤反向</strong><br>AI Long 时把"做空"选项从脑子里删掉</div>
+  </div>
+  <div class="insight-item">
+    <div class="num">2</div>
+    <div class="label"><strong>消除犹豫</strong><br>哪怕"感觉涨太高了"，也只做多</div>
+  </div>
+  <div class="insight-item">
+    <div class="num">3</div>
+    <div class="label"><strong>持仓依据</strong><br>AI 方向不变 → 继续持有</div>
+  </div>
+</div>
+
+<blockquote>
+  <p>AI 基于的是 K 线本身的力度和连续性，而不是均线位置。AI Long 可以在价格还在 EMA 下方时已经切换——不依赖均线判断。</p>
+</blockquote>
+</div>
+
+<!-- 第2节 -->
+<div class="section" id="s2">
+<h2><span class="section-num">2</span> 开盘三问：判断市场状态</h2>
+
+<p>任何操作前先判断市场状态。市场每一刻只有三种形态：</p>
+
+<table>
+  <thead>
+    <tr><th>状态</th><th>英文</th><th>时间占比</th><th>K 线特征</th><th>直觉</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="tag tag-spike">突破</span></td>
+      <td>Spike</td>
+      <td>~10%</td>
+      <td>连续大实体趋势 K，几乎无重叠</td>
+      <td>冲！别问</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-channel">通道</span></td>
+      <td>Channel</td>
+      <td>~20%</td>
+      <td>有方向但有重叠，回调不深</td>
+      <td>顺势，但别追</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-tr">区间</span></td>
+      <td>Trading Range</td>
+      <td>~70%</td>
+      <td>K 线大量重叠，十字星/长影多</td>
+      <td>高抛低吸</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning-box">
+  <div class="icon">⚠</div>
+  <div class="text"><strong>默认规则</strong>：当你分不清是趋势还是区间，<strong>先假设是交易区间</strong>。这是最安全的默认值——它保护你不在区间中追突破，也阻止你在趋势中抄底摸顶。</div>
+</div>
+
+<h3>三问自检</h3>
+<div class="flow">
+问题 1：是突破吗？→ 连续 2-3 根大实体同向趋势 K，几乎无重叠
+问题 2：是通道吗？→ 有方向但有回调，回调不深
+问题 3：是交易区间吗？→ K 线大量重叠 + EMA 走平 + 双向都感觉合理</div>
+</div>
+
+<!-- 第3节 -->
+<div class="section" id="s3">
+<h2><span class="section-num">3</span> 6 项清单：锁定 AI 方向</h2>
+
+<p>打开图表后，用以下 6 项清单为 AI 方向打分。每一项满足得 1 分：</p>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>检查项</th><th>你问自己</th><th>Long 满足条件</th><th>Short 满足条件</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>大实体趋势 K</td>
+      <td>最近 5-10 根有没有明显的大阳/大阴线？</td>
+      <td>有大阳线，收盘接近最高</td>
+      <td>有大阴线，收盘接近最低</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>跟进 K 同向</td>
+      <td>阳线/阴线占比是否 ≥ 60%？</td>
+      <td>阳线占比 ≥ 60%</td>
+      <td>阴线占比 ≥ 60%</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>收盘在 EMA 一侧</td>
+      <td>大部分收盘站在 EMA 上方/下方？</td>
+      <td>≥ 60% 收盘 > EMA</td>
+      <td>≥ 60% 收盘 &lt; EMA</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>突破近期极值</td>
+      <td>价格是否突破了前 20 根的高低点？</td>
+      <td>当前收盘 ≥ 前 20 根最高</td>
+      <td>当前收盘 ≤ 前 20 根最低</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>逆势者被套</td>
+      <td>有连续 2 根以上的反向趋势 K 吗？</td>
+      <td>无连续 2+ 根趋势阴线</td>
+      <td>无连续 2+ 根趋势阳线</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>EMA 斜率方向</td>
+      <td>EMA 在朝哪个方向倾斜？</td>
+      <td>EMA 近期上扬</td>
+      <td>EMA 近期下行</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>评分规则</h3>
+<div class="two-col">
+  <div class="card success">
+    <p><strong>≥ 4 项满足 → AI 方向确立</strong></p>
+    <p>可以开始寻找入场机会（但还不是入场时机！）</p>
+  </div>
+  <div class="card danger">
+    <p><strong>&lt; 3 项满足 → 方向不明</strong></p>
+    <p>不交易。管住手。</p>
+  </div>
+</div>
+
+<div class="tip-box">
+  <div class="icon">💡</div>
+  <div class="text"><strong>回测验证</strong>：AI 方向模糊时强行入场是亏损的最大来源。6 项中过 3 项就入场的交易，盈亏比远低于等 4 项以上。</div>
+</div>
+
+<h3>确认所需 K 线数</h3>
+<table>
+  <thead><tr><th>场景</th><th>所需 K 数</th></tr></thead>
+  <tbody>
+    <tr><td>标准确认</td><td>2 根：突破 K + 跟随 K</td></tr>
+    <tr><td>稳妥确认</td><td>3 根连续同向</td></tr>
+    <tr><td>高度确认</td><td>4 根同向且收在 EMA 一侧</td></tr>
+    <tr><td>极端惊喜 K</td><td>1 根即可判（建议仍等跟进）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- 第4节 -->
+<div class="section" id="s4">
+<h2><span class="section-num">4</span> H2/L2 二次入场：等对手方失败两次</h2>
+
+<p>这是整个体系中最核心的入场机制。<strong>不在第一次信号入场，等对手方失败两次再进。</strong></p>
+
+<div class="card highlight">
+  <p><strong>形态的本质不是图形，而是对手方失败的次数。</strong> 一方失败的次数越多，另一方的胜率就越高。</p>
+</div>
+
+<h3>H2 二次入场做多</h3>
+<div class="step-flow">
+  <div class="step done">AI Long 确立</div>
+  <span class="arrow">→</span>
+  <div class="step">回调出现</div>
+  <span class="arrow">→</span>
+  <div class="step" style="border-color:var(--accent2);color:var(--accent2)">H1：不买！</div>
+  <span class="arrow">→</span>
+  <div class="step">H1 失败，再次回落</div>
+  <span class="arrow">→</span>
+  <div class="step active">H2：入场！</div>
+</div>
+
+<div class="flow">
+1. 确认 Always In Long（6 项清单 ≥ 4 项）
+2. 等待回调出现（阴线 或 收盘 < 前收盘）
+3. 看到 H1（阳线 + higher high）→ <strong style="color:var(--accent2)">故意不入！</strong>
+4. H1 失败，价格再次回落
+5. 看到 H2（阳线 + higher high）→ <strong style="color:var(--accent3)">这才是你的入场点！</strong>
+6. 止损放在回调最低点下方</div>
+
+<h3>L2 二次入场做空</h3>
+<div class="flow">
+1. 确认 Always In Short（6 项清单 ≥ 4 项）
+2. 等待反弹出现（阳线 或 收盘 > 前收盘）
+3. 看到 L1（阴线 + lower low）→ <strong style="color:var(--accent2)">故意不入！</strong>
+4. L1 失败，价格再次反弹
+5. 看到 L2（阴线 + lower low）→ <strong style="color:var(--accent3)">这才是你的入场点！</strong>
+6. 止损放在反弹最高点上方</div>
+
+<h3>回调次数与可靠性</h3>
+<table>
+  <thead><tr><th>信号</th><th>定义</th><th>可靠性</th><th>原因</th></tr></thead>
+  <tbody>
+    <tr><td>H1 / L1</td><td>第一次回调后入场</td><td style="color:var(--accent2)">较低</td><td>对手方力量未耗尽</td></tr>
+    <tr><td>H2 / L2</td><td>第二次回调后入场</td><td style="color:var(--accent3)"><strong>最高</strong></td><td>两次失败，力量耗尽</td></tr>
+    <tr><td>H3 / L3</td><td>第三次回调后入场</td><td>中等</td><td>趋势可能已走远</td></tr>
+    <tr><td>H4 / L4</td><td>第四次回调后入场</td><td style="color:var(--accent2)">较低</td><td>趋势可能耗竭</td></tr>
+  </tbody>
+</table>
+
+<div class="warning-box">
+  <div class="icon">⚠</div>
+  <div class="text"><strong>H2/L2 陷阱</strong>：如果二次入场给了你<strong>更好的价格</strong>，那通常是一个陷阱。H2 入场通常比 H1 价格更差，但购买的是<strong>更高的确定性</strong>。更好价格 = 市场结构可能已改变。</div>
+</div>
+
+<h3>信号 K 质量过滤</h3>
+<p>H2/L2 的信号 K 本身也必须是合格的：</p>
+<ul>
+  <li>H2 信号 K 应为<strong>阳线</strong>（Doji/阴线不算有效信号）</li>
+  <li>L2 信号 K 应为<strong>阴线</strong>（Doji/阳线不算有效信号）</li>
+  <li>信号 K 实体占比 ≥ 50%，收盘接近极值更佳</li>
+</ul>
+</div>
+
+<!-- 第5节 -->
+<div class="section" id="s5">
+<h2><span class="section-num">5</span> 止损设置：摆动点极值外</h2>
+
+<p>止损的放置位置决定了你能不能拿住盈利单。</p>
+
+<h3>核心原则</h3>
+<div class="card highlight">
+  <p>止损 = 回调摆动极值 ± 缓冲跳数。不是信号 K 极值，是<strong>整个回调过程的极值</strong>。</p>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h4>做多止损</h4>
+    <p>止损 = 回调最低点 (swing low) 下方 N 跳</p>
+    <p>示例：回调最低 3120，tick_size=1，buffer=5</p>
+    <p>→ 止损 = 3120 - 5 = <strong style="color:var(--accent2)">3115</strong></p>
+  </div>
+  <div class="card">
+    <h4>做空止损</h4>
+    <p>止损 = 反弹最高点 (swing high) 上方 N 跳</p>
+    <p>示例：反弹最高 3250，tick_size=1，buffer=5</p>
+    <p>→ 止损 = 3250 + 5 = <strong style="color:var(--accent2)">3255</strong></p>
+  </div>
+</div>
+
+<h3>止损合理性检查</h3>
+<p>入场前必须计算止损距离：</p>
+<div class="card danger">
+  <p><strong>止损距离 > 价格的 2% → 不入场</strong></p>
+  <p>这说明回调太深，趋势可能已反转。一个好的入场，止损距离通常在 0.5%-1.5% 之间。</p>
+</div>
+
+<h3>缓冲跳数参考</h3>
+<table>
+  <thead><tr><th>品种波动</th><th>1h 日均波幅(点)</th><th>建议 buffer</th><th>占波幅比</th></tr></thead>
+  <tbody>
+    <tr><td>低波动（螺纹钢）</td><td>~9</td><td>5 跳</td><td>~55%</td></tr>
+    <tr><td>中波动（PVC）</td><td>~45</td><td>5 跳 × tick_size</td><td>~55%</td></tr>
+    <tr><td>高波动（铁矿）</td><td>~15</td><td>5-8 跳</td><td>~40-55%</td></tr>
+  </tbody>
+</table>
+
+<div class="tip-box">
+  <div class="icon">💡</div>
+  <div class="text"><strong>回测验证</strong>：3 跳太窄容易被噪声打掉（螺纹钢 1h 每跳占日均波幅 11%），5 跳是更合理的缓冲。</div>
+</div>
+
+<h3>R 值计算</h3>
+<div class="flow">R = |入场价 - 止损价|
+
+做多示例：入场 3135，止损 3115 → R = 20 点
+做空示例：入场 3240，止损 3260 → R = 20 点
+
+所有后续止盈/止损管理都基于 R 值</div>
+</div>
+
+<!-- 第6节 -->
+<div class="section" id="s6">
+<h2><span class="section-num">6</span> 离场优先级：5 级决策链</h2>
+
+<p>离场比入场更重要。按以下优先级依次检查，命中即执行：</p>
+
+<div class="card" style="padding:1.5rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span style="background:var(--accent2);color:#fff;font-weight:700;padding:0.3rem 0.7rem;border-radius:4px;font-size:0.85rem">P1</span>
+    <strong style="font-size:1.05rem">硬止损被触</strong>
+  </div>
+  <p style="margin:0;color:var(--muted)">止损价被触及 → 不犹豫，立即平仓。不抱幻想，不等反弹。</p>
+</div>
+
+<div class="card" style="padding:1.5rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span style="background:var(--accent);color:#000;font-weight:700;padding:0.3rem 0.7rem;border-radius:4px;font-size:0.85rem">P2</span>
+    <strong style="font-size:1.05rem">AI 翻转（需三重确认）</strong>
+  </div>
+  <p style="margin:0;color:var(--muted)">AI 方向反转 + 评分 ≥ 5/6 + 连续 2 根反向趋势 K → 平仓。<strong>正常回调不触发翻转！</strong></p>
+</div>
+
+<div class="card" style="padding:1.5rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span style="background:var(--accent4);color:#fff;font-weight:700;padding:0.3rem 0.7rem;border-radius:4px;font-size:0.85rem">P3</span>
+    <strong style="font-size:1.05rem">跟进 K 失败</strong>
+  </div>
+  <p style="margin:0;color:var(--muted)">入场后前 2 根 K 出现强反向趋势 K 且击穿止损 → 平仓。小反向 K / Doji 不平。</p>
+</div>
+
+<div class="card" style="padding:1.5rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span style="background:var(--accent3);color:#fff;font-weight:700;padding:0.3rem 0.7rem;border-radius:4px;font-size:0.85rem">P4</span>
+    <strong style="font-size:1.05rem">1R 保本 / 2R 半利</strong>
+  </div>
+  <p style="margin:0;color:var(--muted)">浮盈 ≥ 1.5R → 止损移到入场价（保本）；浮盈 ≥ 3R → 止损移到入场价 + 0.5R（锁定半利）。止损只往有利方向移。</p>
+</div>
+
+<div class="card" style="padding:1.5rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span style="background:var(--muted);color:#fff;font-weight:700;padding:0.3rem 0.7rem;border-radius:4px;font-size:0.85rem">P5</span>
+    <strong style="font-size:1.05rem">追踪止损</strong>
+  </div>
+  <p style="margin:0;color:var(--muted)">保本后，每确认一个新顺势摆动点 → 止损追至新摆动点。做多追摆动低，做空追摆动高。</p>
+</div>
+
+<h3>离场思维导图</h3>
+<div class="flow">
+持仓中每根 K 收盘 → 检查：
+
+P1: 止损被触？→ 立即平仓 ✅
+     ↓ 否
+P2: AI 翻转？(score≥5 + 连续2根反向趋势K)→ 平仓 ✅
+     ↓ 否
+P3: 入场后前2根K是强反向趋势K且击穿止损？→ 平仓 ✅
+     ↓ 否
+P4: 浮盈达1.5R？→ 止损移到入场价 (保本)
+    浮盈达3R？→ 止损移到入场价+0.5R (半利)
+     ↓
+P5: 新摆动点确认？→ 止损追至新摆动点
+     ↓
+继续持有 🟢</div>
+</div>
+
+<!-- 第7节 -->
+<div class="section" id="s7">
+<h2><span class="section-num">7</span> TR 区间：不打</h2>
+
+<p>交易区间是大多数交易者亏钱的地方。</p>
+
+<div class="card danger">
+  <p><strong>80% 法则</strong>：区间内 80% 的突破都会失败。在区间中追突破 = 送钱。</p>
+</div>
+
+<h3>如何识别交易区间</h3>
+<ul class="checklist">
+  <li>K 线大量重叠（阳阴交替，高低点交叉）</li>
+  <li>EMA 走平，价格围绕 EMA 波动</li>
+  <li>做多做空都感觉合理</li>
+  <li>突破后马上反转</li>
+  <li>缺口被快速回补</li>
+  <li>十字星、长影线密集</li>
+  <li>横盘 ≥ 20 根 K + 至少 3 个波段</li>
+</ul>
+
+<h3>TR 内的 AI 禁用规则</h3>
+<div class="warning-box">
+  <div class="icon">⚠</div>
+  <div class="text">
+    <strong>AI 是波段趋势工具，在震荡区使用极危险！</strong><br><br>
+    TR 内冲向顶/底的强 Spike 看起来像真翻转，实际只是真空测试（Vacuum Test）。<br><br>
+    在 TR 内用 AI 翻转 = 在顶部买、在底部卖 = 与正确策略完全相反。<br><br>
+    <strong>正确规则</strong>：只有当价格<strong>强力突破整个 TR 区间并有跟进</strong>时，才确认 AI 方向改变。
+  </div>
+</div>
+
+<h3>TR 内的正确策略</h3>
+<div class="two-col">
+  <div class="card success">
+    <p><strong>策略 A：离场观望</strong></p>
+    <p>识别到 TR → 不交易，等突破。这是最安全的策略。</p>
+  </div>
+  <div class="card info">
+    <p><strong>策略 B：限价单 Fade</strong></p>
+    <p>在区间上沿卖、下沿买（限价单）。但新手不建议，因为假突破太多。</p>
+  </div>
+</div>
+</div>
+
+<!-- 第8节 -->
+<div class="section" id="s8">
+<h2><span class="section-num">8</span> AI 翻转：最危险的决策</h2>
+
+<p>AI 翻转是交易中最容易出错的环节。回测显示：<strong>大部分 AI 翻转信号是假翻转，只有真正的趋势反转才值得响应。</strong></p>
+
+<h3>翻转的三重确认门槛</h3>
+<div class="card highlight">
+  <p>AI 方向反转本身<strong>不足以</strong>触发平仓。必须同时满足三个条件：</p>
+</div>
+
+<table>
+  <thead><tr><th>条件</th><th>要求</th><th>为什么</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>1. AI 评分</strong></td>
+      <td>反向 AI 评分 ≥ 5/6</td>
+      <td>4/6 太容易触发（正常回调就能达到）</td>
+    </tr>
+    <tr>
+      <td><strong>2. 连续确认</strong></td>
+      <td>连续 2 根以上 K 满足条件</td>
+      <td>单根 K 的翻转信号噪声太大</td>
+    </tr>
+    <tr>
+      <td><strong>3. 趋势 K 确认</strong></td>
+      <td>当前 K 为反向趋势 K</td>
+      <td>非趋势 K（Doji/小实体）不算有效翻转</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="tip-box">
+  <div class="icon">💡</div>
+  <div class="text"><strong>回测验证</strong>：不加确认的 AI 翻转，螺纹钢 1h 胜率只有 28%。加上三重确认后，翻转次数大幅减少，但胜率提升不明显——因为真正的翻转本就稀少。宁可少翻，不可乱翻。</div>
+</div>
+
+<h3>翻转后的铁律</h3>
+
+<div class="card danger">
+  <p><strong>1. 翻转立即平仓，不等止损被打。</strong></p>
+  <p>这是价格行为纪律里最硬的一条。不要让市场证明你错，要在方向改变那一刻主动承认。</p>
+</div>
+
+<div class="card danger">
+  <p><strong>2. 被止损后不立即反向再翻转。</strong></p>
+  <p>连续翻转 = Chop 状态。两次快速 AI 翻转 = 市场在区间中。→ 立即平仓观望，等清晰信号。</p>
+</div>
+
+<div class="card danger">
+  <p><strong>3. 逆 AI 方向交易的数学禁令。</strong></p>
+  <p>AI 方向确立后，任何逆势 scalp = 胜率不足 + 风险≥回报 → 负期望。唯一合理选择：等逆势回调结束 → 顺势入场。</p>
+</div>
+</div>
+
+<!-- 第9节 -->
+<div class="section" id="s9">
+<h2><span class="section-num">9</span> 品种与周期选择</h2>
+
+<p>不是所有品种和周期都适合 AI + H2/L2 策略。选品决定了你一半的胜率。</p>
+
+<h3>周期选择</h3>
+<table>
+  <thead><tr><th>周期</th><th>1 跳/日均波幅</th><th>噪声比</th><th>评价</th></tr></thead>
+  <tbody>
+    <tr><td>5m</td><td>~31%</td><td style="color:var(--accent2)">极高</td><td>❌ 别碰</td></tr>
+    <tr><td>15m</td><td>~15%</td><td>较高</td><td>⚠ 谨慎</td></tr>
+    <tr><td>1h</td><td>~11%</td><td>中等</td><td>✅ 最低可用</td></tr>
+    <tr><td>4h / 日线</td><td>~3-5%</td><td style="color:var(--accent3)">低</td><td>✅ 最佳</td></tr>
+  </tbody>
+</table>
+
+<div class="tip-box">
+  <div class="icon">💡</div>
+  <div class="text"><strong>多周期共振</strong>：用 1h/4h 判断方向 + 15m/5m 找入场点。不要在单一 5m 上做决策。</div>
+</div>
+
+<h3>品种选择原则</h3>
+<ul>
+  <li><strong>波动大、趋势延续性好</strong> → 优先（PVC、铁矿、纯碱）</li>
+  <li><strong>波动小、长期震荡</strong> → 避免手动趋势跟踪（螺纹钢）</li>
+  <li><strong>流动性充足</strong> → 确保止损单能成交</li>
+</ul>
+
+<div class="warning-box">
+  <div class="icon">⚠</div>
+  <div class="text"><strong>回测数据</strong>：螺纹钢 1h 波动太小（价格 3100~3250 窄幅震荡），1 跳=1 元约占日均波幅 11%，PF 始终在 0.3~0.6。PVC 趋势明显（5000→5900→4500），PF 能到 1.67。<strong>选品比调参数重要 10 倍。</strong></div>
+</div>
+</div>
+
+<!-- 第10节 -->
+<div class="section" id="s10">
+<h2><span class="section-num">10</span> 完整交易检查清单</h2>
+
+<p>每笔交易前，按此顺序逐项检查。不可跳步，不可事后补填。</p>
+
+<div class="card highlight" style="padding:1.5rem">
+<h3 style="margin-top:0">第一步：市场状态</h3>
+<ul class="checklist">
+  <li>当前市场状态？Spike / Channel / TR</li>
+  <li>如果是 TR → 停！不交易</li>
+</ul>
+
+<h3>第二步：AI 方向</h3>
+<ul class="checklist">
+  <li>6 项清单打分：____ / 6</li>
+  <li>AI 方向：Long / Short / 不明</li>
+  <li>AI 强度：强 (≥5) / 弱 (3-4)</li>
+  <li>评分 &lt; 4 → 停！不交易</li>
+</ul>
+
+<h3>第三步：入场形态</h3>
+<ul class="checklist">
+  <li>是否出现了 H2/L2？（不是 H1/L1）</li>
+  <li>信号 K 方向是否与 AI 一致？（阳线做多/阴线做空）</li>
+  <li>信号 K 实体占比 ≥ 50%？</li>
+</ul>
+
+<h3>第四步：止损合理性</h3>
+<ul class="checklist">
+  <li>止损位置 = 回调极值 ± ___ 跳</li>
+  <li>止损距离 = ___ 点 = 价格的 ___%</li>
+  <li>止损距离 &gt; 2% → 停！不入场</li>
+  <li>R 值 = ___ 点</li>
+</ul>
+
+<h3>第五步：全通过 → 执行</h3>
+<ul class="checklist">
+  <li>以上全部通过 → 入场</li>
+  <li>任一不通过 → 等待</li>
+</ul>
+</div>
+</div>
+
+<!-- 第11节 -->
+<div class="section" id="s11">
+<h2><span class="section-num">11</span> 交易日志模板</h2>
+
+<p>记录每笔交易，用数据驱动改进。以下字段每笔必填：</p>
+
+<table class="trade-journal">
+  <thead>
+    <tr>
+      <th style="width:90px">日期</th>
+      <th style="width:60px">品种</th>
+      <th style="width:50px">方向</th>
+      <th style="width:70px">AI 评分</th>
+      <th style="width:80px">入场类型</th>
+      <th style="width:75px">入场价</th>
+      <th style="width:75px">止损价</th>
+      <th style="width:60px">R 值</th>
+      <th style="width:75px">离场价</th>
+      <th style="width:60px">PnL(R)</th>
+      <th style="width:100px">离场原因</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><input type="text" placeholder="05-18"></td>
+      <td><input type="text" placeholder="PVC"></td>
+      <td>
+        <select><option>多</option><option>空</option></select>
+      </td>
+      <td><input type="text" placeholder="4/6"></td>
+      <td>
+        <select><option>H2</option><option>L2</option><option>其他</option></select>
+      </td>
+      <td><input type="text" placeholder="5050"></td>
+      <td><input type="text" placeholder="4990"></td>
+      <td><input type="text" placeholder="60"></td>
+      <td><input type="text" placeholder="5150"></td>
+      <td><input type="text" placeholder="+1.67R"></td>
+      <td>
+        <select><option>止损</option><option>AI翻转</option><option>追踪止损</option><option>保本</option><option>其他</option></select>
+      </td>
+    </tr>
+    <tr>
+      <td><input type="text"></td>
+      <td><input type="text"></td>
+      <td><select><option>多</option><option>空</option></select></td>
+      <td><input type="text"></td>
+      <td><select><option>H2</option><option>L2</option><option>其他</option></select></td>
+      <td><input type="text"></td>
+      <td><input type="text"></td>
+      <td><input type="text"></td>
+      <td><input type="text"></td>
+      <td><input type="text"></td>
+      <td><select><option>止损</option><option>AI翻转</option><option>追踪止损</option><option>保本</option><option>其他</option></select></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>复盘要点</h3>
+<ul>
+  <li>每 20 笔交易做一次统计：胜率、平均 R、最大连亏</li>
+  <li>重点复盘<strong>亏损单</strong>：AI 评分是否 &lt; 4？是否 H1 入场？止损是否太窄？</li>
+  <li>重点复盘<strong>盈利单</strong>：是什么让你拿住了？（保本？追踪止损？没翻？）</li>
+</ul>
+</div>
+
+<!-- 第12节 -->
+<div class="section" id="s12">
+<h2><span class="section-num">12</span> 三句铁律</h2>
+
+<p>如果你只记三句话，记这三句：</p>
+
+<div class="card highlight" style="padding:1.5rem;margin-bottom:1rem">
+  <p style="font-size:1.15rem;margin:0"><strong>1. "等 H2"</strong></p>
+  <p style="color:var(--muted);margin:0.5rem 0 0">所有回测版本中，H2 入场的盈亏比远高于追涨杀跌。H1 的诱惑最大——你看到反弹怕错过。但 Brooks 原话："大多数回调中的第一次反转尝试都会失败。" 耐心是唯一免费的 Alpha。</p>
+</div>
+
+<div class="card highlight" style="padding:1.5rem;margin-bottom:1rem">
+  <p style="font-size:1.15rem;margin:0"><strong>2. "不够 4 项就不做"</strong></p>
+  <p style="color:var(--muted);margin:0.5rem 0 0">方向模糊是亏损的最大来源。AI 评分 &lt; 4 时强行入场，盈亏比极差。宁可错过，不可做错。市场明天还在，你的本金不一定。</p>
+</div>
+
+<div class="card highlight" style="padding:1.5rem;margin-bottom:1rem">
+  <p style="font-size:1.15rem;margin:0"><strong>3. "1R 之前别想止盈"</strong></p>
+  <p style="color:var(--muted);margin:0.5rem 0 0">浮盈不到 1R 就想着落袋为安，是胜率 30% 却 PF&lt;1 的根源。到了 1R 移止损保本，然后让市场决定能走多远。利润是"坐"出来的，不是"跑"出来的。</p>
+</div>
+
+<hr>
+
+<div style="text-align:center;color:var(--muted);font-size:0.85rem;padding-top:1rem">
+  <p>基于 Al Brooks 价格行为体系 + 30 篇手册分析 + 回测验证</p>
+  <p>Always In Pullback 策略回测数据：PVC 1h PF=1.67 | 螺纹钢 1h PF=0.37~0.65</p>
+</div>
+
+</div>
+</body>
+</html>
