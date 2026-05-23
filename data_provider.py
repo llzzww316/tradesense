@@ -196,11 +196,24 @@ def _read_stock_daily(path: Path) -> pd.DataFrame:
 
 
 def _read_stock_minute(path: Path, period: str = "5m") -> pd.DataFrame:
-    """读取 A 股分钟线数据（lc1 或 lc5）"""
-    reader = TdxMinBarReader()
-    df = reader.get_df(str(path))
-    df = df.reset_index()
-    df.rename(columns={"date": "bob"}, inplace=True)
+    """读取 A 股分钟线数据（lc1 或 lc5）
+
+    lc1（minline，1 分钟）→ TdxMinBarReader（OHLC ÷ 100）
+    lc5（fzline，5 分钟基准）→ TdxLCMinBarReader（OHLC 直接为浮点数）
+    """
+    suffix = path.suffix.lower()
+    if suffix == ".lc5":
+        reader = TdxLCMinBarReader()
+        df = reader.get_df(str(path))
+        df = df.reset_index()
+        # TdxLCMinBarReader 的索引列名为 "date"
+        idx_col = df.index.name or "date"
+        df.rename(columns={idx_col: "bob"}, inplace=True)
+    else:
+        reader = TdxMinBarReader()
+        df = reader.get_df(str(path))
+        df = df.reset_index()
+        df.rename(columns={"date": "bob"}, inplace=True)
     df["bob"] = pd.to_datetime(df["bob"])
 
     if period in ("15m", "30m", "60m", "1h"):

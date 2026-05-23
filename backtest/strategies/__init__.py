@@ -3,3 +3,4 @@ from backtest.strategies import double_ma  # noqa: F401
 from backtest.strategies import always_in_pullback  # noqa: F401
 from backtest.strategies import shrinking_stairs  # noqa: F401
 from backtest.strategies import stock_trend  # noqa: F401
+from backtest.strategies import a_share_trend  # noqa: F401
