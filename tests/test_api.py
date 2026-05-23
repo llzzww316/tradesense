@@ -30,7 +30,8 @@ def client(monkeypatch):
 def test_list_strategies(client):
     r = client.get("/api/backtest/strategies")
     assert r.status_code == 200
-    assert "double_ma" in r.json()["strategies"]
+    names = [s["name"] for s in r.json()["strategies"]]
+    assert "double_ma" in names
 
 
 def test_run_backtest_basic(client):

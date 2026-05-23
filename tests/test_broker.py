@@ -1,4 +1,4 @@
-"""Broker 负责把 Order 在"下一根 K 开盘"转成 Fill，带滑点和手续费。"""
+"""Broker 负责把 Order 在"下一根 K 开盘"转成 Fill，带滑点；手续费由 Account.apply_fill 计算。"""
 import pytest
 from backtest.broker import Broker
 from backtest.models import Bar, Order
@@ -17,7 +17,8 @@ def test_open_long_next_bar_open_plus_slippage():
     assert fill.action == "open_long"
     assert fill.qty == 2
     assert fill.price == pytest.approx(3001.0)   # 开盘 +1 跳
-    assert fill.fee == pytest.approx(6.0)        # 3 * 2 手
+    # fee 现在由 Account.apply_fill 计算，Broker 仅设 fee=0
+    assert fill.fee == pytest.approx(0.0)
     assert fill.reason == "signal1"
 
 

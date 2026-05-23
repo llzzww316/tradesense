@@ -1,56 +1,11 @@
-"""Always In 顺势回调策略（H2/L2 二次入场版）
+"""股票趋势跟踪策略（Always In + 强度分级入场）
 
-来源：价格行为交易·新手实战指南 + 市场结构判断01-04 + Al Brooks 三部曲
-- 手册（1）：5 项 Always In 检查清单（≥3 项确立，≥4 项强 AI）
-- 手册（2）：H2/L2 二次入场（对手方失败两次才入场）
-- 手册（6）：四棒序列 + 信号 K 质量分级
-- 手册（8）：趋势四步确认 + 五维强度评估
-- 手册（13）：80% 法则 → TR 区间禁入
-- 市场结构判断01：AI 翻转立即平仓，第一铁律
-- Brooks《Reading Price Charts》ch10.19：止损 = 重要摆动点极值外
+核心理念（来自价格行为手册）：
+- 强 AI（评分 ≥ 4）：多根大实体连续收极值 → 直接入场，不等回调
+- 弱 AI（评分 = 3）：跟进 K 弱 → 等价格回踩均线确认后入场
+- AI 强翻转（评分 ≥ 4）→ 平仓；弱翻转（评分 = 3）→ 继续持有
 
-规则总览：
-1. AI 方向：5 项清单评分（≥min_score 项确立），强/弱区分
-2. 入场前置：非 TR（K线重叠率 + EMA平坦度双重过滤）
-3. H2/L2 二次入场：AI 确立后等回调，H1 不入，H2 入场
-4. 入场：下一根开盘成交（broker 默认行为）
-5. 止损：回调摆动极值 ± buffer_ticks
-6. 离场优先级（高 → 低）：
-   a) 硬止损：摆动点止损被触
-   b) AI 翻转：方向反转 → 立刻平仓
-   c) 跟进 K 失败：入场后第一根 K 是强反向趋势 K → 平仓
-   d) 1R 保本：浮盈 ≥ 1R → 止损移到入场价
-   e) 追踪止损：新摆动点确认 → 止损追至新摆动点
-
-─────────────────────────────────────────────────────
-版本历史（v4-v8 已回退，以下记录避免重走老路）：
-
-v4 — AI 翻转三重确认（score ≥ 5 + 连续 2 根确认 + 当前 bar 为反向趋势 K）
-  问题：翻转太滞后，持仓中 AI 已明显翻转却还在等确认，导致利润回吐严重
-  教训：AI 翻转是「该跑就跑」的信号，不应设过高门槛；合理的做法是弱翻转缩仓、强翻转清仓
-
-v5 — 入场质量过滤（信号 K 必须同向阳/阴线 + 止损距离 ≤ 2% 价格）
-  问题：PVC PF 从 1.30 骤降到 0.46；2% 过滤太严，PVC 波动大导致好的 H2 信号被误杀
-  教训：止损距离过滤不适用于所有品种，应按品种 ATR 自适应或干脆不加
-
-v6 — 冷却期（平仓后 cooldown_bars 根 K 不入场）+ Chop 检测（快速双翻暂停交易）
-  问题：冷却期让策略在趋势恢复后错过再入场时机；Chop 检测误判导致真趋势中被禁入
-  教训：机械冷却不如依赖 H2/L2 本身的质量过滤；真趋势中的回调也是 H2 机会
-
-v7 — 跟进 K 加强（反向趋势 K 还需击穿止损才离场）
-  问题：本来跟进 K 是「第一根反向就跑」的保护机制，加了击穿止损的条件后形同虚设
-  教训：跟进 K 的价值在于快速认错，不应与止损条件绑定
-
-v8 — 保本阶梯（1.5R→保本，3R→entry+0.5R）
-  问题：螺纹钢 PF 从 0.58 暴降到 0.27；半利止损太激进，锁小利挡大趋势
-  教训：1R 保本是合理的，但 entry+0.5R 的半利止损把盈利交易截断了；
-        追踪止损（摆动点）已经能起到保护利润的作用，不需要额外的半利阶梯
-
-核心结论：
-  - H2/L2 + 摆动点止损 + 1R 保本 + 追踪止损 是有效组合（v3 验证）
-  - 过度保护（翻转门槛↑、冷却期、半利阶梯）适得其反
-  - 品种选择比参数调优更重要：PVC 1h 适合趋势跟随，螺纹钢 1h 噪声太大
-─────────────────────────────────────────────────────
+适用：A 股日线趋势跟踪，long_only。默认开启趋势过滤（trend_filter_ema=60），避开长期下跌
 """
 from __future__ import annotations
 
@@ -135,7 +90,7 @@ def _ai_direction(
     strength: "strong" (≥4 项) | "weak" (3 项) | "none" (<3 项)
     """
     n = len(history)
-    if n < lookback or ema_now != ema_now:  # nan check
+    if n < lookback or ema_now != ema_now:
         return None, "none", 0
 
     recent = history[-lookback:]
@@ -254,90 +209,6 @@ def _is_trading_range(
 
 
 # ---------------------------------------------------------------------------
-# H2/L2 二次入场状态机
-# ---------------------------------------------------------------------------
-
-_PULLBACK_NONE = "none"
-_PULLBACK_STARTED = "started"
-_PULLBACK_H1_SEEN = "h1_seen"
-
-
-def _detect_pullback_state(
-    bar: Bar,
-    prev_bar: Bar,
-    ai_dir: Side,
-    state: dict,
-) -> tuple[str, Optional[Side]]:
-    """检测 H2/L2 信号，返回 (new_state, signal_side)。
-
-    state keys:
-        pb_state: str — "none" | "started" | "h1_seen"
-        pb_extreme: float — 回调期间的极值（long=最低low, short=最高high）
-        h1_bar_index: int — H1 出现时的 K 序号
-    """
-    pb_state = state.get("pb_state", _PULLBACK_NONE)
-    pb_extreme = state.get("pb_extreme")
-    signal: Optional[Side] = None
-
-    if ai_dir == "long":
-        is_pullback = _is_bear_bar(bar) or bar.close < prev_bar.close
-        is_higher_high = bar.high > prev_bar.high
-
-        if pb_state == _PULLBACK_NONE:
-            if is_pullback:
-                pb_state = _PULLBACK_STARTED
-                pb_extreme = bar.low
-
-        elif pb_state == _PULLBACK_STARTED:
-            pb_extreme = min(pb_extreme, bar.low) if pb_extreme is not None else bar.low
-            if is_higher_high and _is_bull_bar(bar):
-                pb_state = _PULLBACK_H1_SEEN
-                state["h1_bar_index"] = state.get("_n", 0)
-
-        elif pb_state == _PULLBACK_H1_SEEN:
-            pb_extreme = min(pb_extreme, bar.low) if pb_extreme is not None else bar.low
-            h1_idx = state.get("h1_bar_index", 0)
-            cur_idx = state.get("_n", 0)
-            if cur_idx > h1_idx:
-                if is_higher_high and _is_bull_bar(bar):
-                    signal = "long"
-
-    elif ai_dir == "short":
-        is_pullback = _is_bull_bar(bar) or bar.close > prev_bar.close
-        is_lower_low = bar.low < prev_bar.low
-
-        if pb_state == _PULLBACK_NONE:
-            if is_pullback:
-                pb_state = _PULLBACK_STARTED
-                pb_extreme = bar.high
-
-        elif pb_state == _PULLBACK_STARTED:
-            pb_extreme = max(pb_extreme, bar.high) if pb_extreme is not None else bar.high
-            if is_lower_low and _is_bear_bar(bar):
-                pb_state = _PULLBACK_H1_SEEN
-                state["h1_bar_index"] = state.get("_n", 0)
-
-        elif pb_state == _PULLBACK_H1_SEEN:
-            pb_extreme = max(pb_extreme, bar.high) if pb_extreme is not None else bar.high
-            h1_idx = state.get("h1_bar_index", 0)
-            cur_idx = state.get("_n", 0)
-            if cur_idx > h1_idx:
-                if is_lower_low and _is_bear_bar(bar):
-                    signal = "short"
-
-    state["pb_state"] = pb_state
-    state["pb_extreme"] = pb_extreme
-
-    return pb_state, signal
-
-
-def _reset_pullback(state: dict) -> None:
-    state["pb_state"] = _PULLBACK_NONE
-    state["pb_extreme"] = None
-    state.pop("h1_bar_index", None)
-
-
-# ---------------------------------------------------------------------------
 # 摆动点检测（用于追踪止损）
 # ---------------------------------------------------------------------------
 
@@ -361,11 +232,55 @@ def _confirm_swing_high(history: list[Bar]) -> Optional[float]:
     return None
 
 
+def _recent_low(history: list[Bar], lookback: int = 20) -> float:
+    """最近 lookback 根 K 的最低价。"""
+    recent = history[-lookback:]
+    return min(b.low for b in recent)
+
+
+# ---------------------------------------------------------------------------
+# 入场信号
+# ---------------------------------------------------------------------------
+
+def _ema_pullback_signal(
+    history: list[Bar], ema_now: float, atr_val: float
+) -> tuple[bool, float]:
+    """均线回踩信号：价格回踩 EMA 后出现阳线反弹。
+
+    条件:
+    1. 前一根 K 收盘在 EMA 附近（1% 以内）或下方
+    2. 当前 K 为阳线（反弹确认）
+    3. 回踩深度不深于 2×ATR（不是趋势反转）
+
+    返回 (has_signal, stop_price)
+    """
+    if len(history) < 5:
+        return False, 0.0
+
+    prev = history[-2]
+    curr = history[-1]
+
+    # 前一根收盘在 EMA 附近或下方
+    near_ema = prev.close <= ema_now * 1.01
+
+    # 当前是阳线反弹
+    bouncing = _is_bull_bar(curr)
+
+    # 回踩没有踩穿（EMA - 最低价 < 2×ATR）
+    shallow = (ema_now - min(prev.low, curr.low)) < 2 * atr_val
+
+    if near_ema and bouncing and shallow:
+        stop = min(_recent_low(history, 10), prev.low, curr.low) - atr_val * 1.5
+        return True, stop
+
+    return False, 0.0
+
+
 # ---------------------------------------------------------------------------
 # 主策略
 # ---------------------------------------------------------------------------
 
-@register_strategy("always_in_pullback")
+@register_strategy("stock_trend")
 def on_bar(
     bar: Bar,
     ctx: StrategyContext,
@@ -377,44 +292,36 @@ def on_bar(
     close_extreme_ratio: float = 0.6,
     tr_lookback: int = 20,
     tr_overlap_threshold: float = 0.6,
-    stop_buffer_ticks: int = 3,
-    tick_size: float = 1.0,
-    breakeven_at_r: float = 1.0,
-    # 股票模式适配
-    long_only: bool = False,
-    use_atr_stop: bool = False,
     atr_period: int = 14,
     atr_stop_mult: float = 2.0,
+    breakeven_at_r: float = 1.0,
+    tick_size: float = 0.01,
+    long_only: bool = True,
+    trend_filter_ema: int = 60,
     **_: object,
 ) -> None:
     closes = ctx.closes
     history = ctx.history
     n = len(closes)
-    warmup = max(ema_period + ai_lookback, tr_lookback + 1, 25)
+    warmup = max(ema_period + ai_lookback, tr_lookback + 1, atr_period + 5, trend_filter_ema + 10, 35)
     if n < warmup:
         return
 
     ema_now = _ema(closes, ema_period)
+    trend_ema = _ema(closes, trend_filter_ema)
     ai_dir, ai_strength, ai_score = _ai_direction(
         history, ema_now, ai_lookback, body_ratio_min, close_extreme_ratio, ai_min_score
     )
     prev_ai_dir = ctx.state.get("prev_ai_dir")
+    atr_val = _atr(history, atr_period)
+    if atr_val != atr_val or atr_val <= 0:
+        atr_val = tick_size * 50  # fallback
 
-    # --- 0) 处理"上根发出 buy/sell，本根开盘已成交" ---
+    # --- 0) 处理"上根发出 buy，本根开盘已成交" ---
     pending = ctx.state.get("pending_entry")
     if ctx.position_side is not None and pending is not None:
         side = pending["side"]
-        if use_atr_stop:
-            atr_val = _atr(history, atr_period)
-            if atr_val != atr_val or atr_val <= 0:  # nan check
-                atr_val = tick_size * 50  # fallback
-            stop_buffer = atr_stop_mult * atr_val
-        else:
-            stop_buffer = stop_buffer_ticks * tick_size
-        if side == "long":
-            stop_price = pending["pb_extreme"] - stop_buffer
-        else:
-            stop_price = pending["pb_extreme"] + stop_buffer
+        stop_price = pending["stop"]
         ctx.state["stop_price"] = stop_price
         ctx.state["entry_price"] = bar.open
         ctx.state["risk"] = abs(bar.open - stop_price)
@@ -436,41 +343,27 @@ def on_bar(
         if stop_price is not None:
             if side == "long" and bar.low <= stop_price:
                 ctx.close(reason=f"stop @ {stop_price:.4f}")
-                _reset_pullback(ctx.state)
                 ctx.state["prev_ai_dir"] = ai_dir
                 return
             if side == "short" and bar.high >= stop_price:
                 ctx.close(reason=f"stop @ {stop_price:.4f}")
-                _reset_pullback(ctx.state)
                 ctx.state["prev_ai_dir"] = ai_dir
                 return
 
-        # 1b. AI 翻转 → 立刻平仓（不做额外确认门槛）
+        # 1b. AI 翻转：仅强翻转（评分 ≥ 4）平仓，弱翻转过滤掉日线噪声
         if (side == "long" and ai_dir == "short") or (side == "short" and ai_dir == "long"):
-            ctx.close(reason=f"AI flip to {ai_dir}")
-            _reset_pullback(ctx.state)
-            ctx.state["prev_ai_dir"] = ai_dir
-            return
+            if ai_strength == "strong":
+                ctx.close(reason=f"AI flip to {ai_dir} (strong)")
+                ctx.state["prev_ai_dir"] = ai_dir
+                return
 
-        # 1c. 跟进 K 失败：入场后第一根 K 是强反向趋势 K → 平仓
+        # 1c. 跟进 K（默认关闭，日线上意义不大）
         if not follow_checked and entry_price is not None:
             entry_idx = ctx.state.get("entry_bar_index")
             if entry_idx is not None and n - 1 == entry_idx + 1:
                 ctx.state["follow_checked"] = True
-                if side == "long":
-                    if _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "short":
-                        ctx.close(reason="follow-through bear trend bar")
-                        _reset_pullback(ctx.state)
-                        ctx.state["prev_ai_dir"] = ai_dir
-                        return
-                elif side == "short":
-                    if _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "long":
-                        ctx.close(reason="follow-through bull trend bar")
-                        _reset_pullback(ctx.state)
-                        ctx.state["prev_ai_dir"] = ai_dir
-                        return
 
-        # 1d. 1R 保本：浮盈 ≥ breakeven_at_r * R → 止损移到入场价（一次性，不回退）
+        # 1d. 1R 保本
         if not breakeven_done and entry_price is not None and risk > 0:
             profit_r = (bar.close - entry_price) / risk if side == "long" else (entry_price - bar.close) / risk
             if profit_r >= breakeven_at_r:
@@ -479,33 +372,30 @@ def on_bar(
 
         # 1e. 追踪止损：保本后，新摆动点确认 → 止损追至新摆动点
         if breakeven_done and stop_price is not None:
-            trail_buffer = atr_stop_mult * _atr(history, atr_period) if use_atr_stop else stop_buffer_ticks * tick_size
-            if trail_buffer != trail_buffer or trail_buffer <= 0:
-                trail_buffer = stop_buffer_ticks * tick_size
             if side == "long":
                 swing_low = _confirm_swing_low(history)
                 if swing_low is not None:
-                    new_stop = swing_low - trail_buffer
+                    new_stop = swing_low - atr_stop_mult * atr_val
                     if new_stop > ctx.state["stop_price"]:
                         ctx.state["stop_price"] = new_stop
             elif side == "short":
                 swing_high = _confirm_swing_high(history)
                 if swing_high is not None:
-                    new_stop = swing_high + trail_buffer
+                    new_stop = swing_high + atr_stop_mult * atr_val
                     if new_stop < ctx.state["stop_price"]:
                         ctx.state["stop_price"] = new_stop
 
         ctx.state["prev_ai_dir"] = ai_dir
         return
 
-    # --- 2) 无持仓：清理上一笔残留状态 ---
+    # --- 2) 无持仓：清理残留状态 ---
     for key in ("stop_price", "entry_price", "risk", "entry_bar_index",
                 "follow_checked", "breakeven_done"):
         ctx.state.pop(key, None)
 
-    # --- 3) AI 方向变化时重置回调状态 ---
+    # --- 3) AI 方向变化时重置 ---
     if ai_dir != prev_ai_dir:
-        _reset_pullback(ctx.state)
+        ctx.state.pop("strong_ai_phase", None)
 
     # --- 4) 入场前置过滤 ---
     if ai_dir is None:
@@ -515,38 +405,49 @@ def on_bar(
         ctx.state["prev_ai_dir"] = ai_dir
         return
 
-    # --- 5) H2/L2 二次入场检测 ---
-    ctx.state["_n"] = n
-    prev_bar = history[-2]
-    _, signal = _detect_pullback_state(bar, prev_bar, ai_dir, ctx.state)
+    # --- 5) 入场逻辑 ---
+    if ai_dir == "long":
 
-    if signal == "long":
-        pb_extreme = ctx.state.get("pb_extreme")
-        if pb_extreme is not None:
-            ctx.state["pending_entry"] = {
-                "side": "long",
-                "pb_extreme": pb_extreme,
-            }
-            ctx.buy(1, reason="H2 long")
-            _reset_pullback(ctx.state)
-    elif signal == "short" and not long_only:
-        pb_extreme = ctx.state.get("pb_extreme")
-        if pb_extreme is not None:
-            ctx.state["pending_entry"] = {
-                "side": "short",
-                "pb_extreme": pb_extreme,
-            }
-            ctx.sell(1, reason="L2 short")
-            _reset_pullback(ctx.state)
+        # 长期趋势过滤：价格在 long-term EMA 以下不入场（避开结构性下跌）
+        if trend_filter_ema and trend_ema == trend_ema and bar.close < trend_ema:
+            ctx.state["prev_ai_dir"] = ai_dir
+            return
 
-    # --- 6) AI 确立但还没到 H2：如果趋势恢复创新高/新低，重置回调状态 ---
-    if ai_dir == "long" and n >= 2:
-        recent_high = max(b.high for b in history[-20:]) if n >= 20 else max(b.high for b in history)
-        if bar.close >= recent_high:
-            _reset_pullback(ctx.state)
-    elif ai_dir == "short" and n >= 2:
-        recent_low = min(b.low for b in history[-20:]) if n >= 20 else min(b.low for b in history)
-        if bar.close <= recent_low:
-            _reset_pullback(ctx.state)
+        # 5a. 强 AI：直接入场（不等回调）
+        if ai_strength == "strong" and not ctx.state.get("strong_ai_phase"):
+            ctx.state["strong_ai_phase"] = True
+            stop = _recent_low(history, 20) - atr_stop_mult * atr_val
+            # 止损不能太紧：至少 0.5×ATR 距离
+            min_stop = bar.open - atr_val * 1.5
+            stop = min(stop, min_stop)  # 用更紧的那个
+            ctx.state["pending_entry"] = {"side": "long", "stop": stop}
+            ctx.buy(1, reason="strong AI entry")
+
+        # 5b. 弱 AI：均线回踩入场
+        elif ai_strength == "weak":
+            signal, stop = _ema_pullback_signal(history, ema_now, atr_val)
+            if signal:
+                ctx.state["pending_entry"] = {"side": "long", "stop": stop}
+                ctx.buy(1, reason="ema pullback")
+
+    elif ai_dir == "short" and not long_only:
+        # 长期趋势过滤：价格在 long-term EMA 以上不做空
+        if trend_filter_ema and trend_ema == trend_ema and bar.close > trend_ema:
+            ctx.state["prev_ai_dir"] = ai_dir
+            return
+
+        # 做空路径（股票策略默认关闭）
+        # 对称逻辑：强 AI Short → 直接入场；弱 AI Short → 均线反弹入场
+        if ai_strength == "strong" and not ctx.state.get("strong_ai_phase"):
+            ctx.state["strong_ai_phase"] = True
+            stop = _recent_low(history, 20) + atr_stop_mult * atr_val
+            min_stop = bar.open + atr_val * 1.5
+            stop = max(stop, min_stop)
+            ctx.state["pending_entry"] = {"side": "short", "stop": stop}
+            ctx.sell(1, reason="strong AI short")
+
+    # --- 6) 重置强 AI 阶段标志（仅在 AI 方向改变时重置，强度波动不影响）---
+    if ai_dir != "long":
+        ctx.state.pop("strong_ai_phase", None)
 
     ctx.state["prev_ai_dir"] = ai_dir

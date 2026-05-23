@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收缩楼梯反转策略 -- 手动操作指引</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>收缩楼梯反转策略 <span>-- 手动操作指引</span></h1>
+  <div class="subtitle">来源：手册（3）楔形/三次推动 + 手册（16）反转/TBTL/收缩楼梯 + 手册（17）主要趋势反转</div>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#s1">策略原理</a></li>
+    <li><a href="#s2">信号识别：四道关卡</a></li>
+    <li><a href="#s3">入场执行</a></li>
+    <li><a href="#s4">离场管理：四级优先级</a></li>
+    <li><a href="#s5">完整决策流程</a></li>
+    <li><a href="#s6">实战要点与常见错误</a></li>
+    <li><a href="#s7">回测数据参考</a></li>
+    <li><a href="#s8">参数调优备忘</a></li>
+  </ol>
+</div>
+
+<blockquote><p>核心逻辑：找到动能衰竭的楼梯结构 → 等反向强 K 确认 → 入场 → 用楼梯极值做初始止损 → 跟进/保本/追踪逐步锁利。</p></blockquote>
+
+<blockquote><p>适用场景：5 分钟周期，趋势末期出现收缩结构时。不适合窄通道强趋势中段。</p></blockquote>
+
+<hr>
+
+<div class="section" id="s1">
+
+  <h2><span class="section-num">一</span> 策略原理</h2>
+
+  <p>收缩楼梯的本质是<strong>动能衰竭</strong>。当一段趋势连续三次同向推进，但每一推的幅度越来越小，说明推动方力量正在枯竭——就像爬楼梯，台阶越来越矮，离顶部不远了。</p>
+
+  <p>Al Brooks 指出：</p>
+
+  <blockquote><p>"Whenever shrinking stairs are present, the trade becomes more likely to be successful and usually has a larger profit potential."</p></blockquote>
+
+  <p>为什么收缩楼梯有效？</p>
+
+  <div class="insight-grid">
+    <div class="insight-item">
+      <div class="num">1</div>
+      <div class="label"><strong>多空力量转换</strong><br>推进幅度递减 = 顺势方越来越弱，逆势方越来越强</div>
+    </div>
+    <div class="insight-item">
+      <div class="num">2</div>
+      <div class="label"><strong>止损空间明确</strong><br>楼梯极值就是最远的止损位，风险可量化</div>
+    </div>
+    <div class="insight-item">
+      <div class="num">3</div>
+      <div class="label"><strong>目标位可测</strong><br>反转后通常至少回到楼梯起点，理论空间 = 第一段幅度</div>
+    </div>
+  </div>
+
+  <h3>1.1 上升楼梯（做空）</h3>
+
+  <div class="flow">L0 ──→ H1   幅度 = leg1（最大）
+    L1 ──→ H2   幅度 = leg2（&lt; leg1）
+      L2 ──→ H3   幅度 = leg3（&lt; leg2）
+
+趋势向上但每一推越来越弱 → 做空
+止损 = H1~H3 中的最高点 + buffer
+反转方向 = short</div>
+
+  <h3>1.2 下降楼梯（做多）</h3>
+
+  <div class="flow">H0 ──→ L1   幅度 = leg1（最大）
+  H1 ──→ L2   幅度 = leg2（&lt; leg1）
+    H2 ──→ L3   幅度 = leg3（&lt; leg2）
+
+趋势向下但每一跌越来越浅 → 做多
+止损 = L1~L3 中的最低点 - buffer
+反转方向 = long</div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s2">
+
+  <h2><span class="section-num">二</span> 信号识别：四道关卡</h2>
+
+  <p>全部通过才产生入场信号。缺一不可。</p>
+
+  <h3>关卡 1：摆动点确认</h3>
+
+  <div class="card info">
+    <h4>识别方法</h4>
+    <p>一个位置要成为<strong>摆动高</strong>，需要左右各 N 根 K（默认 3）的 high 都严格低于它；<strong>摆动低</strong>同理。这是为了确认结构，避免噪音。</p>
+    <p><strong>注意</strong>：摆动点确认是<strong>延迟</strong>的——必须等右侧 3 根 K 走完才能回头看确认。不会出现 look-ahead。</p>
+  </div>
+
+  <h3>关卡 2：TBTL 过滤</h3>
+
+  <div class="card">
+    <p>楼梯跨越的 K 线数 ≥ <code>tbtl_min_bars</code>（默认 10 根）。</p>
+    <p>如果 6 个摆动点挤在 10 根 K 以内，那不是楼梯，只是噪音。真正的反转需要<strong>足够的时间</strong>来积累多空力量转换。</p>
+  </div>
+
+  <h3>关卡 3：收缩结构检测</h3>
+
+  <p>取最近 6 个<strong>交替</strong>摆动点（连续同类型只保留更极端的），检查 3 段推进幅度<strong>严格递减</strong>：</p>
+
+  <table>
+  <thead><tr><th>条件</th><th>说明</th></tr></thead>
+  <tbody>
+  <tr><td>3 段同向推进</td><td>上升楼梯：L→H 三段；下降楼梯：H→L 三段</td></tr>
+  <tr><td>幅度严格递减</td><td>leg1 &gt; leg2 &gt; leg3，每段都小于前一段</td></tr>
+  <tr><td>shrink_ratio</td><td>默认 1.0 = 任何递减即可；0.8 = 每段 ≤ 前段 80%</td></tr>
+  <tr><td>全部推进 &gt; 0</td><td>任何一段幅度 ≤ 0 则放弃</td></tr>
+  </tbody>
+  </table>
+
+  <h3>关卡 4：反转信号 K</h3>
+
+  <p>当前 K 必须是一根<strong>强反向趋势 K</strong>：</p>
+
+  <table>
+  <thead><tr><th>条件</th><th>参数</th><th>含义</th></tr></thead>
+  <tbody>
+  <tr><td>实体占比 ≥ 50%</td><td>body_ratio_min</td><td>K 线实体占整根 K 幅度过半，不是十字星</td></tr>
+  <tr><td>收盘在极值端 ≥ 60%</td><td>close_extreme_ratio</td><td>收盘价贴近 K 线一端，不是长影线</td></tr>
+  <tr><td>方向与楼梯相反</td><td>—</td><td>上升楼梯需强阴线；下降楼梯需强阳线</td></tr>
+  </tbody>
+  </table>
+
+  <div class="card highlight">
+    <h4>信号 K 的直觉判断</h4>
+    <p>信号 K 应该让你一眼看出"这根 K 线很有力"——大实体、小影线、收盘贴近一端。如果你需要犹豫"这算不算信号 K"，那大概率不算。</p>
+  </div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s3">
+
+  <h2><span class="section-num">三</span> 入场执行</h2>
+
+  <h3>3.1 入场时机</h3>
+
+  <p>信号 K 收盘确认后，<strong>下一根 K 开盘</strong>成交。</p>
+
+  <div class="card info">
+    <p>手动操作时，信号 K 收盘的瞬间就可以挂单。如果信号 K 是最后一根走完的 K，下一根开盘价就是你的成交价。</p>
+  </div>
+
+  <h3>3.2 止损设置</h3>
+
+  <table>
+  <thead><tr><th>方向</th><th>止损位</th><th>计算</th></tr></thead>
+  <tbody>
+  <tr><td>做多</td><td>楼梯最低点 - buffer</td><td>min(L1,L2,L3) - stop_buffer_ticks × tick_size</td></tr>
+  <tr><td>做空</td><td>楼梯最高点 + buffer</td><td>max(H1,H2,H3) + stop_buffer_ticks × tick_size</td></tr>
+  </tbody>
+  </table>
+
+  <p>默认 buffer = 3 跳，防止假突破打止损。</p>
+
+  <h3>3.3 R 值估算与过滤</h3>
+
+  <div class="card danger">
+    <h4>重要：R 上限过滤</h4>
+    <p>入场前必须估算风险 R = |入场价 - 止损价|。如果 R 过大，说明楼梯极值离入场价太远，止损空间失控——<strong>放弃这笔交易</strong>。</p>
+    <p>回测证明，R 上限过滤是改善策略表现最有效的单一改动：</p>
+    <ul>
+      <li>螺纹钢（波动小）：R ≤ 10 跳效果最佳</li>
+      <li>PVC（波动大）：R ≤ 30 跳效果最佳</li>
+    </ul>
+    <p>实战建议：用 <strong>2 × ATR(14)</strong> 作为动态 R 上限，自动适配品种波动率。</p>
+  </div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s4">
+
+  <h2><span class="section-num">四</span> 离场管理：四级优先级</h2>
+
+  <p>优先级从高到低，高级条件触发后不再检查低级。</p>
+
+  <div class="card danger">
+    <h4>优先级 1a：硬止损</h4>
+    <p>K 线触及止损价 → <strong>立即平仓</strong>，没有任何犹豫空间。</p>
+    <p>做多：bar.low ≤ stop_price → 平仓<br>做空：bar.high ≥ stop_price → 平仓</p>
+  </div>
+
+  <div class="card highlight">
+    <h4>优先级 1b：跟进 K 失败</h4>
+    <p>入场后<strong>第一根 K</strong>（且仅此一根）如果出现强反向趋势 K → 平仓。</p>
+    <p>做多后第一根 K 是强阴线 → "follow-through bear" 平仓<br>做空后第一根 K 是强阳线 → "follow-through bull" 平仓</p>
+    <p>判断标准与信号 K 相同：实体 ≥ 50%，收盘在极值端 60%。</p>
+    <p><strong>只检查一次</strong>，之后不再触发。</p>
+  </div>
+
+  <div class="card success">
+    <h4>优先级 1c：1R 保本</h4>
+    <p>浮盈达到 1R 时，<strong>止损移到入场价</strong>。最坏结果变成平局出场，不再亏钱。</p>
+    <p>计算：做多 (close - entry) / risk ≥ 1.0 → stop = entry<br>
+    做空 (entry - close) / risk ≥ 1.0 → stop = entry</p>
+    <p><strong>只执行一次</strong>，之后不再调整。</p>
+  </div>
+
+  <div class="card info">
+    <h4>优先级 1d：追踪止损</h4>
+    <p>保本之后，每确认一个<strong>新摆动点</strong>就把止损追过去：</p>
+    <ul>
+      <li>做多：新摆动低 - buffer（只能往上移，不能下移）</li>
+      <li>做空：新摆动高 + buffer（只能往下移，不能上移）</li>
+    </ul>
+    <p>摆动点确认用的是 3 根 K 简易判定（前后各 1 根确认），比入场时的增量式检测更灵敏。</p>
+  </div>
+
+  <h3>4.1 离场流程图</h3>
+
+  <div class="flow">持仓中
+  │
+  ├─ 触及硬止损？ ──→ 是 ──→ 平仓（结束）
+  │
+  ├─ 入场后第 1 根 K 且未检查过？
+  │   └─ 是强反向趋势 K？ ──→ 是 ──→ 平仓（结束）
+  │
+  ├─ 未保本 且 浮盈 ≥ 1R？
+  │   └─ 是 ──→ 止损移到入场价（标记已保本）
+  │
+  └─ 已保本？
+      └─ 新摆动点确认？
+          └─ 是 ──→ 止损追至新摆动点（只往有利方向移）</div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s5">
+
+  <h2><span class="section-num">五</span> 完整决策流程</h2>
+
+  <div class="flow">Step 1  扫描摆动点
+         每根 K 收盘后，检查是否能确认新的摆动高/低
+         保持交替摆动点序列（连续同类型只留更极端的）
+
+Step 2  检查 TBTL
+         最近 6 个交替摆动点跨越多少根 K？
+         &lt; 10 根 → 不够，继续等
+
+Step 3  检查收缩结构
+         3 段推进幅度是否严格递减？
+         leg1 &gt; leg2 &gt; leg3？
+         任何一段 ≤ 0 → 放弃
+
+Step 4  等待反转信号 K
+         当前 K 是否是强反向趋势 K？
+         大实体 + 收盘在极值端 + 方向与楼梯相反？
+         不是 → 继续等，楼梯结构还在
+
+Step 5  估算 R 值
+         R = |当前收盘价 - 止损价|
+         R &gt; 2×ATR(14)？ → 放弃（风险过大）
+
+Step 6  入场
+         下一根 K 开盘成交
+         止损 = 楼梯极值 ± buffer
+
+Step 7  离场管理
+         1a 硬止损 → 1b 跟进 K → 1c 1R 保本 → 1d 追踪止损</div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s6">
+
+  <h2><span class="section-num">六</span> 实战要点与常见错误</h2>
+
+  <h3>6.1 实战要点</h3>
+
+  <table>
+  <thead><tr><th>要点</th><th>说明</th></tr></thead>
+  <tbody>
+  <tr><td>楼梯结构比信号 K 重要</td><td>楼梯确认了趋势衰竭，信号 K 只是确认反转时机。没有楼梯的强 K 不做。</td></tr>
+  <tr><td>信号 K 确认后立即行动</td><td>犹豫 = 错过最佳入场价。信号 K 收盘即挂单。</td></tr>
+  <tr><td>止损不要缩</td><td>楼梯极值止损是逻辑止损，缩止损 = 逻辑失效。R 太大就放弃，不要硬做。</td></tr>
+  <tr><td>保本是转折点</td><td>1R 保本后，这笔交易从"可能亏"变成"最差平局"，心态完全不同。</td></tr>
+  <tr><td>追踪止损让利润奔跑</td><td>保本后不要急着止盈，让追踪止损慢慢推，给反转趋势足够空间。</td></tr>
+  </tbody>
+  </table>
+
+  <h3>6.2 常见错误</h3>
+
+  <div class="card danger">
+    <h4>错误 1：R 值失控仍入场</h4>
+    <p>楼梯极值离入场价很远（比如 50 跳），止损空间巨大。这种交易单笔亏损就能吃掉前面几笔盈利。</p>
+    <p><strong>正解</strong>：入场前估算 R，超过 2×ATR 就放弃。错过一笔不亏钱，做错一笔大出血。</p>
+  </div>
+
+  <div class="card danger">
+    <h4>错误 2：逆大趋势做楼梯</h4>
+    <p>日线级别强多头中，5 分钟出现一个收缩楼梯做空信号——大概率被大趋势碾过。</p>
+    <p><strong>正解</strong>：叠加 EMA 趋势过滤。做多要求收盘在 EMA 上方，做空要求在下方。</p>
+  </div>
+
+  <div class="card danger">
+    <h4>错误 3：忽略跟进 K</h4>
+    <p>入场后第一根 K 就是强反向趋势 K——说明入场方向错了，但舍不得走。</p>
+    <p><strong>正解</strong>：跟进 K 失败是救命信号，不是干扰。错了就走，等下一个楼梯。</p>
+  </div>
+
+  <div class="card danger">
+    <h4>错误 4：追踪止损太灵敏</h4>
+    <p>保本后用 3 根 K 判定摆动点追踪止损，5 分钟级别噪音大，一点小回调就触发。</p>
+    <p><strong>正解</strong>：考虑改用固定比例回撤（如从最高点回撤 1R 平仓），或加大摆动点确认的 lookback。</p>
+  </div>
+
+  <div class="card danger">
+    <h4>错误 5：没有止盈目标</h4>
+    <p>纯靠追踪止损离场，盈利交易容易被小回调截断，大利润跑不出来。</p>
+    <p><strong>正解</strong>：设 2R 或 3R 限价止盈。楼梯反转的理论目标 = 第一段幅度，可以量化。</p>
+  </div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s7">
+
+  <h2><span class="section-num">七</span> 回测数据参考</h2>
+
+  <p>2026-05-22 测于 5 分钟周期，默认参数，10 万初始资金，1 跳滑点。</p>
+
+  <h3>7.1 螺纹钢 RB2610</h3>
+
+  <table>
+  <thead><tr><th>max_r_ticks</th><th>交易数</th><th>胜率</th><th>盈亏比</th><th>净盈亏</th><th>Sharpe</th></tr></thead>
+  <tbody>
+  <tr><td>0（无限制）</td><td>40</td><td>47.5%</td><td>1.14</td><td>+580</td><td>0.15</td></tr>
+  <tr><td>30</td><td>60</td><td>40.0%</td><td>1.11</td><td>+410</td><td>0.59</td></tr>
+  <tr><td>20</td><td>60</td><td>30.0%</td><td>0.52</td><td>-1900</td><td>-3.67</td></tr>
+  <tr><td>15</td><td>59</td><td>30.5%</td><td>0.60</td><td>-1384</td><td>-3.12</td></tr>
+  <tr><td><strong>10</strong></td><td><strong>29</strong></td><td><strong>41.4%</strong></td><td><strong>1.40</strong></td><td><strong>+426</strong></td><td><strong>1.23</strong></td></tr>
+  </tbody>
+  </table>
+
+  <h3>7.2 PVC V2609</h3>
+
+  <table>
+  <thead><tr><th>max_r_ticks</th><th>交易数</th><th>胜率</th><th>盈亏比</th><th>净盈亏</th><th>Sharpe</th></tr></thead>
+  <tbody>
+  <tr><td>0（无限制）</td><td>56</td><td>32.1%</td><td>0.57</td><td>-5774</td><td>-2.51</td></tr>
+  <tr><td><strong>30</strong></td><td><strong>39</strong></td><td><strong>35.9%</strong></td><td><strong>1.53</strong></td><td><strong>+1094</strong></td><td><strong>2.13</strong></td></tr>
+  <tr><td>20</td><td>23</td><td>26.1%</td><td>1.34</td><td>+353</td><td>1.20</td></tr>
+  <tr><td>15</td><td>15</td><td>20.0%</td><td>0.84</td><td>-50</td><td>-0.27</td></tr>
+  <tr><td>10</td><td>6</td><td>33.3%</td><td>1.01</td><td>+1</td><td>0.01</td></tr>
+  </tbody>
+  </table>
+
+  <h3>7.3 关键发现</h3>
+
+  <div class="insight-grid">
+    <div class="insight-item">
+      <div class="num" style="color: var(--accent2)">-5774</div>
+      <div class="label">PVC 无 R 上限时净亏损<br>大止损单笔亏损可达 1000+</div>
+    </div>
+    <div class="insight-item">
+      <div class="num" style="color: var(--accent3)">+1094</div>
+      <div class="label">PVC 加 R≤30 后翻正<br>砍掉大亏单，Sharpe 从 -2.51 → 2.13</div>
+    </div>
+    <div class="insight-item">
+      <div class="num" style="color: var(--accent)">×3</div>
+      <div class="label">品种间最优 R 差 3 倍<br>螺纹 10 跳 vs PVC 30 跳，波动率决定</div>
+    </div>
+  </div>
+
+</div>
+
+<hr>
+
+<div class="section" id="s8">
+
+  <h2><span class="section-num">八</span> 参数调优备忘</h2>
+
+  <p>当前策略参数及调优方向：</p>
+
+  <table>
+  <thead><tr><th>参数</th><th>默认值</th><th>作用</th><th>调优方向</th></tr></thead>
+  <tbody>
+  <tr><td>swing_lookback</td><td>3</td><td>摆动点确认需要的左右 K 线数</td><td>加大（5-7）减少噪音摆动点</td></tr>
+  <tr><td>min_stairs</td><td>3</td><td>楼梯最少段数</td><td>保持 3，2 段太弱 4 段太稀有</td></tr>
+  <tr><td>shrink_ratio</td><td>1.0</td><td>每段推进 ≤ 前段 × ratio</td><td>0.8 更严格，过滤弱收缩</td></tr>
+  <tr><td>tbtl_min_bars</td><td>10</td><td>楼梯最少跨越 K 线数</td><td>加大到 15-20 过滤短期噪音</td></tr>
+  <tr><td>body_ratio_min</td><td>0.5</td><td>信号 K 实体占比下限</td><td>0.6 更严格，过滤弱信号 K</td></tr>
+  <tr><td>close_extreme_ratio</td><td>0.6</td><td>信号 K 收盘在极值端比例</td><td>0.7 更严格</td></tr>
+  <tr><td>stop_buffer_ticks</td><td>3</td><td>止损 buffer（跳）</td><td>根据品种波动调整</td></tr>
+  <tr><td>max_r_ticks</td><td>0</td><td>R 上限（0=不限）</td><td>螺纹 10、PVC 30，或用 2×ATR 动态</td></tr>
+  <tr><td>breakeven_at_r</td><td>1.0</td><td>保本触发浮盈倍数</td><td>1.5 更保守，给更多空间</td></tr>
+  <tr><td>ema_period</td><td>20</td><td>EMA 周期（当前未使用）</td><td>计划加趋势方向过滤</td></tr>
+  </tbody>
+  </table>
+
+  <h3>8.1 优先改进方向</h3>
+
+  <table>
+  <thead><tr><th>优先级</th><th>改动</th><th>预期效果</th></tr></thead>
+  <tbody>
+  <tr><td><span class="tag tag-bull">已验证</span></td><td>R 上限过滤（max_r_ticks）</td><td>直接砍掉大亏单，PVC 从巨亏翻正</td></tr>
+  <tr><td><span class="tag" style="background:rgba(99,102,241,0.15);color:#818cf8">待实现</span></td><td>ATR 动态 R 上限（max_r_atr_mult=2.0）</td><td>自动适配品种波动率，一个参数通用</td></tr>
+  <tr><td><span class="tag" style="background:rgba(99,102,241,0.15);color:#818cf8">待实现</span></td><td>EMA 趋势过滤</td><td>减少逆大趋势交易</td></tr>
+  <tr><td><span class="tag" style="background:rgba(99,102,241,0.15);color:#818cf8">待实现</span></td><td>固定比例追踪止损替代摆动点</td><td>盈利交易拿得更稳</td></tr>
+  <tr><td><span class="tag" style="background:rgba(99,102,241,0.15);color:#818cf8">待实现</span></td><td>限价止盈（2R/3R）</td><td>锁利润</td></tr>
+  <tr><td><span class="tag" style="background:rgba(99,102,241,0.15);color:#818cf8">待实现</span></td><td>入场加严（信号 K 突破最后摆动点）</td><td>减少交易次数，提高胜率</td></tr>
+  </tbody>
+  </table>
+
+</div>
+
+</div>
+</body>
+</html>

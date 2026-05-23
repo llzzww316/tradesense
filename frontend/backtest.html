@@ -35,11 +35,21 @@
             <div class="bt-row bt-row2">
                 <label>初始资金 <input id="bt-capital" type="number" value="100000" min="1000" step="1000"></label>
                 <label>滑点(跳) <input id="bt-slippage" type="number" value="1" min="0" step="1"></label>
-                <label>每跳价格 <input id="bt-tick-size" type="number" step="0.1" placeholder="默认"></label>
-                <label>每跳价值 <input id="bt-tick-value" type="number" step="1" placeholder="默认"></label>
-                <label>手续费 <input id="bt-fee" type="number" step="0.1" placeholder="默认"></label>
-                <label>保证金率 <input id="bt-margin" type="number" step="0.01" min="0" max="1" placeholder="默认"></label>
-                <label class="bt-checkbox-label"><input id="bt-intraday" type="checkbox"> 日内强平</label>
+                <!-- 期货参数 -->
+                <span class="bt-futures-param">
+                    <label>每跳价格 <input id="bt-tick-size" type="number" step="0.1" placeholder="默认"></label>
+                    <label>每跳价值 <input id="bt-tick-value" type="number" step="1" placeholder="默认"></label>
+                    <label>手续费 <input id="bt-fee" type="number" step="0.1" placeholder="默认"></label>
+                    <label>保证金率 <input id="bt-margin" type="number" step="0.01" min="0" max="1" placeholder="默认"></label>
+                    <label class="bt-checkbox-label"><input id="bt-intraday" type="checkbox"> 日内强平</label>
+                </span>
+                <!-- 股票参数（默认隐藏） -->
+                <span class="bt-stock-param" style="display:none">
+                    <label>佣金率 <input id="bt-commission" type="number" step="0.00001" value="0.00025" min="0"></label>
+                    <label>印花税率 <input id="bt-stamp" type="number" step="0.0001" value="0.001" min="0"></label>
+                    <label>过户费率 <input id="bt-transfer" type="number" step="0.00001" value="0.00001" min="0"></label>
+                    <label>每手股数 <input id="bt-lot-size" type="number" value="100" min="1"></label>
+                </span>
             </div>
         </div>
     </div>
@@ -63,7 +73,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>开仓时间</th><th>平仓时间</th><th>方向</th><th>手数</th>
+                    <th>开仓时间</th><th>平仓时间</th><th>方向</th><th id="bt-qty-header">手数</th>
                     <th>开仓价</th><th>平仓价</th><th>持仓K数</th>
                     <th>毛盈亏</th><th>手续费</th><th>净盈亏</th>
                     <th>开仓理由</th><th>平仓理由</th>

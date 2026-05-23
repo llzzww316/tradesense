@@ -22,14 +22,22 @@ class BacktestEngine:
             margin_rate=config.margin_rate,
             tick_size=config.tick_size,
             tick_value=config.tick_value,
+            instrument_type=config.instrument_type,
+            commission_rate=config.commission_rate,
+            stamp_tax_rate=config.stamp_tax_rate,
+            transfer_fee_rate=config.transfer_fee_rate,
+            lot_size=config.lot_size,
+            fee_per_lot=config.fee_per_lot,
         )
         self.broker = Broker(
             tick_size=config.tick_size,
             slippage_ticks=config.slippage_ticks,
             fee_per_lot=config.fee_per_lot,
+            instrument_type=config.instrument_type,
         )
         self.ctx = StrategyContext()
         self.strategy_fn = get_strategy(config.strategy)
+        self._is_stock = config.instrument_type == "stock"
 
     @staticmethod
     def _df_to_bars(df: pd.DataFrame) -> list[Bar]:
@@ -55,14 +63,16 @@ class BacktestEngine:
 
         # 记录"开仓信息"用来在平仓时合成 Trade
         open_ctx: dict | None = None
+        # 股票 T+1：记录买入当根 bar 的日期字符串，当天不能卖
+        buy_date: str | None = None
 
         def _close_fill_to_trade(close_fill: Fill, opened: dict) -> Trade:
             entry = opened["price"]
             exit_ = close_fill.price
             side = opened["side"]
-            ticks = (exit_ - entry) / self.config.tick_size
-            sign = 1 if side == "long" else -1
-            pnl = ticks * self.config.tick_value * close_fill.qty * sign
+            pnl = self.account._price_to_pnl(
+                entry=entry, exit_=exit_, qty=close_fill.qty, side=side,
+            )
             fee_total = opened["fee"] + close_fill.fee
             holding = opened["bar_index_to_close"] - opened["bar_index_open"]
             return Trade(
@@ -74,7 +84,20 @@ class BacktestEngine:
                 open_reason=opened["reason"], close_reason=close_fill.reason,
             )
 
-        prev_date = None
+        def _do_flatten(price: float, reason: str, close_idx: int) -> None:
+            """平掉当前持仓，生成强制平仓记录。"""
+            nonlocal open_ctx
+            force = self.broker.force_close(
+                time=bars[close_idx].time, qty=self.account.position.qty,
+                side=self.account.position.side, price=price, reason=reason,
+            )
+            self.account.apply_fill(force)
+            fills.append(force)
+            if open_ctx is not None:
+                open_ctx["bar_index_to_close"] = close_idx
+                trades.append(_close_fill_to_trade(force, open_ctx))
+                open_ctx = None
+            self.ctx._set_position(None, 0)
 
         for i, bar in enumerate(bars):
             # --- 爆仓后：账户已平，跳过策略/下单/EOD/再次爆仓判定，只继续延伸权益曲线 ---
@@ -101,6 +124,8 @@ class BacktestEngine:
                         "fee": fill.fee, "reason": fill.reason,
                         "bar_index_open": i,
                     }
+                    if self._is_stock:
+                        buy_date = fill.time.split(" ")[0]
                 elif fill.action == "close":
                     if open_ctx is not None:
                         open_ctx["bar_index_to_close"] = i
@@ -117,6 +142,11 @@ class BacktestEngine:
                         self.broker.submit(order)
                 elif order.action == "close":
                     if self.account.position is not None:
+                        if self._is_stock:
+                            # T+1：当天买入不能当天卖出
+                            cur_date = bar.time.split(" ")[0]
+                            if cur_date == buy_date:
+                                continue
                         self.broker.submit(order, close_side=self.account.position.side)
 
             # --- 收盘结算 + 权益点（以 close 价做 mark-to-market） ---
@@ -125,43 +155,24 @@ class BacktestEngine:
             dd = self.account.equity - peak_equity   # ≤ 0
             equity_curve.append(EquityPoint(time=bar.time, equity=self.account.equity, drawdown=dd))
 
-            # --- 日末强平（仅 intraday_only）---
+            # --- 日末强平 / 股票 T+1 日末强制平仓（仅 intraday_only / 非 stock）---
             # 注意：必须放在上面的权益点记录之后，这样当根 EquityPoint.equity
             # 反映的是 close 价下的浮盈权益，而不是 flatten 后的现金。
-            if self.config.intraday_only:
+            if not self._is_stock and self.config.intraday_only:
                 cur_date = bar.time.split(" ")[0]
                 is_last_of_day = (i == len(bars) - 1) or (
                     bars[i + 1].time.split(" ")[0] != cur_date
                 )
                 if is_last_of_day and self.account.position is not None:
-                    force = self.broker.force_close(
-                        time=bar.time, qty=self.account.position.qty,
-                        side=self.account.position.side, price=bar.close, reason="eod",
-                    )
-                    self.account.apply_fill(force)
-                    fills.append(force)
-                    if open_ctx is not None:
-                        open_ctx["bar_index_to_close"] = i
-                        trades.append(_close_fill_to_trade(force, open_ctx))
-                        open_ctx = None
-                    self.ctx._set_position(None, 0)
+                    _do_flatten(price=bar.close, reason="eod", close_idx=i)
 
             # --- 爆仓 → 下一根开盘强平，随后停止新开仓（权益曲线继续外推）---
             if self.account.is_liquidated() and liquidated_at is None:
                 liquidated_at = bar.time
                 if i + 1 < len(bars) and self.account.position is not None:
-                    next_bar = bars[i + 1]
-                    force = self.broker.force_close(
-                        time=next_bar.time, qty=self.account.position.qty,
-                        side=self.account.position.side, price=next_bar.open, reason="liquidate",
+                    _do_flatten(
+                        price=bars[i + 1].open, reason="liquidate", close_idx=i + 1,
                     )
-                    self.account.apply_fill(force)
-                    fills.append(force)
-                    if open_ctx is not None:
-                        open_ctx["bar_index_to_close"] = i + 1
-                        trades.append(_close_fill_to_trade(force, open_ctx))
-                        open_ctx = None
-                    self.ctx._set_position(None, 0)
 
         metrics = compute_metrics(
             equity_curve=equity_curve,

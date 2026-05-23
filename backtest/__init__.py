@@ -2,11 +2,11 @@
 from backtest.models import (
     Bar, Order, Fill, Trade, Position,
     BacktestConfig, BacktestResult, EquityPoint,
-    Side, Action,
+    Side, Action, InstrumentType,
 )
 
 __all__ = [
     "Bar", "Order", "Fill", "Trade", "Position",
     "BacktestConfig", "BacktestResult", "EquityPoint",
-    "Side", "Action",
+    "Side", "Action", "InstrumentType",
 ]

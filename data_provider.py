@@ -1,7 +1,9 @@
 """
-TradeSense 数据适配层 —— tdxpy 读取通达信扩展市场 VIPDOC 离线文件。
+TradeSense 数据适配层 —— tdxpy 读取通达信 VIPDOC 离线文件。
 
-历史说明：曾计划经 mootdx 网络扩展行情拉取；现仅支持本地 vipdoc（lc1 / lc5 / 日线）。
+支持两类数据源：
+- 扩展市场（期货）：vipdoc/ds/，使用 TdxExHqDailyBarReader / TdxLCMinBarReader
+- A 股（股票）：vipdoc/sh/ 或 vipdoc/sz/，使用 TdxDailyBarReader / TdxMinBarReader
 """
 import logging
 import os
@@ -12,12 +14,16 @@ from functools import lru_cache
 from pathlib import Path
 from tdxpy.reader.exhq_daily_bar_reader import TdxExHqDailyBarReader
 from tdxpy.reader.lc_min_bar_reader import TdxLCMinBarReader
+from tdxpy.reader.daily_bar_reader import TdxDailyBarReader
+from tdxpy.reader.min_bar_reader import TdxMinBarReader
 
 logger = logging.getLogger(__name__)
 
 # 通达信安装目录（可通过环境变量 TRADESENSE_TDX_DIR 覆盖；换机器不用改代码）
 TDX_DIR = Path(os.getenv("TRADESENSE_TDX_DIR", "C:/new_tdx"))
 VIPDOC = TDX_DIR / "vipdoc" / "ds"
+_SH_DOC = TDX_DIR / "vipdoc" / "sh"
+_SZ_DOC = TDX_DIR / "vipdoc" / "sz"
 
 
 def futures_prefix_from_mootdx_code(mootdx_code: str) -> str:
@@ -140,6 +146,149 @@ def _read_minute(path: Path, period: str = "5m") -> pd.DataFrame:
         return resampled[["bob", "open", "high", "low", "close", "volume"]]
 
     return df[["bob", "open", "high", "low", "close", "volume"]]
+
+
+# ---------------------------------------------------------------------------
+# A 股数据读取
+# ---------------------------------------------------------------------------
+
+def _exchange_path(exchange: str) -> Path:
+    """sh/sz 字符串 → 对应 vipdoc 目录。"""
+    if exchange.lower() == "sh":
+        return _SH_DOC
+    elif exchange.lower() == "sz":
+        return _SZ_DOC
+    raise ValueError(f"未知交易所: {exchange}")
+
+
+def _get_stock_file_path(exchange: str, symbol: str, period: str) -> Path:
+    """构造 A 股通达信数据文件路径。
+
+    :param exchange: "sh" 或 "sz"
+    :param symbol: 6 位数字代码（如 "600519"）
+    :param period: 周期（1m, 5m, 15m, 30m, 60m, 1h, 1d）
+    """
+    prefix = exchange.lower()
+    doc = _exchange_path(exchange)
+    if period == "1d":
+        subdir = "lday"
+        suffix = "day"
+    elif period in ("1m",):
+        subdir = "minline"
+        suffix = "lc1"
+    elif period in ("5m", "15m", "30m", "60m", "1h"):
+        subdir = "fzline"
+        suffix = "lc5"
+    else:
+        raise ValueError(f"不支持的周期: {period}")
+    return doc / subdir / f"{prefix}{symbol}.{suffix}"
+
+
+def _read_stock_daily(path: Path) -> pd.DataFrame:
+    """读取 A 股日线数据"""
+    reader = TdxDailyBarReader()
+    df = reader.get_df(str(path))
+    idx_name = df.index.name or "date"
+    df = df.reset_index()
+    df.rename(columns={idx_name: "bob"}, inplace=True)
+    df["bob"] = pd.to_datetime(df["bob"])
+    return df[["bob", "open", "high", "low", "close", "volume"]]
+
+
+def _read_stock_minute(path: Path, period: str = "5m") -> pd.DataFrame:
+    """读取 A 股分钟线数据（lc1 或 lc5）"""
+    reader = TdxMinBarReader()
+    df = reader.get_df(str(path))
+    df = df.reset_index()
+    df.rename(columns={"date": "bob"}, inplace=True)
+    df["bob"] = pd.to_datetime(df["bob"])
+
+    if period in ("15m", "30m", "60m", "1h"):
+        rule = f"{PERIOD_MINUTES[period]}min"
+        df = df.set_index("bob")
+        resampled = df.resample(rule).agg({
+            "open": "first",
+            "high": "max",
+            "low": "min",
+            "close": "last",
+            "volume": "sum",
+        }).dropna()
+        resampled = resampled.reset_index()
+        return resampled[["bob", "open", "high", "low", "close", "volume"]]
+
+    return df[["bob", "open", "high", "low", "close", "volume"]]
+
+
+@lru_cache(maxsize=64)
+def _cached_stock_read(path_str: str, mtime: float, period: str) -> pd.DataFrame:
+    """A 股版缓存读取，与 _cached_read 结构相同但使用不同的 reader。"""
+    path = Path(path_str)
+    if period == "1d":
+        df = _read_stock_daily(path)
+    else:
+        df = _read_stock_minute(path, period)
+    if df.empty:
+        return df
+    return df.sort_values("bob").reset_index(drop=True)
+
+
+def fetch_stock_kline(
+    exchange: str, symbol: str, period: str, count: int | None = 800,
+) -> pd.DataFrame:
+    """获取 A 股 K 线数据。
+
+    :param exchange: "sh" 或 "sz"
+    :param symbol: 6 位数字代码（如 "600519"）
+    :param period: 周期（1m, 5m, 15m, 30m, 60m, 1h, 1d）
+    :param count: 获取条数（从末尾取最新 count 条）；传 None 表示不截断
+    :return: DataFrame（统一列名: bob, open, high, low, close, volume）
+    """
+    path = _get_stock_file_path(exchange, symbol, period)
+    if not path.exists():
+        return pd.DataFrame()
+
+    try:
+        mtime = path.stat().st_mtime
+        df = _cached_stock_read(str(path), mtime, period)
+    except Exception:
+        logger.exception("读取 A 股 K 线失败: exchange=%s symbol=%s period=%s path=%s", exchange, symbol, period, path)
+        return pd.DataFrame()
+
+    if df.empty:
+        return df
+
+    if count is not None:
+        df = df.tail(count)
+    return df.copy().reset_index(drop=True)
+
+
+def fetch_stock_kline_by_date(
+    exchange: str,
+    symbol: str,
+    period: str,
+    start_date: str = None,
+    end_date: str = None,
+    count: int | None = 800,
+) -> pd.DataFrame:
+    """获取 A 股 K 线并按日期过滤。"""
+    has_date = bool(start_date or end_date)
+    df = fetch_stock_kline(exchange, symbol, period, count=None if has_date else count)
+
+    if df.empty:
+        return df
+
+    if start_date:
+        start_ts = pd.Timestamp(start_date)
+        df = df[df["bob"] >= start_ts]
+
+    if end_date:
+        end_ts = pd.Timestamp(end_date) + timedelta(days=1)
+        df = df[df["bob"] < end_ts]
+
+    if has_date and count is not None:
+        df = df.tail(count)
+
+    return df.reset_index(drop=True)
 
 
 @lru_cache(maxsize=64)

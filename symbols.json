@@ -2,6 +2,7 @@
   "symbols": {
     "螺纹钢": {
       "code": "SHFE.RB",
+      "market_type": "futures",
       "mootdx_market": 30,
       "mootdx_code": "RB2610",
       "tick_value": 10,
@@ -12,6 +13,7 @@
     },
     "热卷": {
       "code": "SHFE.HC",
+      "market_type": "futures",
       "mootdx_market": 30,
       "mootdx_code": "HC2610",
       "tick_value": 10,
@@ -22,6 +24,7 @@
     },
     "PVC": {
       "code": "DCE.V",
+      "market_type": "futures",
       "mootdx_market": 29,
       "mootdx_code": "V2609",
       "tick_value": 5,
@@ -32,6 +35,7 @@
     },
     "纯碱": {
       "code": "CZCE.SA",
+      "market_type": "futures",
       "mootdx_market": 28,
       "mootdx_code": "SA2510",
       "tick_value": 20,
@@ -39,8 +43,47 @@
       "margin_rate": 0.12,
       "fee_per_lot": 3.5,
       "exchange": "郑商所"
+    },
+    "贵州茅台": {
+      "code": "SH.600519",
+      "market_type": "stock",
+      "exchange": "上交所",
+      "tick_size": 0.01,
+      "tick_value": 0.01,
+      "margin_rate": 1.0,
+      "fee_per_lot": 0,
+      "commission_rate": 0.00025,
+      "stamp_tax_rate": 0.001,
+      "transfer_fee_rate": 0.00001,
+      "lot_size": 100
+    },
+    "宁德时代": {
+      "code": "SZ.300750",
+      "market_type": "stock",
+      "exchange": "深交所",
+      "tick_size": 0.01,
+      "tick_value": 0.01,
+      "margin_rate": 1.0,
+      "fee_per_lot": 0,
+      "commission_rate": 0.00025,
+      "stamp_tax_rate": 0.001,
+      "transfer_fee_rate": 0.00001,
+      "lot_size": 100
+    },
+    "招商银行": {
+      "code": "SH.600036",
+      "market_type": "stock",
+      "exchange": "上交所",
+      "tick_size": 0.01,
+      "tick_value": 0.01,
+      "margin_rate": 1.0,
+      "fee_per_lot": 0,
+      "commission_rate": 0.00025,
+      "stamp_tax_rate": 0.001,
+      "transfer_fee_rate": 0.00001,
+      "lot_size": 100
     }
   },
-  "updated_at": "2026-05-12",
-  "note": "主力合约换月时修改此文件，tick_size/margin_rate/fee_per_lot 为回测默认值"
+  "updated_at": "2026-05-23",
+  "note": "主力合约换月时修改此文件；stock 品种的 tick_size/margin_rate/fee_per_lot 为回测默认值"
 }

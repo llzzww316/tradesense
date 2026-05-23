@@ -8,9 +8,13 @@ TradeSense 是一个 K 线回放训练系统，支持多周期组合显示（显
 
 ### 价格行为知识库 (`price-action/`)
 
-`price-action/` 目录包含 **30 篇价格行为交易系统手册分析文档**，来源为微信公众号「价格行为学解析」专栏，每篇均交叉引用了 **Qdrant `price-action` 向量库**中的 Al Brooks 原著（四本核心著作）。
+`price-action/` 目录包含 **30 篇价格行为交易系统手册分析文档** + **策略操作指引**，来源为微信公众号「价格行为学解析」专栏，每篇均交叉引用了 **Qdrant `price-action` 向量库**中的 Al Brooks 原著（四本核心著作）。
 
-**文档结构**（按编号 1-17 为主线，辅以概述 + 专题）：
+**目录结构**：
+- `price-action/html/` — HTML 格式文档 + `styles.css`（浏览器查看）
+- `price-action/md/` — Markdown 格式文档
+
+**文档结构**（按编号 1-17 为主线，辅以概述 + 专题 + 策略指引）：
 
 | 范围 | 主题 |
 |------|------|
@@ -34,6 +38,7 @@ TradeSense 是一个 K 线回放训练系统，支持多周期组合显示（显
 | 概述 | 五层学习框架 / MTR / 三种市场状态 |
 | 市场结构 01-04 | Always-In 精确判标 / 趋势衰退序列 / 回调 vs 反转量化阈值 |
 | Regime + §1.1a x7 | Spike→Channel→TR 全生命周期 / Barb Wire / Buy Vacuum |
+| 策略操作指引 | 收缩楼梯反转策略（html/，基于手册 3/16/17 整合实战回测） |
 
 **Qdrant 查询**（需要时可检索 Al Brooks 原著）：
 ```bash

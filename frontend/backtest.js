@@ -13,6 +13,8 @@ const refs = {
     run: $("bt-run"), status: $("bt-status"),
     chart: $("bt-chart"), equityChart: $("bt-equity-chart"),
     metricsBox: $("bt-metrics"), tradeBody: $("bt-trade-body"),
+    commission: $("bt-commission"), stamp: $("bt-stamp"),
+    transfer: $("bt-transfer"), lotSize: $("bt-lot-size"),
     exportBtn: $("bt-export"),
     chartEmpty: $("bt-chart-empty"), equityEmpty: $("bt-equity-empty"),
 };
@@ -20,6 +22,14 @@ const refs = {
 let chart = null, candleSeries = null, equityChart = null, equitySeries = null;
 let lastResult = null;
 let strategyParams = [];  // {name, params: [{name, type, default}]}
+let symbolConfigs = {};   // {name: {market_type, ...}}
+
+// ---- 切换期货/股票参数面板 ----
+function toggleInstrumentUI(marketType) {
+    const isStock = marketType === "stock";
+    document.querySelectorAll(".bt-futures-param").forEach(el => el.style.display = isStock ? "none" : "inline");
+    document.querySelectorAll(".bt-stock-param").forEach(el => el.style.display = isStock ? "inline" : "none");
+}
 
 // ---- 初始化品种 + 策略下拉 ----
 async function refreshContractList() {
@@ -67,14 +77,20 @@ async function initLists() {
             fetch(`${API_BASE}/symbols`).then(r => r.ok ? r.json() : Promise.reject(new Error(`GET /symbols HTTP ${r.status}`))),
             fetch(`${API_BASE}/backtest/strategies`).then(r => r.ok ? r.json() : Promise.reject(new Error(`GET /backtest/strategies HTTP ${r.status}`))),
         ]);
-        for (const name of Object.keys(symResp.symbols || {})) {
+        const symbols = symResp.symbols || {};
+        symbolConfigs = {};
+        for (const name of Object.keys(symbols)) {
             refs.symbol.appendChild(new Option(name, name));
+            symbolConfigs[name] = symbols[name];
         }
         strategyParams = stratResp.strategies || [];
         for (const s of strategyParams) {
             refs.strategy.appendChild(new Option(s.name, s.name));
         }
-        if (refs.symbol.value) refreshContractList();
+        if (refs.symbol.value) {
+            refreshContractList();
+            toggleInstrumentUI(symbolConfigs[refs.symbol.value]?.market_type || "futures");
+        }
         renderParamInputs();
     } catch (e) {
         showStatus("加载品种/策略列表失败: " + e.message, "error");
@@ -215,6 +231,10 @@ async function run() {
     if (refs.tickValue.value) body.tick_value = Number(refs.tickValue.value);
     if (refs.fee.value) body.fee_per_lot = Number(refs.fee.value);
     if (refs.margin.value) body.margin_rate = Number(refs.margin.value);
+    if (refs.commission.value) body.commission_rate = Number(refs.commission.value);
+    if (refs.stamp.value) body.stamp_tax_rate = Number(refs.stamp.value);
+    if (refs.transfer.value) body.transfer_fee_rate = Number(refs.transfer.value);
+    if (refs.lotSize.value) body.lot_size = Number(refs.lotSize.value);
 
     try {
         const r = await fetch(`${API_BASE}/backtest/run`, {
@@ -240,6 +260,12 @@ function render(data) {
     // 隐藏空状态占位
     if (refs.chartEmpty) refs.chartEmpty.style.display = "none";
     if (refs.equityEmpty) refs.equityEmpty.style.display = "none";
+
+    // 交易量单位
+    const isStock = (data.config?.instrument_type || "") === "stock";
+    const qtyUnit = isStock ? "股" : "手";
+    const qtyHeader = document.getElementById("bt-qty-header");
+    if (qtyHeader) qtyHeader.textContent = isStock ? "股数" : "手数";
 
     const candles = data.bars.map(b => ({
         time: toChartTime(b.time),
@@ -290,7 +316,7 @@ function render(data) {
             <td>${htmlEscape(t.open_time)}</td>
             <td>${htmlEscape(t.close_time)}</td>
             <td class="${htmlEscape(t.side)}">${t.side === "long" ? "多" : "空"}</td>
-            <td>${htmlEscape(String(t.qty))}</td>
+            <td>${htmlEscape(String(t.qty))}${qtyUnit}</td>
             <td>${t.open_price.toFixed(2)}</td>
             <td>${t.close_price.toFixed(2)}</td>
             <td>${htmlEscape(String(t.holding_bars))}</td>
@@ -361,7 +387,10 @@ requestAnimationFrame(() => {
     initCharts();
     initLists();
     refs.exportBtn.disabled = true;
-    refs.symbol.addEventListener("change", refreshContractList);
+    refs.symbol.addEventListener("change", () => {
+        refreshContractList();
+        toggleInstrumentUI(symbolConfigs[refs.symbol.value]?.market_type || "futures");
+    });
     refs.strategy.addEventListener("change", renderParamInputs);
     refs.run.addEventListener("click", run);
     refs.exportBtn.addEventListener("click", exportCsv);

@@ -6,6 +6,7 @@ from typing import Literal, Optional
 
 Side = Literal["long", "short"]
 Action = Literal["open_long", "open_short", "close"]
+InstrumentType = Literal["futures", "stock"]
 
 
 @dataclass
@@ -76,6 +77,15 @@ class BacktestConfig:
     intraday_only: bool
     strategy: str
     strategy_params: dict = field(default_factory=dict)
+
+    # 品种类型
+    instrument_type: InstrumentType = "futures"
+
+    # 股票专用参数（期货模式下不生效）
+    commission_rate: float = 0.00025      # 佣金费率（如万分之2.5 = 0.00025）
+    stamp_tax_rate: float = 0.001          # 印花税率（卖出千分之1）
+    transfer_fee_rate: float = 0.00001     # 过户费率（万分之0.1）
+    lot_size: int = 100                    # 每手股数
 
 
 @dataclass

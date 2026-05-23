@@ -7,10 +7,12 @@ from backtest.models import Bar, Fill, Order, Side
 
 
 class Broker:
-    def __init__(self, tick_size: float, slippage_ticks: int, fee_per_lot: float):
+    def __init__(self, tick_size: float, slippage_ticks: int, fee_per_lot: float,
+                 instrument_type: str = "futures"):
         self.tick_size = tick_size
         self.slippage_ticks = slippage_ticks
         self.fee_per_lot = fee_per_lot
+        self.instrument_type = instrument_type
         self._pending: Optional[Order] = None
         self._pending_close_side: Optional[Side] = None
 
@@ -39,12 +41,13 @@ class Broker:
         order = self._pending
         close_side = self._pending_close_side
         price = self._slip(bar.open, order.action, close_side)
+        # fee 由 Account.apply_fill 计算，此处传 0
         fill = Fill(
             time=bar.time,
             action=order.action,
             qty=order.qty,
             price=price,
-            fee=self.fee_per_lot * order.qty,
+            fee=0,
             reason=order.reason,
         )
         self._pending = None
@@ -56,7 +59,8 @@ class Broker:
         exec_price = self._slip(price, "close", side)
         self._pending = None
         self._pending_close_side = None
+        # fee 由 Account.apply_fill 计算，此处传 0
         return Fill(
             time=time, action="close", qty=qty,
-            price=exec_price, fee=self.fee_per_lot * qty, reason=reason,
+            price=exec_price, fee=0, reason=reason,
         )
