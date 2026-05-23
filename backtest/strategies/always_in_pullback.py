@@ -59,63 +59,12 @@ from typing import Optional
 import pandas as pd
 
 from backtest.context import StrategyContext
+from backtest.indicators import (
+    atr, confirm_swing_high, confirm_swing_low, ema,
+    is_bear_bar, is_bull_bar, trend_bar_side,
+)
 from backtest.models import Bar, Side
 from backtest.registry import register_strategy
-
-
-# ---------------------------------------------------------------------------
-# 辅助函数
-# ---------------------------------------------------------------------------
-
-def _ema(values: list[float], span: int) -> float:
-    if len(values) < span:
-        return float("nan")
-    return float(pd.Series(values).ewm(span=span, adjust=False).mean().iloc[-1])
-
-
-def _atr(bars: list[Bar], period: int) -> float:
-    """Average True Range，用于动态止损。"""
-    n = len(bars)
-    if n < period + 1:
-        return float("nan")
-    tr_values = []
-    for i in range(1, n):
-        hl = bars[i].high - bars[i].low
-        hc = abs(bars[i].high - bars[i - 1].close)
-        lc = abs(bars[i].low - bars[i - 1].close)
-        tr_values.append(max(hl, hc, lc))
-    if len(tr_values) < period:
-        return float("nan")
-    return float(pd.Series(tr_values[-period:]).mean())
-
-
-def _trend_bar_side(
-    bar: Bar, body_ratio_min: float = 0.5, close_extreme_ratio: float = 0.6
-) -> Optional[Side]:
-    """识别趋势 K：实体占比 ≥ body_ratio_min 且收盘接近一端极值。"""
-    rng = bar.high - bar.low
-    if rng <= 0:
-        return None
-    body = abs(bar.close - bar.open)
-    if body / rng < body_ratio_min:
-        return None
-    if bar.close > bar.open:
-        upper_zone = bar.low + rng * close_extreme_ratio
-        if bar.close >= upper_zone:
-            return "long"
-    elif bar.close < bar.open:
-        lower_zone = bar.high - rng * close_extreme_ratio
-        if bar.close <= lower_zone:
-            return "short"
-    return None
-
-
-def _is_bull_bar(bar: Bar) -> bool:
-    return bar.close > bar.open
-
-
-def _is_bear_bar(bar: Bar) -> bool:
-    return bar.close < bar.open
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +98,7 @@ def _ai_direction(
 
         # 1. 有大实体趋势 K
         has_trend = any(
-            _trend_bar_side(b, body_ratio_min, close_extreme_ratio) == direction
+            trend_bar_side(b, body_ratio_min, close_extreme_ratio) == direction
             for b in recent
         )
         if has_trend:
@@ -186,7 +135,7 @@ def _ai_direction(
         max_consec = 0
         cur = 0
         for b in recent:
-            if _trend_bar_side(b, body_ratio_min, close_extreme_ratio) == opposite:
+            if trend_bar_side(b, body_ratio_min, close_extreme_ratio) == opposite:
                 cur += 1
                 max_consec = max(max_consec, cur)
             else:
@@ -280,7 +229,7 @@ def _detect_pullback_state(
     signal: Optional[Side] = None
 
     if ai_dir == "long":
-        is_pullback = _is_bear_bar(bar) or bar.close < prev_bar.close
+        is_pullback = is_bear_bar(bar) or bar.close < prev_bar.close
         is_higher_high = bar.high > prev_bar.high
 
         if pb_state == _PULLBACK_NONE:
@@ -290,7 +239,7 @@ def _detect_pullback_state(
 
         elif pb_state == _PULLBACK_STARTED:
             pb_extreme = min(pb_extreme, bar.low) if pb_extreme is not None else bar.low
-            if is_higher_high and _is_bull_bar(bar):
+            if is_higher_high and is_bull_bar(bar):
                 pb_state = _PULLBACK_H1_SEEN
                 state["h1_bar_index"] = state.get("_n", 0)
 
@@ -299,11 +248,11 @@ def _detect_pullback_state(
             h1_idx = state.get("h1_bar_index", 0)
             cur_idx = state.get("_n", 0)
             if cur_idx > h1_idx:
-                if is_higher_high and _is_bull_bar(bar):
+                if is_higher_high and is_bull_bar(bar):
                     signal = "long"
 
     elif ai_dir == "short":
-        is_pullback = _is_bull_bar(bar) or bar.close > prev_bar.close
+        is_pullback = is_bull_bar(bar) or bar.close > prev_bar.close
         is_lower_low = bar.low < prev_bar.low
 
         if pb_state == _PULLBACK_NONE:
@@ -313,7 +262,7 @@ def _detect_pullback_state(
 
         elif pb_state == _PULLBACK_STARTED:
             pb_extreme = max(pb_extreme, bar.high) if pb_extreme is not None else bar.high
-            if is_lower_low and _is_bear_bar(bar):
+            if is_lower_low and is_bear_bar(bar):
                 pb_state = _PULLBACK_H1_SEEN
                 state["h1_bar_index"] = state.get("_n", 0)
 
@@ -322,7 +271,7 @@ def _detect_pullback_state(
             h1_idx = state.get("h1_bar_index", 0)
             cur_idx = state.get("_n", 0)
             if cur_idx > h1_idx:
-                if is_lower_low and _is_bear_bar(bar):
+                if is_lower_low and is_bear_bar(bar):
                     signal = "short"
 
     state["pb_state"] = pb_state
@@ -335,30 +284,6 @@ def _reset_pullback(state: dict) -> None:
     state["pb_state"] = _PULLBACK_NONE
     state["pb_extreme"] = None
     state.pop("h1_bar_index", None)
-
-
-# ---------------------------------------------------------------------------
-# 摆动点检测（用于追踪止损）
-# ---------------------------------------------------------------------------
-
-def _confirm_swing_low(history: list[Bar]) -> Optional[float]:
-    """最近 3 根 K 中，中间那根 low 是最低 → 确认摆动低。"""
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.low <= a.low and b.low <= c.low:
-        return b.low
-    return None
-
-
-def _confirm_swing_high(history: list[Bar]) -> Optional[float]:
-    """最近 3 根 K 中，中间那根 high 是最高 → 确认摆动高。"""
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.high >= a.high and b.high >= c.high:
-        return b.high
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -394,7 +319,7 @@ def on_bar(
     if n < warmup:
         return
 
-    ema_now = _ema(closes, ema_period)
+    ema_now = ema(closes, ema_period)
     ai_dir, ai_strength, ai_score = _ai_direction(
         history, ema_now, ai_lookback, body_ratio_min, close_extreme_ratio, ai_min_score
     )
@@ -405,7 +330,7 @@ def on_bar(
     if ctx.position_side is not None and pending is not None:
         side = pending["side"]
         if use_atr_stop:
-            atr_val = _atr(history, atr_period)
+            atr_val = atr(history, atr_period)
             if atr_val != atr_val or atr_val <= 0:  # nan check
                 atr_val = tick_size * 50  # fallback
             stop_buffer = atr_stop_mult * atr_val
@@ -458,13 +383,13 @@ def on_bar(
             if entry_idx is not None and n - 1 == entry_idx + 1:
                 ctx.state["follow_checked"] = True
                 if side == "long":
-                    if _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "short":
+                    if trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "short":
                         ctx.close(reason="follow-through bear trend bar")
                         _reset_pullback(ctx.state)
                         ctx.state["prev_ai_dir"] = ai_dir
                         return
                 elif side == "short":
-                    if _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "long":
+                    if trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "long":
                         ctx.close(reason="follow-through bull trend bar")
                         _reset_pullback(ctx.state)
                         ctx.state["prev_ai_dir"] = ai_dir
@@ -479,17 +404,17 @@ def on_bar(
 
         # 1e. 追踪止损：保本后，新摆动点确认 → 止损追至新摆动点
         if breakeven_done and stop_price is not None:
-            trail_buffer = atr_stop_mult * _atr(history, atr_period) if use_atr_stop else stop_buffer_ticks * tick_size
+            trail_buffer = atr_stop_mult * atr(history, atr_period) if use_atr_stop else stop_buffer_ticks * tick_size
             if trail_buffer != trail_buffer or trail_buffer <= 0:
                 trail_buffer = stop_buffer_ticks * tick_size
             if side == "long":
-                swing_low = _confirm_swing_low(history)
+                swing_low = confirm_swing_low(history)
                 if swing_low is not None:
                     new_stop = swing_low - trail_buffer
                     if new_stop > ctx.state["stop_price"]:
                         ctx.state["stop_price"] = new_stop
             elif side == "short":
-                swing_high = _confirm_swing_high(history)
+                swing_high = confirm_swing_high(history)
                 if swing_high is not None:
                     new_stop = swing_high + trail_buffer
                     if new_stop < ctx.state["stop_price"]:

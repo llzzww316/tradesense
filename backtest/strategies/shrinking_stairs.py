@@ -48,57 +48,11 @@ from typing import Optional
 import pandas as pd
 
 from backtest.context import StrategyContext
+from backtest.indicators import (
+    confirm_swing_high, confirm_swing_low, ema, trend_bar_side,
+)
 from backtest.models import Bar, Side
 from backtest.registry import register_strategy
-
-
-# ---------------------------------------------------------------------------
-# 辅助函数
-# ---------------------------------------------------------------------------
-
-def _ema(values: list[float], span: int) -> float:
-    if len(values) < span:
-        return float("nan")
-    return float(pd.Series(values).ewm(span=span, adjust=False).mean().iloc[-1])
-
-
-def _trend_bar_side(
-    bar: Bar, body_ratio_min: float = 0.5, close_extreme_ratio: float = 0.6
-) -> Optional[Side]:
-    """识别趋势 K：实体占比 ≥ body_ratio_min 且收盘接近一端极值。"""
-    rng = bar.high - bar.low
-    if rng <= 0:
-        return None
-    body = abs(bar.close - bar.open)
-    if body / rng < body_ratio_min:
-        return None
-    if bar.close > bar.open:
-        upper_zone = bar.low + rng * close_extreme_ratio
-        if bar.close >= upper_zone:
-            return "long"
-    elif bar.close < bar.open:
-        lower_zone = bar.high - rng * close_extreme_ratio
-        if bar.close <= lower_zone:
-            return "short"
-    return None
-
-
-def _confirm_swing_low(history: list[Bar]) -> Optional[float]:
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.low <= a.low and b.low <= c.low:
-        return b.low
-    return None
-
-
-def _confirm_swing_high(history: list[Bar]) -> Optional[float]:
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.high >= a.high and b.high >= c.high:
-        return b.high
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -297,11 +251,11 @@ def on_bar(
             entry_idx = ctx.state.get("entry_bar_index")
             if entry_idx is not None and n - 1 == entry_idx + 1:
                 ctx.state["follow_checked"] = True
-                if side == "long" and _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "short":
+                if side == "long" and trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "short":
                     ctx.close(reason="follow-through bear")
                     _clear_pos_state(ctx.state)
                     return
-                if side == "short" and _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "long":
+                if side == "short" and trend_bar_side(bar, body_ratio_min, close_extreme_ratio) == "long":
                     ctx.close(reason="follow-through bull")
                     _clear_pos_state(ctx.state)
                     return
@@ -316,13 +270,13 @@ def on_bar(
         # 1d 追踪止损（保本后，新摆动点 → 移止损）
         if ctx.state.get("breakeven_done") and stop_price is not None:
             if side == "long":
-                sl = _confirm_swing_low(history)
+                sl = confirm_swing_low(history)
                 if sl is not None:
                     ns = sl - stop_buffer_ticks * tick_size
                     if ns > ctx.state["stop_price"]:
                         ctx.state["stop_price"] = ns
             elif side == "short":
-                sh = _confirm_swing_high(history)
+                sh = confirm_swing_high(history)
                 if sh is not None:
                     ns = sh + stop_buffer_ticks * tick_size
                     if ns < ctx.state["stop_price"]:
@@ -350,7 +304,7 @@ def on_bar(
     rev_dir, stairs_extreme, legs = result
 
     # 反转信号 K：当前 bar 必须是强反向趋势 K
-    if _trend_bar_side(bar, body_ratio_min, close_extreme_ratio) != rev_dir:
+    if trend_bar_side(bar, body_ratio_min, close_extreme_ratio) != rev_dir:
         return
 
     # R 上限过滤：估算入场风险，超限放弃

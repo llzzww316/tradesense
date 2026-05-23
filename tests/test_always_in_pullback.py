@@ -1,10 +1,9 @@
 """验证 always_in_pullback 策略：AI 评分、H2/L2 状态机、摆动点、离场逻辑。"""
 from backtest.context import StrategyContext
+from backtest.indicators import confirm_swing_high, confirm_swing_low
 from backtest.models import Bar
 from backtest.strategies.always_in_pullback import (
     _ai_direction,
-    _confirm_swing_high,
-    _confirm_swing_low,
     _detect_pullback_state,
     _is_trading_range,
     _reset_pullback,
@@ -178,7 +177,7 @@ class TestSwingPoint:
             Bar(time="t1", open=9, high=11, low=7, close=10, volume=100),
             Bar(time="t2", open=10, high=13, low=9, close=12, volume=100),
         ]
-        assert _confirm_swing_low(history) == 7.0
+        assert confirm_swing_low(history) == 7.0
 
     def test_no_swing_low(self):
         history = [
@@ -186,7 +185,7 @@ class TestSwingPoint:
             Bar(time="t1", open=10, high=12, low=9, close=10, volume=100),
             Bar(time="t2", open=8, high=10, low=7, close=8, volume=100),
         ]
-        assert _confirm_swing_low(history) is None
+        assert confirm_swing_low(history) is None
 
     def test_swing_high_confirmed(self):
         history = [
@@ -194,7 +193,7 @@ class TestSwingPoint:
             Bar(time="t1", open=13, high=15, low=12, close=14, volume=100),
             Bar(time="t2", open=11, high=13, low=10, close=12, volume=100),
         ]
-        assert _confirm_swing_high(history) == 15.0
+        assert confirm_swing_high(history) == 15.0
 
 
 # ---------------------------------------------------------------------------

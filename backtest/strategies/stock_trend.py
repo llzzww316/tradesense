@@ -14,63 +14,12 @@ from typing import Optional
 import pandas as pd
 
 from backtest.context import StrategyContext
+from backtest.indicators import (
+    atr, confirm_swing_high, confirm_swing_low, ema,
+    is_bull_bar, trend_bar_side,
+)
 from backtest.models import Bar, Side
 from backtest.registry import register_strategy
-
-
-# ---------------------------------------------------------------------------
-# 辅助函数
-# ---------------------------------------------------------------------------
-
-def _ema(values: list[float], span: int) -> float:
-    if len(values) < span:
-        return float("nan")
-    return float(pd.Series(values).ewm(span=span, adjust=False).mean().iloc[-1])
-
-
-def _atr(bars: list[Bar], period: int) -> float:
-    """Average True Range，用于动态止损。"""
-    n = len(bars)
-    if n < period + 1:
-        return float("nan")
-    tr_values = []
-    for i in range(1, n):
-        hl = bars[i].high - bars[i].low
-        hc = abs(bars[i].high - bars[i - 1].close)
-        lc = abs(bars[i].low - bars[i - 1].close)
-        tr_values.append(max(hl, hc, lc))
-    if len(tr_values) < period:
-        return float("nan")
-    return float(pd.Series(tr_values[-period:]).mean())
-
-
-def _trend_bar_side(
-    bar: Bar, body_ratio_min: float = 0.5, close_extreme_ratio: float = 0.6
-) -> Optional[Side]:
-    """识别趋势 K：实体占比 ≥ body_ratio_min 且收盘接近一端极值。"""
-    rng = bar.high - bar.low
-    if rng <= 0:
-        return None
-    body = abs(bar.close - bar.open)
-    if body / rng < body_ratio_min:
-        return None
-    if bar.close > bar.open:
-        upper_zone = bar.low + rng * close_extreme_ratio
-        if bar.close >= upper_zone:
-            return "long"
-    elif bar.close < bar.open:
-        lower_zone = bar.high - rng * close_extreme_ratio
-        if bar.close <= lower_zone:
-            return "short"
-    return None
-
-
-def _is_bull_bar(bar: Bar) -> bool:
-    return bar.close > bar.open
-
-
-def _is_bear_bar(bar: Bar) -> bool:
-    return bar.close < bar.open
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +53,7 @@ def _ai_direction(
 
         # 1. 有大实体趋势 K
         has_trend = any(
-            _trend_bar_side(b, body_ratio_min, close_extreme_ratio) == direction
+            trend_bar_side(b, body_ratio_min, close_extreme_ratio) == direction
             for b in recent
         )
         if has_trend:
@@ -141,7 +90,7 @@ def _ai_direction(
         max_consec = 0
         cur = 0
         for b in recent:
-            if _trend_bar_side(b, body_ratio_min, close_extreme_ratio) == opposite:
+            if trend_bar_side(b, body_ratio_min, close_extreme_ratio) == opposite:
                 cur += 1
                 max_consec = max(max_consec, cur)
             else:
@@ -210,26 +159,8 @@ def _is_trading_range(
 
 # ---------------------------------------------------------------------------
 # 摆动点检测（用于追踪止损）
+# 使用 indicators.confirm_swing_low / confirm_swing_high
 # ---------------------------------------------------------------------------
-
-def _confirm_swing_low(history: list[Bar]) -> Optional[float]:
-    """最近 3 根 K 中，中间那根 low 是最低 → 确认摆动低。"""
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.low <= a.low and b.low <= c.low:
-        return b.low
-    return None
-
-
-def _confirm_swing_high(history: list[Bar]) -> Optional[float]:
-    """最近 3 根 K 中，中间那根 high 是最高 → 确认摆动高。"""
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.high >= a.high and b.high >= c.high:
-        return b.high
-    return None
 
 
 def _recent_low(history: list[Bar], lookback: int = 20) -> float:
@@ -264,7 +195,7 @@ def _ema_pullback_signal(
     near_ema = prev.close <= ema_now * 1.01
 
     # 当前是阳线反弹
-    bouncing = _is_bull_bar(curr)
+    bouncing = is_bull_bar(curr)
 
     # 回踩没有踩穿（EMA - 最低价 < 2×ATR）
     shallow = (ema_now - min(prev.low, curr.low)) < 2 * atr_val
@@ -307,13 +238,13 @@ def on_bar(
     if n < warmup:
         return
 
-    ema_now = _ema(closes, ema_period)
-    trend_ema = _ema(closes, trend_filter_ema)
+    ema_now = ema(closes, ema_period)
+    trend_ema = ema(closes, trend_filter_ema)
     ai_dir, ai_strength, ai_score = _ai_direction(
         history, ema_now, ai_lookback, body_ratio_min, close_extreme_ratio, ai_min_score
     )
     prev_ai_dir = ctx.state.get("prev_ai_dir")
-    atr_val = _atr(history, atr_period)
+    atr_val = atr(history, atr_period)
     if atr_val != atr_val or atr_val <= 0:
         atr_val = tick_size * 50  # fallback
 
@@ -373,13 +304,13 @@ def on_bar(
         # 1e. 追踪止损：保本后，新摆动点确认 → 止损追至新摆动点
         if breakeven_done and stop_price is not None:
             if side == "long":
-                swing_low = _confirm_swing_low(history)
+                swing_low = confirm_swing_low(history)
                 if swing_low is not None:
                     new_stop = swing_low - atr_stop_mult * atr_val
                     if new_stop > ctx.state["stop_price"]:
                         ctx.state["stop_price"] = new_stop
             elif side == "short":
-                swing_high = _confirm_swing_high(history)
+                swing_high = confirm_swing_high(history)
                 if swing_high is not None:
                     new_stop = swing_high + atr_stop_mult * atr_val
                     if new_stop < ctx.state["stop_price"]:

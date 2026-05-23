@@ -22,6 +22,7 @@ let pendingPreserveWindow = false;
 const API_BASE = resolveApiBase();
 
 let TICK_VALUE = {};
+let TICK_SIZE = {};
 
 const el = {};
 (function cacheDom() {
@@ -167,12 +168,14 @@ async function initSymbolList() {
             for (const [name, info] of Object.entries(data.symbols)) {
                 const code = info.code || info;
                 const tickValue = info.tick_value || 10;
+                const tickSize = info.tick_size || 1;
                 const option = document.createElement("option");
                 option.value = name;
                 option.textContent = `${name} (${code})`;
                 select.appendChild(option);
                 // 更新每跳价值
                 TICK_VALUE[name] = tickValue;
+                TICK_SIZE[name] = tickSize;
             }
         }
     } catch (e) {
@@ -186,6 +189,7 @@ async function initSymbolList() {
             <option value="纯碱">纯碱 (ZCE.SA2509)</option>
         `;
         TICK_VALUE = {"螺纹钢": 10, "热卷": 10, "PVC": 5, "纯碱": 20};
+        TICK_SIZE = {"螺纹钢": 1, "热卷": 1, "PVC": 1, "纯碱": 1};
     }
 
     await refreshContractList();
@@ -589,7 +593,9 @@ function calculateUnrealizedPnl() {
     if (currentPrice === null) return 0;
     const pos = simAccount.position;
     const tickValue = TICK_VALUE[getCurrentSymbol()] || 10;
-    const pnl = (currentPrice - pos.avgPrice) * pos.qty * tickValue;
+    const tickSize = TICK_SIZE[getCurrentSymbol()] || 1;
+    const ticks = (currentPrice - pos.avgPrice) / tickSize;
+    const pnl = ticks * pos.qty * tickValue;
     return pos.direction === "short" ? -pnl : pnl;
 }
 
@@ -822,7 +828,9 @@ function settleClosePosition(execPrice, actionLabel, closeModal) {
     const qty = pos.qty;
     const fee = simAccount.feePerLot * qty;
     const tickValue = TICK_VALUE[getCurrentSymbol()] || 10;
-    const pnl = (execPrice - pos.avgPrice) * qty * tickValue;
+    const tickSize = TICK_SIZE[getCurrentSymbol()] || 1;
+    const ticks = (execPrice - pos.avgPrice) / tickSize;
+    const pnl = ticks * qty * tickValue;
     const grossPnl = pos.direction === "short" ? -pnl : pnl;
 
     const realizedPnl = grossPnl - fee;

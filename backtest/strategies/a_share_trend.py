@@ -28,59 +28,11 @@ from typing import Optional
 import pandas as pd
 
 from backtest.context import StrategyContext
+from backtest.indicators import (
+    atr, confirm_swing_low, ema, is_bear_bar, is_bull_bar, trend_bar_side,
+)
 from backtest.models import Bar, Side
 from backtest.registry import register_strategy
-
-
-# =========== 辅助函数 ===========
-
-def _ema(values: list[float], span: int) -> float:
-    if len(values) < span:
-        return float("nan")
-    return float(pd.Series(values).ewm(span=span, adjust=False).mean().iloc[-1])
-
-
-def _atr(bars: list[Bar], period: int) -> float:
-    n = len(bars)
-    if n < period + 1:
-        return float("nan")
-    tr_values = []
-    for i in range(1, n):
-        hl = bars[i].high - bars[i].low
-        hc = abs(bars[i].high - bars[i - 1].close)
-        lc = abs(bars[i].low - bars[i - 1].close)
-        tr_values.append(max(hl, hc, lc))
-    if len(tr_values) < period:
-        return float("nan")
-    return float(pd.Series(tr_values[-period:]).mean())
-
-
-def _trend_bar_side(
-    bar: Bar, body_ratio_min: float = 0.5, close_extreme_ratio: float = 0.6
-) -> Optional[Side]:
-    rng = bar.high - bar.low
-    if rng <= 0:
-        return None
-    body = abs(bar.close - bar.open)
-    if body / rng < body_ratio_min:
-        return None
-    if bar.close > bar.open:
-        upper_zone = bar.low + rng * close_extreme_ratio
-        if bar.close >= upper_zone:
-            return "long"
-    elif bar.close < bar.open:
-        lower_zone = bar.high - rng * close_extreme_ratio
-        if bar.close <= lower_zone:
-            return "short"
-    return None
-
-
-def _is_bull_bar(bar: Bar) -> bool:
-    return bar.close > bar.open
-
-
-def _is_bear_bar(bar: Bar) -> bool:
-    return bar.close < bar.open
 
 
 # =========== 合成日线 ===========
@@ -141,7 +93,7 @@ def _daily_ai_direction(
         score = 0
 
         has_trend = any(
-            _trend_bar_side(b, body_ratio_min, close_extreme_ratio) == direction
+            trend_bar_side(b, body_ratio_min, close_extreme_ratio) == direction
             for b in recent
         )
         if has_trend:
@@ -174,7 +126,7 @@ def _daily_ai_direction(
         max_consec = 0
         cur = 0
         for b in recent:
-            if _trend_bar_side(b, body_ratio_min, close_extreme_ratio) == opposite:
+            if trend_bar_side(b, body_ratio_min, close_extreme_ratio) == opposite:
                 cur += 1
                 max_consec = max(max_consec, cur)
             else:
@@ -211,12 +163,12 @@ def _detect_h2_60m(
     """60min 级别 H2 二次入场检测。"""
     pb_state = state.get("pb_state", _PB_NONE)
     if pb_state == _PB_NONE:
-        if _is_bear_bar(bar) or bar.close < prev_bar.close:
+        if is_bear_bar(bar) or bar.close < prev_bar.close:
             state["pb_state"] = _PB_STARTED
             state["pb_low"] = bar.low
     elif pb_state == _PB_STARTED:
         state["pb_low"] = min(state.get("pb_low", bar.low), bar.low)
-        if _is_bull_bar(bar) and bar.high > prev_bar.high:
+        if is_bull_bar(bar) and bar.high > prev_bar.high:
             state["pb_state"] = _PB_H1
             state["h1_idx"] = state.get("_n", 0)
     elif pb_state == _PB_H1:
@@ -224,7 +176,7 @@ def _detect_h2_60m(
         h1_idx = state.get("h1_idx", 0)
         cur_idx = state.get("_n", 0)
         if cur_idx > h1_idx:
-            if _is_bull_bar(bar) and bar.high > prev_bar.high:
+            if is_bull_bar(bar) and bar.high > prev_bar.high:
                 state["pb_state"] = _PB_NONE
                 return True
     return False
@@ -239,20 +191,12 @@ def _ema_bounce_60m(history: list[Bar], ema_now: float, atr_val: float) -> bool:
     prev = history[-2]
     curr = history[-1]
     near_ema = prev.close <= ema_now * 1.015
-    bouncing = _is_bull_bar(curr)
+    bouncing = is_bull_bar(curr)
     shallow = (ema_now - min(prev.low, curr.low)) < 2 * atr_val
     return near_ema and bouncing and shallow
 
 
-# =========== 摆动点检测（追踪止损） ===========
-
-def _confirm_swing_low(history: list[Bar]) -> Optional[float]:
-    if len(history) < 3:
-        return None
-    a, b, c = history[-3], history[-2], history[-1]
-    if b.low <= a.low and b.low <= c.low:
-        return b.low
-    return None
+# =========== 摆动点检测（追踪止损）—— 使用 indicators.confirm_swing_low ===========
 
 
 # =========== 三次推动衰竭 ===========
@@ -328,7 +272,7 @@ def on_bar(
         return
 
     daily_closes = [b.close for b in daily_bars]
-    daily_ema = _ema(daily_closes, daily_ema_period)
+    daily_ema = ema(daily_closes, daily_ema_period)
     daily_ai_dir, daily_ai_str, daily_ai_score = _daily_ai_direction(
         daily_bars, daily_ema, daily_ai_lookback,
     )
@@ -336,8 +280,8 @@ def on_bar(
     cur_bar_date = _daily_date(bar)
 
     # ── 2) 60min 级别计算 ────────────────────────────────────────
-    ema_now = _ema(closes, ema_period)
-    atr_val = _atr(history, atr_period)
+    ema_now = ema(closes, ema_period)
+    atr_val = atr(history, atr_period)
     if atr_val != atr_val or atr_val <= 0:
         atr_val = tick_size * 50
 
@@ -377,7 +321,7 @@ def on_bar(
             entry_idx = ctx.state.get("entry_bar_index")
             if entry_idx is not None and n - 1 == entry_idx + 1:
                 ctx.state["follow_checked"] = True
-                if _trend_bar_side(bar) == "short":
+                if trend_bar_side(bar) == "short":
                     ctx.close(reason="follow-through bear")
                     ctx.state["prev_daily_ai"] = daily_ai_dir
                     return
@@ -391,7 +335,7 @@ def on_bar(
 
         # 4e. 追踪止损
         if breakeven_done and stop_price is not None:
-            sl = _confirm_swing_low(history)
+            sl = confirm_swing_low(history)
             if sl is not None:
                 ns = sl - atr_stop_mult * atr_val
                 if ns > ctx.state["stop_price"]:
