@@ -105,3 +105,4 @@ class BacktestResult:
     metrics: dict
     liquidated: bool = False
     liquidated_at: Optional[str] = None
+    bars_df: Optional[object] = None  # 原始 DataFrame，供序列化提效

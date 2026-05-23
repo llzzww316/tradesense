@@ -52,8 +52,6 @@ class InvalidRequestError(ServiceError):
 
 
 def _calculate_ema(closes: pd.Series, period: int) -> pd.Series:
-    if len(closes) < period:
-        return pd.Series([None] * len(closes), index=closes.index)
     return closes.ewm(span=period, adjust=False).mean()
 
 

@@ -70,7 +70,7 @@ class BacktestEngine:
             entry = opened["price"]
             exit_ = close_fill.price
             side = opened["side"]
-            pnl = self.account._price_to_pnl(
+            pnl = self.account.compute_pnl(
                 entry=entry, exit_=exit_, qty=close_fill.qty, side=side,
             )
             fee_total = opened["fee"] + close_fill.fee
@@ -186,4 +186,5 @@ class BacktestEngine:
             config=self.config, bars=bars, fills=fills, trades=trades,
             equity_curve=equity_curve, metrics=metrics,
             liquidated=liquidated_at is not None, liquidated_at=liquidated_at,
+            bars_df=self.bars_df,
         )

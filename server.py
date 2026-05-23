@@ -12,6 +12,7 @@ import uvicorn
 
 from config import get_symbols_config
 import kline_service as svc
+from backtest.api import router as backtest_router
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,6 @@ async def get_replay_data(
 
 app.include_router(api_router)
 
-from backtest.api import router as backtest_router
 app.include_router(backtest_router)
 
 

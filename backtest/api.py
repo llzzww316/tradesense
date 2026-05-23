@@ -135,9 +135,18 @@ async def run_backtest(req: RunBacktestRequest) -> dict:
 
     result = BacktestEngine(cfg, df).run()
 
+    if result.bars_df is not None:
+        df = result.bars_df.copy()
+        df["time"] = df["bob"].apply(
+            lambda t: t.strftime("%Y-%m-%d %H:%M:%S") if hasattr(t, "strftime") else str(t)
+        )
+        bars_data = df[["time", "open", "high", "low", "close", "volume"]].to_dict(orient="records")
+    else:
+        bars_data = [asdict(b) for b in result.bars]
+
     return {
         "config": asdict(cfg),
-        "bars": [asdict(b) for b in result.bars],
+        "bars": bars_data,
         "fills": [asdict(f) for f in result.fills],
         "trades": [asdict(t) for t in result.trades],
         "equity_curve": [asdict(p) for p in result.equity_curve],

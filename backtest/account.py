@@ -40,7 +40,7 @@ class Account:
         margin = self.position.margin if self.position else 0.0
         return self.equity - margin
 
-    def _price_to_pnl(self, entry: float, exit_: float, qty: int, side: str) -> float:
+    def compute_pnl(self, entry: float, exit_: float, qty: int, side: str) -> float:
         """计算盈亏。
         
         期货：按跳数折算，每跳价值 tick_value。
@@ -102,7 +102,7 @@ class Account:
                 raise ValueError(
                     f"本期不支持部分平仓：持仓 {self.position.qty} 手，平仓 {fill.qty} 手"
                 )
-            pnl = self._price_to_pnl(
+            pnl = self.compute_pnl(
                 entry=self.position.avg_price, exit_=fill.price,
                 qty=self.position.qty, side=self.position.side,
             )
@@ -125,7 +125,7 @@ class Account:
         if self.position is None:
             self.unrealized_pnl = 0.0
             return
-        self.unrealized_pnl = self._price_to_pnl(
+        self.unrealized_pnl = self.compute_pnl(
             entry=self.position.avg_price, exit_=close_price,
             qty=self.position.qty, side=self.position.side,
         )
