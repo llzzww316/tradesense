@@ -44,7 +44,7 @@ def test_read_minute_resamples_by_minute_not_month(monkeypatch, period, expected
     df5 = _synth_5m(20)
     monkeypatch.setattr(dp, "TdxLCMinBarReader", lambda: _FakeReader(df5))
 
-    out = dp._read_minute(dp.Path("/not/used"), period=period)
+    out = dp._read_minute(dp.Path("/not/used#futures"), period=period)
 
     # 若 rule 被解析成 MonthEnd，len(out) 会退化到 1
     assert len(out) == expected_rows, (
@@ -67,7 +67,7 @@ def test_read_minute_5m_passthrough(monkeypatch):
     df5 = _synth_5m(20)
     monkeypatch.setattr(dp, "TdxLCMinBarReader", lambda: _FakeReader(df5))
 
-    out = dp._read_minute(dp.Path("/not/used"), period="5m")
+    out = dp._read_minute(dp.Path("/not/used#futures"), period="5m")
 
     assert len(out) == 20
     assert list(out.columns) == ["bob", "open", "high", "low", "close", "volume"]
