@@ -16,10 +16,12 @@ import pandas as pd
 
 from config import get_symbols_config, resolve_symbol
 from data_provider import (
+    VALID_PERIODS,
     contract_has_any_data_file,
     fetch_replay_data,
     futures_prefix_from_mootdx_code,
     scan_contract_codes,
+    fetch_kline,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,6 +126,11 @@ def get_replay_payload(
     """
     market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
 
+    if display_period not in VALID_PERIODS:
+        raise InvalidRequestError(f"不支持的显示周期: {display_period}")
+    if step_period not in VALID_PERIODS:
+        raise InvalidRequestError(f"不支持的步进周期: {step_period}")
+
     result = fetch_replay_data(
         market=market_id,
         symbol=effective_code,
@@ -176,6 +183,28 @@ def get_replay_payload(
         "displayPeriod": display_period,
         "stepPeriod": step_period,
         "maPeriod": ma_period,
+    }
+
+
+def get_latest_price(symbol: str, contract: str | None = None) -> dict:
+    """获取品种最新价（轻量，只读 1 根 1m K 线，不跑 EMA/双周期等重操作）。"""
+    market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
+    df = fetch_kline(market_id, effective_code, "1m", count=1)
+    if df.empty:
+        raise NoDataError(f"无最新 K 线数据: {symbol}")
+    row = df.iloc[-1]
+    t = row["bob"]
+    ts = t.strftime("%Y-%m-%d %H:%M:%S") if hasattr(t, "strftime") else str(t)
+
+    symbols_map = get_symbols_config().get("symbols", {})
+    symbol_code = symbols_map.get(symbol, {}).get("code", symbol)
+
+    return {
+        "symbol": symbol,
+        "symbol_code": symbol_code,
+        "contract": effective_code,
+        "price": float(row["close"]),
+        "time": ts,
     }
 
 

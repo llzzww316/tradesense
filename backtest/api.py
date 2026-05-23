@@ -13,7 +13,7 @@ from backtest.engine import BacktestEngine
 from backtest.models import BacktestConfig
 from backtest.registry import get_strategy, get_strategy_params, list_strategies
 from config import get_symbols_config
-from data_provider import fetch_kline_by_date, fetch_stock_kline_by_date
+from data_provider import VALID_PERIODS, fetch_kline_by_date, fetch_stock_kline_by_date
 
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
@@ -61,6 +61,9 @@ async def run_backtest(req: RunBacktestRequest) -> dict:
         get_strategy(req.strategy)
     except KeyError as e:
         raise HTTPException(400, detail=str(e))
+
+    if req.period not in VALID_PERIODS:
+        raise HTTPException(400, detail=f"不支持的周期: {req.period}，可选值: {sorted(VALID_PERIODS)}")
 
     market_type = sym_info.get("market_type", "futures")
     is_stock = market_type == "stock"

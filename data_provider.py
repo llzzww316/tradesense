@@ -75,8 +75,9 @@ def contract_has_any_data_file(market: int, symbol_code: str) -> bool:
     return False
 
 
-# 各周期分钟数（用于步进数据量估算）
-PERIOD_MINUTES = {
+# 合法周期白名单（用于入参校验，也用于分钟数映射）
+VALID_PERIODS = frozenset({"1m", "5m", "15m", "30m", "60m", "1h", "1d"})
+_PERIOD_MINUTES = {
     "1m": 1,
     "5m": 5,
     "15m": 15,
@@ -85,6 +86,8 @@ PERIOD_MINUTES = {
     "1h": 60,
     "1d": 1440,
 }
+
+PERIOD_MINUTES = _PERIOD_MINUTES  # 兼容旧引用
 
 
 def _get_file_path(market: int, symbol: str, period: str) -> Path:
@@ -408,7 +411,7 @@ def fetch_replay_data(
     """
     display_minutes = PERIOD_MINUTES.get(display_period, 5)
     step_minutes = PERIOD_MINUTES.get(step_period, 1)
-    multiplier = max(1, display_minutes // step_minutes)
+    multiplier = min(60, max(1, display_minutes // step_minutes))
 
     display_df = fetch_kline_by_date(
         market, symbol, display_period,

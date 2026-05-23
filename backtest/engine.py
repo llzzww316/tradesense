@@ -124,8 +124,7 @@ class BacktestEngine:
                         "fee": fill.fee, "reason": fill.reason,
                         "bar_index_open": i,
                     }
-                    if self._is_stock:
-                        buy_date = fill.time.split(" ")[0]
+                    # buy_date 不在这里设，改在策略下单时记录信号产生日期（见下方 open_long 分支）
                 elif fill.action == "close":
                     if open_ctx is not None:
                         open_ctx["bar_index_to_close"] = i
@@ -139,6 +138,8 @@ class BacktestEngine:
             for order in self.ctx.drain_pending():
                 if order.action in ("open_long", "open_short"):
                     if self.account.position is None:
+                        if self._is_stock:
+                            buy_date = bar.time.split(" ")[0]
                         self.broker.submit(order)
                 elif order.action == "close":
                     if self.account.position is not None:

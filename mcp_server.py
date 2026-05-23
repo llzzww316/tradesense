@@ -217,26 +217,11 @@ def _tool_get_latest_price(args: dict) -> dict:
     if symbol_code is None:
         return {"error": f"未知品种: {symbol_input}"}
 
-    data = svc.get_replay_payload(
+    out = svc.get_latest_price(
         symbol=symbol_input,
         contract=str(contract_opt).strip() if contract_opt else None,
-        display_period="1m",
-        step_period="1m",
-        count=1,
     )
-    display_bars = data.get("display", [])
-    if not display_bars:
-        return {"error": "获取数据失败"}
-
-    latest = display_bars[-1]
-    out = {
-        "symbol": symbol_input,
-        "symbol_code": symbol_code,
-        "price": latest["close"],
-        "time": latest["time"],
-    }
-    if data.get("contract"):
-        out["contract"] = data["contract"]
+    out["symbol_code"] = symbol_code
     return out
 
 
