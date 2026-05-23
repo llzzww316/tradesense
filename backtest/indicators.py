@@ -9,25 +9,40 @@ from backtest.models import Bar, Side
 
 
 def ema(values: list[float], span: int) -> float:
+    """一次性 EMA 计算（用于初始播种或小数据量场景）。增量场景请用 ema_inc。"""
     if len(values) < span:
         return float("nan")
     return float(pd.Series(values).ewm(span=span, adjust=False).mean().iloc[-1])
 
 
+def ema_inc(state: dict, key: str, close: float, span: int) -> float:
+    """增量 EMA，O(1)。首次调用以 close 为种子（与 ewm(adjust=False) 行为一致）。
+
+    用法：每根 bar 调用一次，state 中缓存上一根 EMA 值。
+    ema_now = ema_inc(ctx.state, "ema_20", bar.close, 20)
+    """
+    last = state.get(key)
+    if last is None or last != last:  # None 或 NaN
+        state[key] = close
+        return close
+    alpha = 2.0 / (span + 1)
+    val = alpha * close + (1.0 - alpha) * last
+    state[key] = val
+    return val
+
+
 def atr(bars: list[Bar], period: int) -> float:
-    """Average True Range，用于动态止损。"""
+    """Average True Range（SMA of TR），仅计算最近 period 根 bar，用于动态止损。"""
     n = len(bars)
     if n < period + 1:
         return float("nan")
     tr_values = []
-    for i in range(1, n):
+    for i in range(max(1, n - period), n):
         hl = bars[i].high - bars[i].low
         hc = abs(bars[i].high - bars[i - 1].close)
         lc = abs(bars[i].low - bars[i - 1].close)
         tr_values.append(max(hl, hc, lc))
-    if len(tr_values) < period:
-        return float("nan")
-    return float(pd.Series(tr_values[-period:]).mean())
+    return float(pd.Series(tr_values).mean())
 
 
 def trend_bar_side(

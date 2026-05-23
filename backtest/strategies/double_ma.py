@@ -2,21 +2,21 @@
 from __future__ import annotations
 
 from backtest.context import StrategyContext
-from backtest.indicators import ema
+from backtest.indicators import ema_inc
 from backtest.models import Bar
 from backtest.registry import register_strategy
 
 
 @register_strategy("double_ma")
 def on_bar(bar: Bar, ctx: StrategyContext, *, fast: int = 5, slow: int = 20, **_: object) -> None:
-    closes = ctx.closes
-    if len(closes) < slow + 1:
+    n = len(ctx.history)
+    if n < slow + 1:
         return
 
-    ema_fast_now = ema(closes, fast)
-    ema_slow_now = ema(closes, slow)
-    ema_fast_prev = ema(closes[:-1], fast)
-    ema_slow_prev = ema(closes[:-1], slow)
+    ema_fast_prev = ctx.state.get("ema_fast", float("nan"))
+    ema_slow_prev = ctx.state.get("ema_slow", float("nan"))
+    ema_fast_now = ema_inc(ctx.state, "ema_fast", bar.close, fast)
+    ema_slow_now = ema_inc(ctx.state, "ema_slow", bar.close, slow)
 
     golden = ema_fast_prev <= ema_slow_prev and ema_fast_now > ema_slow_now
     death = ema_fast_prev >= ema_slow_prev and ema_fast_now < ema_slow_now

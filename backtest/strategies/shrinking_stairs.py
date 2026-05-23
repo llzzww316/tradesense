@@ -45,11 +45,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-import pandas as pd
-
 from backtest.context import StrategyContext
 from backtest.indicators import (
-    confirm_swing_high, confirm_swing_low, ema, trend_bar_side,
+    confirm_swing_high, confirm_swing_low, trend_bar_side,
 )
 from backtest.models import Bar, Side
 from backtest.registry import register_strategy

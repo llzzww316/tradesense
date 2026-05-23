@@ -25,11 +25,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-import pandas as pd
-
 from backtest.context import StrategyContext
 from backtest.indicators import (
-    atr, confirm_swing_low, ema, is_bear_bar, is_bull_bar, trend_bar_side,
+    atr, confirm_swing_low, ema_inc, is_bear_bar, is_bull_bar, trend_bar_side,
 )
 from backtest.models import Bar, Side
 from backtest.registry import register_strategy
@@ -263,16 +261,22 @@ def on_bar(
 
     # ── 1) 合成日线 ──────────────────────────────────────────────
     daily_bars: list[Bar] = ctx.state.get("daily_bars", [])
+    prev_daily_count = len(daily_bars)
     _update_daily_from_60m(bar, daily_bars)
     ctx.state["daily_bars"] = daily_bars
 
+    # 日线 EMA：仅在新建日 K 时喂入上一根的最终 close（避免同一天多次更新）
+    if len(daily_bars) > prev_daily_count and len(daily_bars) >= 2:
+        daily_ema = ema_inc(ctx.state, "daily_ema", daily_bars[-2].close, daily_ema_period)
+    elif ctx.state.get("daily_ema") is not None:
+        daily_ema = ctx.state["daily_ema"]
+    else:
+        daily_ema = float("nan")
     # 日线预热（至少 30 根合成日 K 才有足够数据判 AI）
     if len(daily_bars) < 30:
         ctx.state["prev_daily_ai"] = None
         return
 
-    daily_closes = [b.close for b in daily_bars]
-    daily_ema = ema(daily_closes, daily_ema_period)
     daily_ai_dir, daily_ai_str, daily_ai_score = _daily_ai_direction(
         daily_bars, daily_ema, daily_ai_lookback,
     )
@@ -280,7 +284,7 @@ def on_bar(
     cur_bar_date = _daily_date(bar)
 
     # ── 2) 60min 级别计算 ────────────────────────────────────────
-    ema_now = ema(closes, ema_period)
+    ema_now = ema_inc(ctx.state, "ema_60m", bar.close, ema_period)
     atr_val = atr(history, atr_period)
     if atr_val != atr_val or atr_val <= 0:
         atr_val = tick_size * 50

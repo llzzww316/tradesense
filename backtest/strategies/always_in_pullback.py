@@ -60,7 +60,7 @@ import pandas as pd
 
 from backtest.context import StrategyContext
 from backtest.indicators import (
-    atr, confirm_swing_high, confirm_swing_low, ema,
+    atr, confirm_swing_high, confirm_swing_low, ema_inc,
     is_bear_bar, is_bull_bar, trend_bar_side,
 )
 from backtest.models import Bar, Side
@@ -191,9 +191,10 @@ def _is_trading_range(
     if overlap_count / (len(recent) - 1) > 0.6:
         return True
 
-    # 条件 2：EMA 平坦度
+    # 条件 2：EMA 平坦度（仅看最近 lookback 根收盘价的 ewm）
     if len(closes) >= lookback:
-        ema_series = pd.Series(closes).ewm(span=20, adjust=False).mean()
+        recent_closes = closes[-lookback:]
+        ema_series = pd.Series(recent_closes).ewm(span=20, adjust=False).mean()
         recent_ema = ema_series.iloc[-lookback:]
         ema_range = recent_ema.max() - recent_ema.min()
         if ema_range / ema_now < 0.001:
@@ -319,7 +320,7 @@ def on_bar(
     if n < warmup:
         return
 
-    ema_now = ema(closes, ema_period)
+    ema_now = ema_inc(ctx.state, "ema_now", bar.close, ema_period)
     ai_dir, ai_strength, ai_score = _ai_direction(
         history, ema_now, ai_lookback, body_ratio_min, close_extreme_ratio, ai_min_score
     )
