@@ -91,3 +91,61 @@ tradesense/
 - 盘感训练
 - 策略复盘
 - 入场点位练习
+
+## 远程部署
+
+生产环境部署在 Ubuntu 24.04，通过 systemd 管理。
+
+### 首次部署
+
+```bash
+# 1. 在服务器上创建目录并上传代码
+ssh root@<server>
+mkdir -p /opt/tradesense
+# 本地执行：scp -r . root@<server>:/opt/tradesense/
+
+# 2. 创建虚拟环境并安装依赖
+cd /opt/tradesense
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+
+# 3. 创建 systemd 服务
+cat > /etc/systemd/system/tradesense.service << 'EOF'
+[Unit]
+Description=TradeSense K-line Data Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tradesense
+ExecStart=/opt/tradesense/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8765
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 4. 启动服务
+systemctl daemon-reload
+systemctl enable --now tradesense
+```
+
+### 日常更新
+
+```bash
+# 仅前端文件（静态资源，无需重启）
+scp frontend/index.html frontend/app.js frontend/styles.css root@<server>:/opt/tradesense/frontend/
+
+# 后端文件变更后需重启
+scp server.py data_provider.py … root@<server>:/opt/tradesense/
+ssh root@<server> systemctl restart tradesense
+```
+
+### 服务管理
+
+```bash
+systemctl status tradesense   # 查看状态
+systemctl restart tradesense  # 重启
+journalctl -u tradesense -f   # 查看日志
+```
