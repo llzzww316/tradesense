@@ -43,6 +43,12 @@ class StrategyContext:
     def sell(self, qty: int, reason: str = "") -> None:
         self.pending_orders.append(Order(action="open_short", qty=qty, reason=reason))
 
+    def buy_stop(self, qty: int, stop_price: float, reason: str = "") -> None:
+        self.pending_orders.append(Order(action="open_long", qty=qty, reason=reason, trigger_price=stop_price))
+
+    def sell_stop(self, qty: int, stop_price: float, reason: str = "") -> None:
+        self.pending_orders.append(Order(action="open_short", qty=qty, reason=reason, trigger_price=stop_price))
+
     def close(self, reason: str = "") -> None:
         self.pending_orders.append(Order(action="close", qty=self._position_qty or 0, reason=reason))
 

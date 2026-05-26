@@ -92,3 +92,67 @@ def confirm_swing_high(history: list[Bar]) -> Optional[float]:
     if b.high >= a.high and b.high >= c.high:
         return b.high
     return None
+
+
+def detect_swings(
+    history: list[Bar],
+    window: int = 2,
+) -> list[tuple[int, float, str]]:
+    """检测交替的摆动高点和低点。
+
+    Returns:
+        list of (bar_index, price, 'high'|'low') — 交替排列
+    """
+    n = len(history)
+    if n < window * 2 + 1:
+        return []
+
+    swings: list[tuple[int, float, str]] = []
+    for i in range(window, n - window):
+        bar = history[i]
+        neighbors = list(range(i - window, i)) + list(range(i + 1, i + window + 1))
+
+        is_swing_high = all(bar.high >= history[j].high for j in neighbors)
+        is_swing_low = all(bar.low <= history[j].low for j in neighbors)
+
+        if is_swing_high and is_swing_low:
+            continue
+
+        if is_swing_high and (not swings or swings[-1][2] != "high"):
+            swings.append((i, bar.high, "high"))
+        elif is_swing_low and (not swings or swings[-1][2] != "low"):
+            swings.append((i, bar.low, "low"))
+
+    return swings
+
+
+def is_trading_range(
+    history: list[Bar],
+    lookback: int = 20,
+    overlap_threshold: float = 0.6,
+) -> bool:
+    """K 线重叠率检测交易区间。
+
+    相邻 K 线重叠部分占联合区间 > overlap_threshold 的比例超过 60% → 视为 TR。
+    """
+    n = len(history)
+    if n < lookback:
+        return False
+
+    recent = history[-lookback:]
+    overlap_count = 0
+    pair_count = len(recent) - 1
+
+    for i in range(1, len(recent)):
+        prev, cur = recent[i - 1], recent[i]
+        joint_range = max(prev.high, cur.high) - min(prev.low, cur.low)
+        if joint_range <= 0:
+            overlap_count += 1
+            continue
+        overlap = min(prev.high, cur.high) - max(prev.low, cur.low)
+        if overlap > 0 and overlap / joint_range >= overlap_threshold:
+            overlap_count += 1
+
+    if pair_count <= 0:
+        return False
+    return overlap_count / pair_count > 0.6

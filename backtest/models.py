@@ -24,6 +24,7 @@ class Order:
     action: Action
     qty: int
     reason: str = ""
+    trigger_price: float = 0.0
 
 
 @dataclass

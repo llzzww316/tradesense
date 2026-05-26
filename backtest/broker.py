@@ -1,4 +1,4 @@
-"""Broker：把 Order 在下一根 K 开盘按规则成交。"""
+"""Broker：把 Order 在下一根 K 按规则成交（支持市价单和 Stop 单）。"""
 from __future__ import annotations
 
 from typing import Optional
@@ -35,23 +35,56 @@ class Broker:
             return price - slip_amt if close_side == "long" else price + slip_amt
         raise ValueError(f"未知 action: {action}")
 
+    def _try_fill_stop(self, order: Order, bar: Bar, close_side: Optional[Side]) -> Optional[Fill]:
+        """Stop 单触发逻辑：
+        - 做多 Stop：trigger_price 被 bar.high 触及或突破 → 按 trigger_price + 滑点成交
+        - 做空 Stop：trigger_price 被 bar.low 触及或突破 → 按 trigger_price - 滑点成交
+        返回 Fill 表示成交，None 表示未触发（保留待成交）。
+        """
+        if order.trigger_price <= 0:
+            # 非 Stop 单，按原逻辑在开盘成交
+            price = self._slip(bar.open, order.action, close_side)
+            return Fill(
+                time=bar.time, action=order.action, qty=order.qty,
+                price=price, fee=0, reason=order.reason,
+            )
+
+        tp = order.trigger_price
+        if order.action == "open_long":
+            # 买入 Stop：价格向上突破 trigger_price 时触发
+            if bar.high >= tp:
+                # 如果开盘就跳空越过 trigger，按开盘价成交；否则按 trigger
+                fill_price = bar.open if bar.open >= tp else tp
+                price = self._slip(fill_price, order.action, close_side)
+                return Fill(
+                    time=bar.time, action=order.action, qty=order.qty,
+                    price=price, fee=0, reason=order.reason,
+                )
+        elif order.action == "open_short":
+            # 卖出 Stop：价格向下突破 trigger_price 时触发
+            if bar.low <= tp:
+                fill_price = bar.open if bar.open <= tp else tp
+                price = self._slip(fill_price, order.action, close_side)
+                return Fill(
+                    time=bar.time, action=order.action, qty=order.qty,
+                    price=price, fee=0, reason=order.reason,
+                )
+
+        # 未触发，保留
+        return None
+
     def execute_on_open(self, bar: Bar) -> Optional[Fill]:
         if self._pending is None:
             return None
         order = self._pending
         close_side = self._pending_close_side
-        price = self._slip(bar.open, order.action, close_side)
-        # fee 由 Account.apply_fill 计算，此处传 0
-        fill = Fill(
-            time=bar.time,
-            action=order.action,
-            qty=order.qty,
-            price=price,
-            fee=0,
-            reason=order.reason,
-        )
-        self._pending = None
-        self._pending_close_side = None
+
+        fill = self._try_fill_stop(order, bar, close_side)
+        if fill is not None:
+            # 成交了，清空待成交
+            self._pending = None
+            self._pending_close_side = None
+        # 未触发时 fill 为 None，pending 保留到下一根 K
         return fill
 
     def force_close(self, time: str, qty: int, side: Side, price: float,
@@ -64,3 +97,11 @@ class Broker:
             time=time, action="close", qty=qty,
             price=exec_price, fee=0, reason=reason,
         )
+
+    @property
+    def has_pending(self) -> bool:
+        return self._pending is not None
+
+    @property
+    def pending_order(self) -> Optional[Order]:
+        return self._pending

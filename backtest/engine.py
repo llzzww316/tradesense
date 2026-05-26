@@ -137,7 +137,7 @@ class BacktestEngine:
             self.strategy_fn(bar, self.ctx, **self.config.strategy_params)
             for order in self.ctx.drain_pending():
                 if order.action in ("open_long", "open_short"):
-                    if self.account.position is None:
+                    if self.account.position is None and not self.broker.has_pending:
                         if self._is_stock:
                             buy_date = bar.time.split(" ")[0]
                         self.broker.submit(order)

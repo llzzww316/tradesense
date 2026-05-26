@@ -1,14 +1,34 @@
-"""/api/backtest 路由的最小 E2E 测试（用 TestClient + mock 数据）。"""
+"""/api/backtest 路由的最小 E2E 测试（用 TestClient + mock 数据 + 桩策略）。"""
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-import backtest.strategies  # noqa: F401  先注册内置策略
+from backtest.registry import register_strategy, _STRATEGIES
+
+
+_STUB_NAME = "_test_stub_strategy"
+
+
+@pytest.fixture
+def stub_strategy():
+    """注册一个最小桩策略：第 5 根开多，第 15 根平仓。测试结束后注销。"""
+    if _STUB_NAME in _STRATEGIES:
+        del _STRATEGIES[_STUB_NAME]
+
+    @register_strategy(_STUB_NAME)
+    def _stub(bar, ctx, qty: int = 1):
+        i = len(ctx.history) - 1
+        if i == 5 and ctx.position_side is None:
+            ctx.buy(qty=qty, reason="stub-open")
+        elif i == 15 and ctx.position_side is not None:
+            ctx.close(reason="stub-close")
+
+    yield _STUB_NAME
+    del _STRATEGIES[_STUB_NAME]
 
 
 @pytest.fixture
 def client(monkeypatch):
-    # 先 patch data_provider：不要读本机文件，返回合成 K
     import backtest.api as api
 
     def fake_fetch(market, symbol, period, start_date=None, end_date=None, count=800):
@@ -27,22 +47,24 @@ def client(monkeypatch):
     return TestClient(app)
 
 
-def test_list_strategies(client):
+def test_list_strategies_endpoint_ok(client, stub_strategy):
     r = client.get("/api/backtest/strategies")
     assert r.status_code == 200
-    names = [s["name"] for s in r.json()["strategies"]]
-    assert "double_ma" in names
+    body = r.json()
+    assert "strategies" in body
+    names = [s["name"] for s in body["strategies"]]
+    assert stub_strategy in names
 
 
-def test_run_backtest_basic(client):
+def test_run_backtest_basic(client, stub_strategy):
     payload = {
         "symbol": "螺纹钢",
         "period": "5m",
         "initial_capital": 100000,
         "slippage_ticks": 1,
         "intraday_only": False,
-        "strategy": "double_ma",
-        "strategy_params": {"fast": 3, "slow": 8},
+        "strategy": stub_strategy,
+        "strategy_params": {"qty": 1},
     }
     r = client.post("/api/backtest/run", json=payload)
     assert r.status_code == 200
@@ -52,10 +74,10 @@ def test_run_backtest_basic(client):
     assert body["metrics"]["final_position"] in ("long", "short", "flat")
 
 
-def test_unknown_symbol_returns_400(client):
+def test_unknown_symbol_returns_400(client, stub_strategy):
     r = client.post("/api/backtest/run", json={
         "symbol": "不存在的品种", "period": "5m",
-        "strategy": "double_ma", "strategy_params": {},
+        "strategy": stub_strategy, "strategy_params": {},
     })
     assert r.status_code in (400, 404)
 
