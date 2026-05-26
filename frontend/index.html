@@ -26,6 +26,7 @@
             <select id="symbolSelect">
                 <option value="">加载中...</option>
             </select>
+            <div class="header-extras">
             <select id="contractSelect" disabled title="由本机通达信 vipdoc 扫描生成的可选合约；换合约若在回放中会重新拉数">
                 <option value="">合约…</option>
             </select>
@@ -64,7 +65,9 @@
             <label class="date-field-label date-field-label--end">
                 结束: <input type="date" id="endDate" class="date-input">
             </label>
+            </div>
             <button id="loadBtn" class="primary">加载数据</button>
+            <button class="replay-toggle" id="replayToggle" title="折叠/展开">▼</button>
         </div>
     </div>
 
@@ -79,6 +82,7 @@
         <button id="playBtn" disabled>▶ 播放</button>
         <button id="nextBtn" disabled>下一根 ▶</button>
         <button id="tradeBtn" disabled>交易</button>
+        <div class="replay-extras" id="replayExtras">
         <button id="simSettingsBtn">模拟设置</button>
         <span id="barInfo">0 / 0</span>
         <span class="mode-tag" id="modeTag">5分钟 / 1分钟</span>
@@ -98,6 +102,7 @@
             <div class="sim-pill">浮盈<strong id="simUnrealized">0.00</strong></div>
             <div class="sim-pill">已实现<strong id="simRealized">0.00</strong></div>
             <div class="sim-pill">手续费<strong id="simFees">0.00</strong></div>
+        </div>
         </div>
     </div>
 

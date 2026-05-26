@@ -38,7 +38,7 @@ const el = {};
         "tradePositionText",
         "openLongBtn", "openShortBtn", "closePositionBtn", "tradeCancelBtn",
         "simSettingsBtn", "simSettingsCancel", "simSettingsSave",
-        "exportTradeLogBtn"
+        "exportTradeLogBtn", "replayToggle"
     ];
     for (const id of ids) {
         el[id] = document.getElementById(id);
@@ -943,6 +943,17 @@ el.loadBtn.addEventListener("click", () => {
 el.displayPeriod.addEventListener("change", scheduleReloadOnPeriodChange);
 el.stepPeriod.addEventListener("change", scheduleReloadOnPeriodChange);
 
+// 折叠面板切换
+el.replayToggle.addEventListener("click", () => {
+    const collapsed = document.body.classList.toggle("replay-collapsed");
+    el.replayToggle.textContent = collapsed ? "▲" : "▼";
+    el.replayToggle.title = collapsed ? "展开" : "折叠";
+    localStorage.setItem("replayCollapsed", collapsed ? "1" : "0");
+    if (chart) {
+        const c = el.chart;
+        chart.resize(c.clientWidth, c.clientHeight);
+    }
+});
 function scheduleReloadAfterContractChange() {
     if (!sessionHasLoadedReplay) return;
     clearTimeout(periodReloadTimer);
@@ -1005,7 +1016,14 @@ document.addEventListener("keydown", (e) => {
 });
 
 // 初始化
+// 恢复折叠面板状态（必须在initChart之前，确保chart用正确高度初始化）
+const _collapsed = localStorage.getItem("replayCollapsed") === "1";
+if (_collapsed) document.body.classList.add("replay-collapsed");
 initChart();
 initDatePickers();
 initSymbolList();
 loadSimAccount();
+if (_collapsed) {
+    el.replayToggle.textContent = "▲";
+    el.replayToggle.title = "展开";
+}

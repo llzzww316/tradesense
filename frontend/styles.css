@@ -74,6 +74,9 @@ button:disabled {
     gap: 15px;
     border-top: 1px solid #ddd;
 }
+.header-extras { display: contents; }
+.replay-extras { display: contents; }
+.replay-toggle { display: none; align-items: center; justify-content: center; }
 .replay-bar span {
     color: #666;
     font-size: 13px;
@@ -257,6 +260,7 @@ button:disabled {
     width: 120px;
 }
 .ohlc-display {
+    display: none;
     position: absolute;
     top: 10px;
     right: 20px;
@@ -538,6 +542,49 @@ td.pnl-loss { color: #c62828; font-weight: 600; }
     .speed-select {
         width: 56px;
         font-size: 12px;
+    }
+
+    /* ---- 折叠面板 ---- */
+    .replay-extras {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+    }
+    .replay-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        margin-left: auto;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fff;
+        font-size: 12px;
+        color: #666;
+        cursor: pointer;
+        min-height: unset;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .replay-toggle:active {
+        background: #eee;
+    }
+    /* 折叠状态：隐藏extras内除progressBar外的所有元素 */
+    body.replay-collapsed .replay-extras > :not(.progress-bar) {
+        display: none;
+    }
+    /* 折叠时chart给更多高度 */
+    body.replay-collapsed .chart-container {
+        height: 52vh;
+        min-height: 340px;
+    }
+    /* 折叠时隐藏header控件区 */
+    body.replay-collapsed .header-extras {
+        display: none;
     }
 
     /* ---- 模拟账户 Pill ---- */
