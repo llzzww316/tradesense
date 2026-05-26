@@ -440,3 +440,282 @@ td.long { color: #ef5350; }
 td.short { color: #26a69a; }
 td.pnl-win { color: #2e7d32; font-weight: 600; }
 td.pnl-loss { color: #c62828; font-weight: 600; }
+
+/* ================================================================
+   移动端适配 (≤768px)
+   ================================================================ */
+@media (max-width: 768px) {
+    /* ---- 通用触控优化 ---- */
+    button, select, input[type="date"], .nav-btn {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ---- 回放页顶栏 ---- */
+    .header {
+        flex-wrap: wrap;
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .logo {
+        font-size: 15px;
+        width: 100%;
+    }
+    .controls {
+        flex-wrap: wrap;
+        gap: 5px;
+        width: 100%;
+    }
+    .controls select,
+    .controls button {
+        font-size: 12px;
+        padding: 8px 6px;
+        min-height: 36px;
+    }
+    .controls .nav-link {
+        font-size: 12px;
+        margin-right: auto;
+    }
+    .controls .date-field-label {
+        font-size: 11px;
+        margin-left: 0;
+    }
+    .controls .date-input {
+        width: 105px;
+        font-size: 12px;
+        padding: 6px 4px;
+    }
+
+    /* ---- 图表 ---- */
+    .chart-container {
+        flex: 1 1 auto;
+        height: 45vh;
+        min-height: 280px;
+        padding: 0 6px;
+    }
+    #chart {
+        height: 100%;
+    }
+
+    /* ---- OHLC 浮层 ---- */
+    .ohlc-display {
+        top: auto;
+        bottom: 6px;
+        right: 6px;
+        left: 6px;
+        font-size: 11px;
+        min-width: auto;
+        padding: 5px 8px;
+        text-align: center;
+        border-radius: 4px;
+    }
+
+    /* ---- 回放控制栏 ---- */
+    .replay-bar {
+        flex-wrap: wrap;
+        padding: 6px 10px;
+        gap: 6px;
+        align-items: center;
+    }
+    .replay-bar button {
+        padding: 8px 10px;
+        font-size: 12px;
+        min-height: 36px;
+    }
+    .replay-bar span {
+        font-size: 11px;
+    }
+    .replay-bar .mode-tag {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+    .progress-bar {
+        flex: 1 1 100%;
+        order: 10;
+        height: 8px;
+        margin: 2px 0;
+    }
+    .speed-select {
+        width: 56px;
+        font-size: 12px;
+    }
+
+    /* ---- 模拟账户 Pill ---- */
+    .sim-account {
+        width: 100%;
+        margin-left: 0;
+        gap: 4px;
+        flex-wrap: wrap;
+        order: 9;
+    }
+    .sim-pill {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+    .sim-pill strong {
+        font-size: 11px;
+    }
+
+    /* ---- 交易日志表格 ---- */
+    .trade-log {
+        padding: 4px 6px;
+        font-size: 11px;
+        max-height: 160px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .trade-log table {
+        min-width: 560px;
+        font-size: 11px;
+    }
+    .trade-log th, .trade-log td {
+        padding: 4px 3px;
+    }
+    .trade-log-toolbar {
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+    .trade-log-title {
+        font-size: 12px;
+    }
+    .trade-log-toolbar button {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    /* ---- 弹窗 ---- */
+    .modal-card {
+        min-width: auto;
+        max-width: 96vw;
+        width: 96vw;
+        padding: 12px;
+        margin: 0 2vw;
+    }
+    .modal-title {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    .form-row {
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 6px 0;
+    }
+    .form-row input {
+        width: 120px;
+        font-size: 13px;
+        padding: 8px 6px;
+    }
+    .form-row--note {
+        font-size: 11px;
+    }
+    .modal-actions {
+        margin-top: 10px;
+    }
+    .modal-actions button {
+        padding: 8px 14px;
+        font-size: 13px;
+        min-height: 36px;
+    }
+
+    /* ---- 回测页顶栏 ---- */
+    .header.bt-header {
+        padding: 6px 10px;
+        gap: 5px;
+    }
+    .header.bt-header .logo {
+        width: auto;
+        font-size: 14px;
+    }
+    .header.bt-header .controls {
+        gap: 5px;
+    }
+    .bt-row {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 5px;
+    }
+    .bt-row2 {
+        padding-top: 5px;
+    }
+    .bt-row label {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        font-size: 12px;
+    }
+    .header.bt-header select {
+        width: 100%;
+        font-size: 12px;
+        padding: 8px 6px;
+        min-height: 36px;
+    }
+    .header.bt-header input[type="date"] {
+        width: auto;
+        flex: 1;
+        max-width: 130px;
+        font-size: 12px;
+    }
+    .header.bt-header input[type="number"],
+    .header.bt-header input[type="text"] {
+        width: auto;
+        flex: 1;
+        max-width: 110px;
+        font-size: 12px;
+    }
+    .header.bt-header input#bt-capital {
+        width: auto;
+        flex: 1;
+        max-width: 100px;
+    }
+    .header.bt-header .bt-params-box {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    .nav-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+        align-self: flex-start;
+    }
+
+    /* ---- 回测图表区 ---- */
+    .chart-container.bt-charts {
+        padding: 4px 6px;
+        gap: 4px;
+    }
+    #bt-chart {
+        height: 35vh;
+        min-height: 200px;
+    }
+    #bt-equity-chart {
+        height: 18vh;
+        margin-top: 4px;
+    }
+    .chart-empty {
+        font-size: 12px;
+    }
+
+    /* ---- 回测指标卡 ---- */
+    .bt-metrics {
+        padding: 8px 10px;
+    }
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px 8px;
+    }
+    .metrics-grid label {
+        font-size: 11px;
+    }
+    .metrics-grid b {
+        font-size: 13px;
+    }
+
+    /* ---- 状态提示 ---- */
+    .status {
+        left: 8px;
+        right: 8px;
+        font-size: 12px;
+        padding: 6px 10px;
+        text-align: center;
+    }
+}

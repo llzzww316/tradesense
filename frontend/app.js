@@ -60,7 +60,7 @@ function formatChartTime(time) {
 function initChart() {
     const container = el.chart;
     const width = container.clientWidth || 800;
-    const height = 600;
+    const height = container.clientHeight || 600;
     
     chart = LightweightCharts.createChart(container, {
         width: width,
@@ -114,7 +114,8 @@ function initChart() {
     
     window.addEventListener("resize", () => {
         const w = container.clientWidth || 800;
-        chart.resize(w, 600);
+        const h = container.clientHeight || 600;
+        chart.resize(w, h);
     });
     
     // 订阅十字线移动事件，显示OHLC
