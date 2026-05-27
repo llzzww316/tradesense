@@ -77,6 +77,8 @@ button:disabled {
 .header-extras { display: contents; }
 .replay-extras { display: contents; }
 .replay-toggle { display: none; align-items: center; justify-content: center; }
+.landscape-toggle { display: none; align-items: center; justify-content: center; }
+.landscape-toggle::before { content: ""; display: block; width: 9px; height: 13px; border: 2px solid #666; border-radius: 2px; transition: all 0.2s; }
 .replay-bar span {
     color: #666;
     font-size: 13px;
@@ -573,6 +575,23 @@ td.pnl-loss { color: #c62828; font-weight: 600; }
     .replay-toggle:active {
         background: #eee;
     }
+    .landscape-toggle {
+        display: inline-flex;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        margin-left: 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+        min-height: unset;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .landscape-toggle:active {
+        background: #eee;
+    }
     /* 折叠状态：隐藏extras内除progressBar外的所有元素 */
     body.replay-collapsed .replay-extras > :not(.progress-bar) {
         display: none;
@@ -764,5 +783,143 @@ td.pnl-loss { color: #c62828; font-weight: 600; }
         font-size: 12px;
         padding: 6px 10px;
         text-align: center;
+    }
+
+    /* ---- 横屏布局 ---- */
+    html.landscape .header {
+        padding: 3px 6px;
+        gap: 4px;
+        flex-wrap: nowrap;
+    }
+    html.landscape .logo {
+        font-size: 12px;
+        width: auto;
+        margin-right: 2px;
+    }
+    html.landscape .controls {
+        gap: 3px;
+        flex-wrap: nowrap;
+        width: auto;
+    }
+    html.landscape .controls select,
+    html.landscape .controls button {
+        font-size: 10px;
+        padding: 3px 5px;
+        min-height: 24px;
+    }
+    html.landscape .controls .nav-link {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+    html.landscape .header-extras {
+        display: none;
+    }
+    html.landscape .chart-container {
+        height: 50vh;
+        min-height: 120px;
+        max-height: 200px;
+        padding: 0 3px;
+    }
+    html.landscape #chart {
+        height: 100%;
+    }
+    html.landscape .ohlc-display {
+        top: auto;
+        bottom: 3px;
+        right: 3px;
+        left: auto;
+        font-size: 9px;
+        padding: 2px 5px;
+        min-width: auto;
+        text-align: right;
+        border-radius: 3px;
+    }
+    html.landscape .replay-bar {
+        padding: 3px 6px;
+        gap: 3px;
+        flex-wrap: nowrap;
+    }
+    html.landscape .replay-bar button {
+        font-size: 10px;
+        padding: 3px 6px;
+        min-height: 24px;
+    }
+    html.landscape .replay-bar span {
+        font-size: 9px;
+    }
+    html.landscape .replay-bar .mode-tag {
+        display: none;
+    }
+    html.landscape .progress-bar {
+        flex: 1 1 auto;
+        height: 4px;
+        order: 0;
+        margin: 0;
+    }
+    html.landscape .speed-select {
+        width: 42px;
+        font-size: 10px;
+    }
+    html.landscape .sim-account {
+        width: auto;
+        gap: 2px;
+        flex-wrap: nowrap;
+        order: 0;
+        margin-left: 0;
+    }
+    html.landscape .sim-pill {
+        font-size: 8px;
+        padding: 1px 3px;
+    }
+    html.landscape .sim-pill strong {
+        font-size: 9px;
+    }
+    html.landscape .trade-log {
+        display: none;
+    }
+    html.landscape .replay-extras {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 3px;
+        width: auto;
+    }
+    html.landscape .replay-toggle {
+        display: inline-flex;
+        width: 22px;
+        height: 22px;
+        font-size: 9px;
+        margin-left: 0;
+    }
+    html.landscape .landscape-toggle {
+        display: inline-flex;
+        width: 22px;
+        height: 22px;
+        font-size: 9px;
+        background: #e94560;
+        border-color: #e94560;
+    }
+    html.landscape .landscape-toggle::before {
+        width: 13px;
+        height: 9px;
+        border-color: #fff;
+    }
+    html.landscape .modal-card {
+        max-width: 90vw;
+        max-height: 85vh;
+        padding: 8px;
+    }
+    html.landscape .modal-title {
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+    html.landscape .form-row {
+        gap: 4px;
+        margin: 3px 0;
+    }
+    html.landscape .form-row input {
+        width: 100px;
+        font-size: 12px;
+        padding: 5px 4px;
     }
 }

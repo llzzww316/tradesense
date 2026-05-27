@@ -38,7 +38,7 @@ const el = {};
         "tradePositionText",
         "openLongBtn", "openShortBtn", "closePositionBtn", "tradeCancelBtn",
         "simSettingsBtn", "simSettingsCancel", "simSettingsSave",
-        "exportTradeLogBtn", "replayToggle"
+        "exportTradeLogBtn", "replayToggle", "landscapeToggle"
     ];
     for (const id of ids) {
         el[id] = document.getElementById(id);
@@ -954,6 +954,15 @@ el.replayToggle.addEventListener("click", () => {
         chart.resize(c.clientWidth, c.clientHeight);
     }
 });
+
+// 横屏手动切换
+el.landscapeToggle.addEventListener("click", () => {
+    document.documentElement.classList.toggle("landscape");
+    if (chart) {
+        const c = el.chart;
+        chart.resize(c.clientWidth, c.clientHeight);
+    }
+});
 function scheduleReloadAfterContractChange() {
     if (!sessionHasLoadedReplay) return;
     clearTimeout(periodReloadTimer);
@@ -1027,3 +1036,15 @@ if (_collapsed) {
     el.replayToggle.textContent = "▲";
     el.replayToggle.title = "展开";
 }
+
+// 横屏自动检测
+const landscapeQuery = window.matchMedia("(orientation: landscape)");
+function applyLandscape() {
+    document.documentElement.classList.toggle("landscape", landscapeQuery.matches);
+    if (chart) {
+        const c = el.chart;
+        chart.resize(c.clientWidth, c.clientHeight);
+    }
+}
+applyLandscape();
+landscapeQuery.addEventListener("change", applyLandscape);
