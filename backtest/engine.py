@@ -97,7 +97,7 @@ class BacktestEngine:
                 open_ctx["bar_index_to_close"] = close_idx
                 trades.append(_close_fill_to_trade(force, open_ctx))
                 open_ctx = None
-            self.ctx._set_position(None, 0)
+            self.ctx._set_position(None, 0, 0.0)
 
         for i, bar in enumerate(bars):
             # --- 爆仓后：账户已平，跳过策略/下单/EOD/再次爆仓判定，只继续延伸权益曲线 ---
@@ -117,6 +117,7 @@ class BacktestEngine:
                     self.ctx._set_position(
                         "long" if fill.action == "open_long" else "short",
                         fill.qty,
+                        fill.price,
                     )
                     open_ctx = {
                         "time": fill.time, "price": fill.price, "qty": fill.qty,
@@ -130,7 +131,7 @@ class BacktestEngine:
                         open_ctx["bar_index_to_close"] = i
                         trades.append(_close_fill_to_trade(fill, open_ctx))
                         open_ctx = None
-                    self.ctx._set_position(None, 0)
+                    self.ctx._set_position(None, 0, 0.0)
 
             # --- 策略产生新信号（可能塞 broker） ---
             self.ctx._push_bar(bar)

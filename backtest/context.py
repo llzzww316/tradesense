@@ -13,13 +13,15 @@ class StrategyContext:
         self.state: dict = {}
         self._position_side: Optional[Side] = None
         self._position_qty: int = 0
+        self._position_avg_price: float = 0.0
 
     def _push_bar(self, bar: Bar) -> None:
         self.history.append(bar)
 
-    def _set_position(self, side: Optional[Side], qty: int) -> None:
+    def _set_position(self, side: Optional[Side], qty: int, avg_price: float = 0.0) -> None:
         self._position_side = side
         self._position_qty = qty
+        self._position_avg_price = avg_price
 
     @property
     def current_bar(self) -> Bar:
@@ -36,6 +38,10 @@ class StrategyContext:
     @property
     def position_qty(self) -> int:
         return self._position_qty
+
+    @property
+    def position_avg_price(self) -> float:
+        return self._position_avg_price
 
     def buy(self, qty: int, reason: str = "") -> None:
         self.pending_orders.append(Order(action="open_long", qty=qty, reason=reason))
