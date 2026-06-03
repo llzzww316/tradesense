@@ -94,15 +94,23 @@ tradesense/
 
 ## 远程部署
 
-生产环境部署在 Ubuntu 24.04，通过 systemd 管理。
+生产环境：`115.191.43.254`（Ubuntu 24.04, 2C/2G, 40G Disk）
+
+| 路径 | 用途 |
+|------|------|
+| `/opt/tradesense/` | 项目代码（含 `venv/` 虚拟环境） |
+| `/data/vipdoc/` | 通达信 VIPDOC 数据（~5.8G，期货 + A 股） |
+| `/etc/systemd/system/tradesense.service` | systemd 服务配置 |
+
+访问地址：**http://115.191.43.254:8765/**
 
 ### 首次部署
 
 ```bash
 # 1. 在服务器上创建目录并上传代码
-ssh root@<server>
+ssh root@115.191.43.254
 mkdir -p /opt/tradesense
-# 本地执行：scp -r . root@<server>:/opt/tradesense/
+# 本地执行：scp -r . root@115.191.43.254:/opt/tradesense/
 
 # 2. 创建虚拟环境并安装依赖
 cd /opt/tradesense
@@ -117,10 +125,14 @@ After=network.target
 
 [Service]
 Type=simple
+User=root
 WorkingDirectory=/opt/tradesense
+Environment=TRADESENSE_TDX_DIR=/data
 ExecStart=/opt/tradesense/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8765
 Restart=always
-RestartSec=5
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -135,17 +147,18 @@ systemctl enable --now tradesense
 
 ```bash
 # 仅前端文件（静态资源，无需重启）
-scp frontend/index.html frontend/app.js frontend/styles.css root@<server>:/opt/tradesense/frontend/
+scp frontend/index.html frontend/app.js frontend/styles.css frontend/shared.js root@115.191.43.254:/opt/tradesense/frontend/
 
 # 后端文件变更后需重启
-scp server.py data_provider.py … root@<server>:/opt/tradesense/
-ssh root@<server> systemctl restart tradesense
+scp server.py data_provider.py kline_service.py config.py root@115.191.43.254:/opt/tradesense/
+scp -r backtest/ root@115.191.43.254:/opt/tradesense/
+ssh root@115.191.43.254 systemctl restart tradesense
 ```
 
 ### 服务管理
 
 ```bash
-systemctl status tradesense   # 查看状态
-systemctl restart tradesense  # 重启
-journalctl -u tradesense -f   # 查看日志
+ssh root@115.191.43.254 systemctl status tradesense   # 查看状态
+ssh root@115.191.43.254 systemctl restart tradesense   # 重启
+ssh root@115.191.43.254 journalctl -u tradesense -f    # 查看日志
 ```

@@ -169,7 +169,8 @@ class BacktestEngine:
                     _do_flatten(price=bar.close, reason="eod", close_idx=i)
 
             # --- 爆仓 → 下一根开盘强平，随后停止新开仓（权益曲线继续外推）---
-            if self.account.is_liquidated() and liquidated_at is None:
+            # 股票现货做多不涉及保证金，不可能穿仓，跳过爆仓判定
+            if not self._is_stock and self.account.is_liquidated() and liquidated_at is None:
                 liquidated_at = bar.time
                 if i + 1 < len(bars) and self.account.position is not None:
                     _do_flatten(
