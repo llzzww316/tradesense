@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORB v3 手动交易执行手册</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #181a21;
+    --border: #262a33;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --orange: #d2991d;
+    --purple: #a371f7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.75;
+    padding: 2rem;
+  }
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 2.5rem;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-red  { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-orange { background: rgba(210,153,29,0.15); color: var(--orange); }
+  h2 {
+    font-size: 1.35rem;
+    color: #fff;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin: 1.5rem 0 0.75rem;
+  }
+  h4 {
+    font-size: 0.95rem;
+    color: var(--text);
+    margin: 1.25rem 0 0.5rem;
+  }
+  p { margin-bottom: 0.75rem; color: var(--text); }
+  ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+  li { margin-bottom: 0.35rem; }
+  strong { color: #fff; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .card.accent {
+    border-left: 3px solid var(--accent);
+  }
+  .card.green {
+    border-left: 3px solid var(--green);
+  }
+  .card.red {
+    border-left: 3px solid var(--red);
+  }
+  .card.orange {
+    border-left: 3px solid var(--orange);
+  }
+  .card.purple {
+    border-left: 3px solid var(--purple);
+  }
+  .checklist {
+    list-style: none;
+    margin-left: 0;
+  }
+  .checklist li::before {
+    content: "☐";
+    margin-right: 0.6rem;
+    color: var(--muted);
+  }
+  .checklist li.done::before {
+    content: "☑";
+    color: var(--green);
+  }
+  .rule-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .rule-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    width: 30%;
+  }
+  .rule-table td {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .price-chart {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem 1.5rem;
+    margin: 1rem 0;
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 0.85rem;
+    position: relative;
+    text-align: center;
+  }
+  .price-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 0;
+  }
+  .price-line .line {
+    flex: 1;
+    height: 1px;
+    margin: 0 1rem;
+  }
+  .price-line .label {
+    min-width: 10rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .line.high-line { background: repeating-linear-gradient(90deg, var(--accent), var(--accent) 6px, transparent 6px, transparent 12px); }
+  .line.mid-line  { background: repeating-linear-gradient(90deg, var(--muted), var(--muted) 4px, transparent 4px, transparent 8px); }
+  .line.low-line  { background: repeating-linear-gradient(90deg, var(--accent), var(--accent) 6px, transparent 6px, transparent 12px); }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+  .warning {
+    background: rgba(248,81,73,0.1);
+    border: 1px solid rgba(248,81,73,0.25);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    color: var(--red);
+    font-size: 0.9rem;
+  }
+  .tip {
+    background: rgba(88,166,255,0.08);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    font-size: 0.9rem;
+  }
+  .section-dot {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .section-dot .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 0.65rem;
+    flex-shrink: 0;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  @media (max-width: 600px) {
+    body { padding: 1rem; }
+    .rule-table th { width: 40%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>ORB v3 手动交易执行手册</h1>
+<p class="subtitle">Opening Range Breakout — 开盘区间突破策略 · 期货日内交易</p>
+
+<!-- ── 准备 ── -->
+<h2>一、你需要准备的东西</h2>
+<ul>
+  <li>一个能看到 <strong>5 分钟 K 线图</strong>的软件（文华财经、博易大师、快期等均可）</li>
+  <li>最好能看到成交量柱（没有也行，可以用价格力度判断）</li>
+  <li>一个能画 <strong>水平线</strong> 的工具</li>
+</ul>
+
+<div class="tip">
+  <strong>💡 提示</strong>：如果是文华财经，按 <strong>F8</strong> 切换到 5 分钟图，用"画线工具"里的"水平线"即可。
+</div>
+
+<!-- ── 夜盘 ── -->
+<h2>二、夜盘操作 <span class="badge badge-orange">21:00-23:00</span></h2>
+
+<h3>🥇 阶段一：21:00 开盘前 — 扫一眼日线</h3>
+<p>心里有个数：昨天是大阳线还是大阴线？外盘什么方向？<strong>不用算数字，有个方向感就行。</strong></p>
+
+<h3>🥈 阶段二：21:00-21:30 — 等待 <span class="badge badge-red">不动手</span></h3>
+
+<div class="card red">
+  <p style="margin:0;color:var(--red)"><strong>⚠️ 什么也不做。只看不碰。</strong></p>
+</div>
+
+<p>在这 30 分钟里，做两件事：</p>
+<ol>
+  <li>记录这 30 分钟的最高价 → 画一条水平线，这是<strong>上线</strong></li>
+  <li>记录这 30 分钟的最低价 → 画一条水平线，这是<strong>下线</strong></li>
+</ol>
+
+<div class="price-chart">
+  <div style="color:var(--muted);margin-bottom:1rem;">夜盘 21:30 — 你的图上应该有这三条线</div>
+  <div class="price-line">
+    <div class="line high-line"></div>
+    <div class="label">上线 = 30分钟最高价</div>
+    <div class="line high-line"></div>
+  </div>
+  <div style="margin:1.2rem 0;"></div>
+  <div class="price-line">
+    <div class="line mid-line"></div>
+    <div class="label">中线 = (上线+下线)/2 · 止损用</div>
+    <div class="line mid-line"></div>
+  </div>
+  <div style="margin:1.2rem 0;"></div>
+  <div class="price-line">
+    <div class="line low-line"></div>
+    <div class="label">下线 = 30分钟最低价</div>
+    <div class="line low-line"></div>
+  </div>
+</div>
+
+<h3>🥉 阶段三：21:30之后 — 等突破</h3>
+
+<p><strong>不做的事</strong>：不预测方向、不在区间内交易、不在突破前抢跑。</p>
+
+<div class="card accent">
+  <h4 style="margin-top:0">✅ 入场三条件（必须同时满足）</h4>
+  <ol>
+    <li><strong>价格突破</strong>：某根 5 分钟 K 线的<strong>收盘价</strong>明确高于上线（做多）或低于下线（做空）</li>
+    <li><strong>力度确认</strong>：这根 K 线实体饱满（实体 ≥ 整根 K 线 60%），上/下影线不能太长</li>
+    <li><strong>放量</strong>：这根 K 线的成交量明显大于前面几根</li>
+  </ol>
+  <p style="color:var(--red);margin-bottom:0"><strong>三缺一就不做。力度不够、量不够的突破，大概率是假突破。</strong></p>
+</div>
+
+<h4>做多示例</h4>
+<div class="card green">
+  <p>上线 3100，某根 K 线 <strong>收盘 3105</strong>，实体饱满、放量</p>
+  <p style="margin-bottom:0">→ 下一根 K 线开盘价<strong>市价买进 1 手</strong></p>
+</div>
+
+<h4>做空示例</h4>
+<div class="card red">
+  <p>下线 3080，某根 K 线 <strong>收盘 3075</strong>，实体饱满、放量</p>
+  <p style="margin-bottom:0">→ 下一根 K 线开盘价<strong>市价卖空 1 手</strong></p>
+</div>
+
+<h3>🛑 止损</h3>
+
+<div class="card orange">
+  <p><strong>止损价 = 区间中线 = (上线 + 下线) / 2</strong></p>
+  <p style="margin-bottom:0">例：上线 3100 / 下线 3080，中线 = 3090</p>
+  <table class="rule-table" style="margin:0.5rem 0 0">
+    <tr><th>做多止损</th><td>价格跌到 3090 以下 → 止损</td></tr>
+    <tr><th>做空止损</th><td>价格涨到 3090 以上 → 止损</td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:0.85rem;margin:0.5rem 0 0">止损的逻辑：价格回到区间一半 = 突破大概率失败，认赔走人。</p>
+</div>
+
+<h3>🎯 止盈（移动止损）</h3>
+
+<ol>
+  <li>入场后，浮盈达到 <strong>区间宽度的距离</strong>（比如区间 20 点，浮盈 20 点）→ 把止损移到<strong>入场价</strong>（保本）</li>
+  <li>之后每创新高/新低，止损跟着挪，距离 = <strong>区间宽度的一半</strong>（比如 10 点）</li>
+  <li>直到被止损推出场</li>
+</ol>
+
+<div class="tip">
+  <strong>💡 核心理念</strong>：让盈利奔跑，用移动止损保护已经到手的利润。不设固定止盈价。
+</div>
+
+<h3>🚫 什么时候不做</h3>
+<ul>
+  <li><strong>22:00 之后</strong>不新开仓（太晚，没时间跑利润）</li>
+  <li><strong>震荡日</strong>：开盘 30 分钟一直在 5 个 tick 内窄幅横盘 → 不交易</li>
+  <li><strong>区间太窄</strong>：上线和下线差不到 6 个 tick → 不交易</li>
+  <li><strong>连亏两笔</strong> → 今晚收工</li>
+</ul>
+
+<h3>📤 平仓</h3>
+<ul>
+  <li>被止损触发 → 自动平仓</li>
+  <li>被移动止损推出 → 自动平仓</li>
+  <li><strong>22:55</strong> 还有仓位 → 手动平仓</li>
+</ul>
+
+<!-- ── 日盘 ── -->
+<h2>三、日盘操作 <span class="badge badge-green">09:00-15:00</span></h2>
+
+<p><strong>和夜盘完全一样的逻辑，只是时间段不同。</strong></p>
+
+<table class="rule-table">
+  <tr><th>阶段</th><td>动作</td></tr>
+  <tr><th>09:00-09:30</th><td>等待，记录上线和下线</td></tr>
+  <tr><th>09:30-14:00</th><td>等突破：价格 + 力度 + 量，三条件入场</td></tr>
+  <tr><th>11:25</th><td>有仓位未触发止损 → 手动平仓，吃午饭</td></tr>
+  <tr><th>14:00 之后</th><td>不新开仓</td></tr>
+  <tr><th>14:55</th><td>还有仓位 → 手动平仓</td></tr>
+</table>
+
+<!-- ── 两时段关系 ── -->
+<h2>四、夜盘 vs 日盘的关系</h2>
+
+<p>它们是<strong>完全独立</strong>的两个时段。夜盘做了一单，日盘可以再做一单（各自独立判断）。</p>
+
+<div class="tip">
+  <strong>💡 一个参考</strong>：如果夜盘是明确的多头趋势（一路上涨），日盘可以<strong>优先考虑做多</strong>——夜盘的方向通常延续到第二天。但不强制。
+</div>
+
+<!-- ── 心态规则 ── -->
+<h2>五、心态规则</h2>
+
+<table class="rule-table">
+  <tr><th>规则</th><td>原因</td></tr>
+  <tr><th>一天最多两单</th><td>多做的每一单大概率是亏的</td></tr>
+  <tr><th>开盘 30 分钟绝不动手</th><td>这是市场在告诉你方向，不是在让你交易</td></tr>
+  <tr><th>条件不满足 = "不做"</th><td>今天不交易不会亏钱</td></tr>
+  <tr><th>止损触发就走</th><td>你不是在判断市场，是在执行规则</td></tr>
+  <tr><th>连亏两笔当天收工</th><td>今天运气/市场不对，明天再来</td></tr>
+  <tr><th>PVC > 螺纹钢</th><td>同时看两个品种，优先做 PVC</td></tr>
+</table>
+
+<!-- ── 快速检查清单 ── -->
+<h2>六、每笔交易前快速自检</h2>
+
+<div class="card purple">
+  <ul class="checklist">
+    <li>开盘 30 分钟已经过了？</li>
+    <li>上线和下线已经画好了？</li>
+    <li>区间宽度 ≥ 6 tick？</li>
+    <li>今天不是窄幅震荡？</li>
+    <li>突破 K 线实体 ≥ 整根 K 线 60%？</li>
+    <li>成交量明显放大？</li>
+    <li>不在 14:00 / 22:00 之后？</li>
+    <li>今天还没做满两单？</li>
+    <li>止损价已经算好了（区间中线）？</li>
+  </ul>
+  <p style="color:var(--accent);margin:0.5rem 0 0"><strong>全部打勾 → 可以入场。</strong></p>
+</div>
+
+<!-- ── 品种参考 ── -->
+<h2>七、品种参数速查</h2>
+
+<table class="rule-table">
+  <tr><th></th><th>螺纹钢 RB</th><th>PVC V</th></tr>
+  <tr><th>交易所</th><td>上期所</td><td>大商所</td></tr>
+  <tr><th>每手吨数</th><td>10 吨</td><td>5 吨</td></tr>
+  <tr><th>最小变动</th><td>1 元/吨</td><td>1 元/吨</td></tr>
+  <tr><th>每跳价值</th><td>10 元</td><td>5 元</td></tr>
+  <tr><th>保证金(约)</th><td>~3,100 元/手</td><td>~2,300 元/手</td></tr>
+  <tr><th>手续费</th><td>~3 元/手</td><td>~2 元/手</td></tr>
+  <tr><th>回测 PF</th><td style="color:var(--orange)">0.81</td><td style="color:var(--green)">2.04</td></tr>
+  <tr><th>推荐优先级</th><td style="color:var(--muted)">次选</td><td style="color:var(--green)"><strong>首选</strong></td></tr>
+</table>
+
+<footer>
+  <p>ORB v3 策略 · 基于开盘区间突破 + ADX 趋势过滤</p>
+  <p>策略文件: backtest/strategies/orb.py · 回测记录: backtest/strategies/STRATEGIES.md</p>
+</footer>
+
+</div>
+</body>
+</html>

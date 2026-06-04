@@ -1,11 +1,44 @@
 """菲阿里改良版 v2.1 — Mode A：OHLC4 关键位回调策略。
 
-v2.1 新增日线趋势过滤（Layer 1），先于 OHLC4 方向判定（Layer 2）。
+基于 OHLC4 计算日内关键位，配合斐波那契 0.382 回调：
+  - 前一日高低价 → OHLC4 均价作为锚点
+  - 当日开盘价 vs 锚点 → 判定多空方向
+  - 跳空检测：开盘偏离锚点过大时改用斐波那契位
+  - v2.1 新增：日线趋势三取二投票过滤（K线计数/结构/MA5）
 
-日线趋势判定（三取二）：
-  1. 阴阳线计数（近6日阳线>=4 → UP，阴线>=4 → DOWN）
-  2. 高低点结构（低点抬高 → UP，高点下移 → DOWN）
-  3. MA5 方向
+────────────────────────────────────────────────────────────────
+回测记录 (螺纹钢2610, 5m, 2026-03-01 ~ 2026-06-03)
+────────────────────────────────────────────────────────────────
+配置: initial_capital=100000, tick_size=1, tick_value=10,
+      margin_rate=0.10, fee_per_lot=3, slippage=1, intraday_only=True
+
+结果:
+  最终权益:   99,722.00
+  总收益率:       -0.28%
+  最大回撤:     -278.00 (-0.28%)
+  总交易数:      13 (胜2 / 负11)
+  胜率:          15.38%
+  盈亏比:         0.33
+  平均盈利:      69.00
+  平均亏损:      37.82
+  Sharpe:        -8.18
+
+已修复bug:
+  _is_new_trading_day 原条件 "prev_t >= 15*60 and cur_t >= 21*60"
+  会在夜盘内每根K线重复触发（21:05→21:10 也满足 >=15:00 且 >=21:00），
+  导致 day_idx 虚高、range 计算错误、方向永远为 None。
+  修复: 增加 "prev_t < 21*60" 限制，仅在午后→夜盘切换时触发。
+
+问题分析:
+  1. 尾盘入场：大量交易在 22:05-23:00 入场后立即被 eod_force 强平。
+     建议: 22:00 之后停止开仓（当前限制 22:30，实际 eod_force 从 22:30
+     开始但入场可能太晚来不及盈利）。
+  2. 交易频率低: 3个月仅13笔，大量交易日 range < 25 tick 导致
+     fa_direction = None，无入场信号。
+  3. 盈亏比不足: 平均亏损 37.82 > 平均盈利 69.00 的比例不合理，
+     止损 3 tick 过紧、止盈目标偏小。
+  4. 时段限制（14:00-15:00 和 22:00+ 跳过入场）合理，
+     但 eod_force_close 在 14:45 和 22:30 可能需要提前。
 """
 from __future__ import annotations
 
@@ -30,7 +63,7 @@ def _is_new_trading_day(bar: Bar, prev_bar: Optional[Bar]) -> bool:
         return True
     prev_t = _bar_time_minutes(prev_bar.time)
     cur_t = _bar_time_minutes(bar.time)
-    if prev_t >= 15 * 60 and cur_t >= 21 * 60:
+    if prev_t >= 15 * 60 and prev_t < 21 * 60 and cur_t >= 21 * 60:
         return True
     prev_date = prev_bar.time.split(" ")[0]
     cur_date = bar.time.split(" ")[0]
