@@ -146,8 +146,8 @@ uv run pytest -k "false_breakdown"         # 关键字筛选
 - `backtest/models.py` — 数据类（Bar/Order/Fill/Trade/Position/BacktestConfig/BacktestResult/EquityPoint），含 `instrument_type` 字段（`"futures"` / `"stock"`）
 - `backtest/account.py` — Account（权益 = 初始 + 已实现 - 手续费 + 浮盈；available = 权益 - 占用保证金；available<0 即爆仓），期货按跳数折算 PnL，股票按价差 × 股数
 - `backtest/broker.py` — 按"下一根 K 开盘 ± 滑点"成交；日末 / 爆仓用 `force_close`；股票模式手续费 = 佣金 + 印花税（卖出）+ 过户费
-- `backtest/context.py` — `on_bar(bar, ctx)` 的上下文：`ctx.history / ctx.closes / ctx.position_side / ctx.position_qty / ctx.buy() / ctx.sell() / ctx.close() / ctx.state`
-- `backtest/indicators.py` — **共享技术指标**：`ema()` / `ema_inc()`（O(1) 增量 EMA，必须用它代替 `pd.ewm` 全量重算）/ `atr()` / `trend_bar_side()` / `confirm_swing_high/low()` / `detect_swings()` / `is_trading_range()`
+- `backtest/context.py` — `on_bar(bar, ctx)` 的上下文：`ctx.history / ctx.closes / ctx.current_bar / ctx.position_side / ctx.position_qty / ctx.position_avg_price / ctx.buy() / ctx.sell() / ctx.buy_stop(price=) / ctx.sell_stop(price=) / ctx.close() / ctx.state`（注：stop order 目前仅记录 trigger_price，broker 尚未实现条件触发逻辑）
+- `backtest/indicators.py` — **共享技术指标**：`ema()` / `ema_inc()`（O(1) 增量 EMA，必须用它代替 `pd.ewm` 全量重算）/ `atr()` / `is_bull_bar()` / `is_bear_bar()` / `trend_bar_side()` / `confirm_swing_high/low()` / `detect_swings()` / `is_trading_range()`
 - `backtest/registry.py` — `@register_strategy("name")` 全局注册；`get_strategy_params()` 通过 `inspect` 反射 on_bar 的关键字参数，自动暴露给前端
 - `backtest/strategies/` — 内置策略目录（见下）
 - `backtest/engine.py` — 串联 account+broker+strategy 的事件循环，含日内强平、爆仓处理、股票 T+1（买入当日不可卖）
@@ -156,7 +156,27 @@ uv run pytest -k "false_breakdown"         # 关键字筛选
 
 ### 内置策略
 
-当前**已清空**，准备重写。`backtest/strategies/__init__.py` 是空文件，只剩 docstring；新策略注册流程不变——在文件里 `from . import <new_strategy>` 即可触发 `@register_strategy` 注册。
+`backtest/strategies/__init__.py` 导入以下 5 个策略（新增策略在此加一行 `from . import <name>` 即可触发 `@register_strategy` 注册）：
+
+| 策略名 | 文件 | 品种 | 周期 | 核心逻辑 |
+|--------|------|------|------|----------|
+| `bull_flag` | `bull_flag.py` | 股票 | 日线 | 上升旗形：检测旗杆（N 日涨幅 ≥ `pole_min_pct`）→ 回调旗面（缩量/ATR 收缩）→ 突破旗面上轨入场，ATR 止损 + 1R/2R 分批止盈 |
+| `donchian` | `donchian.py` | 股票 | 日线 | Donchian 通道突破：entry 日高点突破入场，exit 日低点跌破离场，EMA 趋势过滤 + ATR 移动止损 |
+| `fiali_mode_a` | `fiali_mode_a.py` | 期货 | 5m | 菲阿里 Mode A（双层方向判定）：日线 EMA 定大方向 → 5m 突破关键价位（前日高低/开盘价）顺势入场 |
+| `fiali_mode_c` | `fiali_mode_c.py` | 期货 | 5m | 菲阿里 Mode C（开盘区间突破）：开盘 N 分钟高低区间形成后，突破入场 |
+| `orb` | `orb.py` | 期货 | 5m | ORB v3 开盘区间突破：多时间框架区间确认，突破入场 + ATR 动态止损 |
+
+**策略注册机制**：`@register_strategy("name")` 装饰器注册，参数通过 `inspect.signature` 反射 on_bar 的关键字参数自动暴露给前端——类型注解 `bool` → 复选框，`str` → 文本框，其他 → 数字输入。
+
+### 脚本与批量回测
+
+- **`scripts/run_*.py`** — 单品种回测脚本（`run_rb_backtest.py` → fiali_mode_a, `run_rb_backtest_c.py` → fiali_mode_c, `run_orb_backtest.py` → ORB, `run_bull_flag_backtest.py` → 60 只 A 股旗形扫描）。是学习回测 API 用法的最佳参考。
+- **`batch_donchian.py`** — 30 只沪深主板 Donchian 日线批量回测，直接 `uv run python batch_donchian.py`。
+- 脚本通用模式：`import backtest.strategies`（触发注册）→ `fetch_kline_by_date()` 取数 → `BacktestConfig(...)` 配置 → `BacktestEngine(cfg, df).run()` → 打印 metrics。
+
+### backtest 包公共 API
+
+`from backtest import BacktestEngine, BacktestConfig, BacktestResult, Bar, Trade, Fill, ...` — 见 `backtest/__init__.py` 的 `__all__`，这是外部脚本和 API 层导入的入口。
 
 ### 关键规则
 
@@ -199,6 +219,10 @@ A 股专属：
 
 - 数据层（`kline_service`）给前端用的 EMA：pandas `ewm(span=period, adjust=False).mean()`，仅打在**显示周期**序列上。
 - 策略内部的 EMA：**必须用 `backtest.indicators.ema_inc`**（增量 O(1)），不要每根 bar 调 `pd.Series.ewm()` 重算全量历史，那是 O(N²)。`atr` 也类似，仅取最近 `period+1` 根计算。
+
+### 指标计算注意事项
+
+- `compute_metrics()` 的 `bars_per_year` 默认 `252 * 24 * 12`（适合 5 分钟线期货）。日线回测时 Sharpe/Calmar 会失真——批量脚本若需精确年化指标，应传 `bars_per_year=252`。目前 `BacktestEngine.run()` 未暴露该参数，是已知待改进点。
 
 ### 时间处理
 
