@@ -19,7 +19,7 @@ const refs = {
     chartEmpty: $("bt-chart-empty"), equityEmpty: $("bt-equity-empty"),
 };
 
-let chart = null, candleSeries = null, equityChart = null, equitySeries = null;
+let chart = null, equityChart = null;
 let lastResult = null;
 let strategyParams = [];  // {name, params: [{name, type, default}]}
 let symbolConfigs = {};   // {name: {market_type, ...}}
@@ -137,61 +137,50 @@ function hideStatus() {
 
 // ---- 图表 ----
 function initCharts() {
-    const w = refs.chart.clientWidth || window.innerWidth - 40;
-    const h = refs.chart.clientHeight || 400;
-    chart = LightweightCharts.createChart(refs.chart, {
-        width: w, height: h,
-        layout: { background: { color: "#fff" } },
-        timeScale: { timeVisible: true, secondsVisible: false },
-    });
-    candleSeries = chart.addCandlestickSeries({
-        upColor: "#ef5350", downColor: "#26a69a",
-        borderUpColor: "#ef5350", borderDownColor: "#26a69a",
-        wickUpColor: "#ef5350", wickDownColor: "#26a69a",
-    });
-    const ew = refs.equityChart.clientWidth || w;
-    const eh = refs.equityChart.clientHeight || 220;
-    equityChart = LightweightCharts.createChart(refs.equityChart, {
-        width: ew, height: eh,
-        layout: { background: { color: "#fff" } },
-        timeScale: { timeVisible: true, secondsVisible: false },
-    });
-    equitySeries = equityChart.addLineSeries({ color: "#1976d2", lineWidth: 2 });
-
-    // 同步十字线和时间轴
-    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-        if (range) equityChart.timeScale().setVisibleLogicalRange(range);
-    });
-    equityChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-        if (range) chart.timeScale().setVisibleLogicalRange(range);
+    // K线图
+    chart = klinecharts.init(refs.chart, {
+        styles: {
+            grid: {
+                show: true,
+                horizontal: { show: true, size: 1, color: "rgba(0,0,0,0.06)" },
+                vertical: { show: true, size: 1, color: "rgba(0,0,0,0.06)" },
+            },
+            candle: {
+                upColor: "#ef5350",
+                downColor: "#26a69a",
+                upBorderColor: "#ef5350",
+                downBorderColor: "#26a69a",
+                upWickColor: "#ef5350",
+                downWickColor: "#26a69a",
+            },
+        },
     });
 
-    chart.subscribeCrosshairMove(param => {
-        if (param.time) {
-            equityChart.setCrosshairPosition(0, param.time, equitySeries);
-        } else {
-            equityChart.clearCrosshairPosition();
-        }
-    });
-    equityChart.subscribeCrosshairMove(param => {
-        if (param.time) {
-            chart.setCrosshairPosition(0, param.time, candleSeries);
-        } else {
-            chart.clearCrosshairPosition();
-        }
+    // 权益曲线图（area 线型展示）
+    equityChart = klinecharts.init(refs.equityChart, {
+        styles: {
+            grid: {
+                show: true,
+                horizontal: { show: true, size: 1, color: "rgba(0,0,0,0.06)" },
+                vertical: { show: true, size: 1, color: "rgba(0,0,0,0.06)" },
+            },
+            candle: {
+                type: "area",
+                area: {
+                    lineSize: 2,
+                    lineColor: "#1976d2",
+                    value: "close",
+                    smooth: true,
+                    backgroundColor: "rgba(25,118,210,0.12)",
+                },
+                priceMark: { show: false },
+                tooltip: { showRule: "always", showType: "standard" },
+            },
+        },
     });
 
-    const ro = new ResizeObserver(entries => {
-        for (const entry of entries) {
-            if (entry.target === refs.chart && chart) {
-                chart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height });
-            } else if (entry.target === refs.equityChart && equityChart) {
-                equityChart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height });
-            }
-        }
-    });
-    ro.observe(refs.chart);
-    ro.observe(refs.equityChart);
+    // 注：KLineChart v9.8 不支持跨实例编程设置十字线，
+    // 因此移除双向同步；两个图表各自独立显示十字线 tooltip。
 }
 
 // ---- 运行回测 ----
@@ -267,46 +256,54 @@ function render(data) {
     const qtyHeader = document.getElementById("bt-qty-header");
     if (qtyHeader) qtyHeader.textContent = isStock ? "股数" : "手数";
 
+    // K线数据
     const candles = data.bars.map(b => ({
-        time: toChartTime(b.time),
+        timestamp: toChartTime(b.time),
         open: b.open, high: b.high, low: b.low, close: b.close,
     }));
-    candleSeries.setData(candles);
+    chart.applyNewData(candles);
 
-    const markers = [];
+    // 交易标记（使用 KLineChart 的 simpleTag overlay）
+    // 先移除旧标注
+    chart.removeOverlay({ groupId: "trade_marks" });
     for (const f of data.fills) {
         const t = toChartTime(f.time);
         if (f.action === "open_long") {
-            markers.push({ time: t, position: "belowBar", color: "#ef5350", shape: "arrowUp",
-                text: `B ${f.qty} @${f.price.toFixed(2)}` });
+            chart.createOverlay({
+                name: "simpleTag",
+                groupId: "trade_marks",
+                points: [{ timestamp: t, value: f.price }],
+                extendData: `B ${f.qty} @${f.price.toFixed(2)}`,
+                styles: { point: { color: "#ef5350", radius: 4 } },
+            });
         } else if (f.action === "open_short") {
-            markers.push({ time: t, position: "aboveBar", color: "#26a69a", shape: "arrowDown",
-                text: `S ${f.qty} @${f.price.toFixed(2)}` });
+            chart.createOverlay({
+                name: "simpleTag",
+                groupId: "trade_marks",
+                points: [{ timestamp: t, value: f.price }],
+                extendData: `S ${f.qty} @${f.price.toFixed(2)}`,
+                styles: { point: { color: "#26a69a", radius: 4 } },
+            });
         } else if (f.action === "close") {
             const isEod = (f.reason || "").includes("eod");
             const isLiq = (f.reason || "").includes("liquidate");
-            markers.push({ time: t, position: "inBar",
-                color: isLiq ? "#b71c1c" : (isEod ? "#888" : "#fb8c00"),
-                shape: "circle",
-                text: `C @${f.price.toFixed(2)}${isLiq ? " 爆仓" : ""}${isEod ? " 日末" : ""}` });
+            const label = `C @${f.price.toFixed(2)}${isLiq ? " 爆仓" : ""}${isEod ? " 日末" : ""}`;
+            chart.createOverlay({
+                name: "simpleTag",
+                groupId: "trade_marks",
+                points: [{ timestamp: t, value: f.price }],
+                extendData: label,
+                styles: { point: { color: isLiq ? "#b71c1c" : (isEod ? "#888" : "#fb8c00"), radius: 3 } },
+            });
         }
     }
-    markers.sort((a, b) => a.time - b.time);
 
-    // 合并同一时间的 markers，避免 Lightweight Charts 报错 (Record is out of order / duplicate time)
-    const mergedMarkers = [];
-    for (const m of markers) {
-        if (mergedMarkers.length > 0 && mergedMarkers[mergedMarkers.length - 1].time === m.time) {
-            const last = mergedMarkers[mergedMarkers.length - 1];
-            last.text += ` | ${m.text}`;
-        } else {
-            mergedMarkers.push(m);
-        }
-    }
-    candleSeries.setMarkers(mergedMarkers);
-
-    const eq = data.equity_curve.map(p => ({ time: toChartTime(p.time), value: p.equity }));
-    equitySeries.setData(eq);
+    // 权益曲线：将 equity 值作为 close 传入 KLineData 格式
+    const eqData = data.equity_curve.map(p => ({
+        timestamp: toChartTime(p.time),
+        open: p.equity, high: p.equity, low: p.equity, close: p.equity,
+    }));
+    equityChart.applyNewData(eqData);
 
     const m = data.metrics;
     refs.metricsBox.innerHTML = renderMetrics(m, data);

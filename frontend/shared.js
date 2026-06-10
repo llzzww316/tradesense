@@ -45,7 +45,7 @@ function toChartTime(timeStr) {
     const parts = timeStr.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
     if (parts) {
         const [, yyyy, MM, dd, hh, mm, ss] = parts.map(Number);
-        return Math.floor(Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) / 1000);
+        return Date.UTC(yyyy, MM - 1, dd, hh, mm, ss);
     }
-    return Math.floor(new Date(timeStr).getTime() / 1000);
+    return new Date(timeStr).getTime();
 }

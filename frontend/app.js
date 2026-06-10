@@ -1,7 +1,5 @@
 // 全局变量
 let chart = null;
-let candleSeries = null;
-let emaLine = null;
 let displayBars = [];      // 显示用K线（5分钟）
 let stepBars = [];         // 步进用K线（1分钟）
 let currentStepIndex = 0;  // 当前步进索引
@@ -59,91 +57,86 @@ function formatChartTime(time) {
 // 初始化图表
 function initChart() {
     const container = el.chart;
-    const width = container.clientWidth || 800;
-    const height = container.clientHeight || 600;
-    
-    chart = LightweightCharts.createChart(container, {
-        width: width,
-        height: height,
-        layout: {
-            background: { type: "solid", color: "#ffffff" },
-            textColor: "#333",
-        },
-        localization: {
-            timeFormatter: formatChartTime,
-        },
-        grid: {
-            vertLines: { color: "#eee" },
-            horzLines: { color: "#eee" },
-        },
-        crosshair: {
-            mode: LightweightCharts.CrosshairMode.Normal,
-            vertLine: {
-                labelBackgroundColor: "#e94560",
+
+    chart = klinecharts.init(container, {
+        styles: {
+            grid: {
+                show: true,
+                horizontal: { show: true, size: 1, color: "rgba(0,0,0,0.06)" },
+                vertical: { show: true, size: 1, color: "rgba(0,0,0,0.06)" },
             },
-            horzLine: {
-                labelBackgroundColor: "#e94560",
+            candle: {
+                type: "candle_solid",
+                priceMark: {
+                    show: true,
+                    high: { show: true, color: "#333", textSize: 10 },
+                    low: { show: true, color: "#333", textSize: 10 },
+                    last: { show: true, upColor: "#ef5350", downColor: "#26a69a" },
+                },
+                tooltip: {
+                    showRule: "always",
+                    showType: "standard",
+                },
+            },
+            indicator: {
+                tooltip: {
+                    showRule: "always",
+                    showType: "standard",
+                },
+            },
+            xAxis: {
+                tickText: { color: "#333" },
+            },
+            yAxis: {
+                tickText: { color: "#333" },
+            },
+            crosshair: {
+                show: true,
+                horizontal: {
+                    show: true,
+                    line: { show: true, style: "dash", color: "#999" },
+                    text: { show: true, color: "#fff", borderColor: "#e94560", backgroundColor: "#e94560" },
+                },
+                vertical: {
+                    show: true,
+                    line: { show: true, style: "dash", color: "#999" },
+                    text: { show: true, color: "#fff", borderColor: "#e94560", backgroundColor: "#e94560" },
+                },
             },
         },
-        timeScale: {
-            timeVisible: true,
-            secondsVisible: false,
-            tickMarkFormatter: formatChartTime,
-            /* 最后一根 K 与右侧价格轴之间留出若干根 K 线宽度的空隙，避免贴太紧 */
-            rightOffset: 12,
+        customApi: {
+            formatDate: (dateTimeFormat, timestamp) => formatChartTime(timestamp / 1000),
         },
-        rightPriceScale: {
-            borderColor: "#333",
+    });
+
+    // 涨跌颜色：红涨绿跌（中国市场惯例）
+    chart.setStyles({
+        candle: {
+            upColor: "#ef5350",
+            downColor: "#26a69a",
+            upBorderColor: "#ef5350",
+            downBorderColor: "#26a69a",
+            upWickColor: "#ef5350",
+            downWickColor: "#26a69a",
         },
-        crosshairTimeFormatter: formatChartTime,
     });
-    
-    candleSeries = chart.addCandlestickSeries({
-        upColor: "#ef5350",
-        downColor: "#26a69a",
-        borderUpColor: "#ef5350",
-        borderDownColor: "#26a69a",
-        wickUpColor: "#ef5350",
-        wickDownColor: "#26a69a",
-    });
-    
-    emaLine = chart.addLineSeries({
-        color: "#ff9800",
-        lineWidth: 2,
-    });
-    
-    window.addEventListener("resize", () => {
-        const w = container.clientWidth || 800;
-        const h = container.clientHeight || 600;
-        chart.resize(w, h);
-    });
-    
-    // 订阅十字线移动事件，显示OHLC
-    chart.subscribeCrosshairMove((param) => {
+
+    // 创建 EMA 指标（叠加到主图K线面板）
+    chart.createIndicator("EMA", true);
+
+    // KLineChart 内置 ResizeObserver，无需手动监听 resize
+
+    // 订阅十字线移动事件，显示 OHLC
+    // v9.8 的 onCrosshairChange 回调参数 Crosshair 包含 kLineData 字段
+    chart.subscribeAction("onCrosshairChange", (crosshair) => {
         const ohlcEl = el.ohlcDisplay;
-
-        // 如果鼠标不在图表上，清除显示
-        if (!param.point || !param.time) {
+        if (!crosshair || !crosshair.kLineData) {
             ohlcEl.style.display = "none";
             return;
         }
-
-        // 使用 param.seriesData.get() 获取当前K线数据
-        let data = null;
-        try {
-            data = param.seriesData.get(candleSeries);
-        } catch (e) {
-            ohlcEl.style.display = "none";
-            return;
-        }
-
-        if (!data) {
-            ohlcEl.style.display = "none";
-            return;
-        }
-
-        const timeStr = formatChartTime(data.time);
-        ohlcEl.innerHTML = `${timeStr} | <span style="color:#f0ad4e">O:${data.open}</span> <span style="color:#ef5350">H:${data.high}</span> <span style="color:#26a69a">L:${data.low}</span> <span style="color:#4fc3f7">C:${data.close}</span>`;
+        const kLine = crosshair.kLineData;
+        const timeStr = formatChartTime(kLine.timestamp / 1000);
+        ohlcEl.innerHTML = `${timeStr} | <span style="color:#f0ad4e">O:${kLine.open}</span> <span style="color:#ef5350">H:${kLine.high}</span> <span style="color:#26a69a">L:${kLine.low}</span> <span style="color:#4fc3f7">C:${kLine.close}</span>`;
         ohlcEl.style.display = "block";
     });
 }
@@ -298,32 +291,28 @@ function scheduleReloadOnPeriodChange() {
 // 更新图表
 function updateChart() {
     if (displayBars.length === 0) return;
-    
+
     if (stepBars.length === 0) {
         // 无步进数据时，直接显示所有历史K线
-        const candleData = displayBars.map(bar => ({
-            time: toChartTime(bar.time),
+        const dataList = displayBars.map(bar => ({
+            timestamp: toChartTime(bar.time),
             open: bar.open,
             high: bar.high,
             low: bar.low,
             close: bar.close,
         }));
-        candleSeries.setData(candleData);
-        emaLine.setData(displayBars.filter(bar => bar.ema).map(bar => ({
-            time: toChartTime(bar.time),
-            value: bar.ema,
-        })));
-        chart.timeScale().scrollToRealTime();
+        chart.applyNewData(dataList);
+        chart.scrollToRealTime();
         return;
     }
-    
+
     // 有步进数据时的逻辑：
     // 1. 已完成的5分钟K线：直接用原始数据
     // 2. 当前正在形成的5分钟K线：基于1分钟数据实时计算
-    
+
     const currentStep = stepBars[currentStepIndex];
     const currentStepTime = currentStep.time;
-    
+
     // 找到当前1分钟所属的5分钟K线索引
     let currentDisplayIndex = 0;
     for (let i = displayBars.length - 1; i >= 0; i--) {
@@ -332,17 +321,17 @@ function updateChart() {
             break;
         }
     }
-    
+
     // 分离：已完成的K线 + 当前K线
     const completedBars = displayBars.slice(0, currentDisplayIndex);
     const currentBar = displayBars[currentDisplayIndex];
     const currentBarTime = currentBar.time;
-    
+
     // 计算当前5分钟K线从开始到当前1分钟步进的OHLC
     let high = currentBar.open;
     let low = currentBar.open;
     let close = currentStep.close;
-    
+
     for (let i = 0; i <= currentStepIndex; i++) {
         const t = stepBars[i].time;
         if (t >= currentBarTime && t <= currentStepTime) {
@@ -350,34 +339,30 @@ function updateChart() {
             low = Math.min(low, stepBars[i].low);
         }
     }
-    
+
     // 构建完整K线数据
-    const candleData = completedBars.map(bar => ({
-        time: toChartTime(bar.time),
+    const dataList = completedBars.map(bar => ({
+        timestamp: toChartTime(bar.time),
         open: bar.open,
         high: bar.high,
         low: bar.low,
         close: bar.close,
     }));
-    
+
     // 添加当前正在形成的K线
-    candleData.push({
-        time: toChartTime(currentBarTime),
+    dataList.push({
+        timestamp: toChartTime(currentBarTime),
         open: currentBar.open,
         high: high,
         low: low,
         close: close,
     });
-    
-    candleSeries.setData(candleData);
-    
-    // EMA（只用已完成的K线）
-    emaLine.setData(completedBars.filter(bar => bar.ema).map(bar => ({
-        time: toChartTime(bar.time),
-        value: bar.ema,
-    })));
-    
-    chart.timeScale().scrollToRealTime();
+
+    chart.applyNewData(dataList);
+
+    // EMA 由 KLineChart 内置指标自动根据K线数据计算，无需手动设置
+
+    chart.scrollToRealTime();
 }
 
 // 更新UI状态
