@@ -92,73 +92,19 @@ tradesense/
 - 策略复盘
 - 入场点位练习
 
-## 远程部署
+## 部署
 
-生产环境：`115.191.43.254`（Ubuntu 24.04, 2C/2G, 40G Disk）
+生产环境部署方式与开发环境类似，关键区别：
 
-| 路径 | 用途 |
-|------|------|
-| `/opt/tradesense/` | 项目代码（含 `venv/` 虚拟环境） |
-| `/data/vipdoc/` | 通达信 VIPDOC 数据（~5.8G，期货 + A 股） |
-| `/etc/systemd/system/tradesense.service` | systemd 服务配置 |
-
-访问地址：**http://115.191.43.254:8765/**
-
-### 首次部署
+- 数据目录：使用 `$TRADESENSE_TDX_DIR` 环境变量指定 VIPDOC 数据路径
+- 服务管理：建议用 systemd 或 Docker 管理进程生命周期
+- 网络配置：反向代理（如 Nginx）处理 HTTPS 和域名绑定
 
 ```bash
-# 1. 在服务器上创建目录并上传代码
-ssh root@115.191.43.254
-mkdir -p /opt/tradesense
-# 本地执行：scp -r . root@115.191.43.254:/opt/tradesense/
-
-# 2. 创建虚拟环境并安装依赖
-cd /opt/tradesense
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-
-# 3. 创建 systemd 服务
-cat > /etc/systemd/system/tradesense.service << 'EOF'
-[Unit]
-Description=TradeSense K-line Data Server
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/tradesense
-Environment=TRADESENSE_TDX_DIR=/data
-ExecStart=/opt/tradesense/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8765
-Restart=always
-RestartSec=3
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 4. 启动服务
-systemctl daemon-reload
-systemctl enable --now tradesense
+# 示例：同步代码到服务器
+scp -r . user@host:/opt/tradesense/
+# 启动（生产环境建议 use systemd/Docker）
+cd /opt/tradesense && python -m uvicorn server:app --host 0.0.0.0 --port 8765
 ```
 
-### 日常更新
-
-```bash
-# 仅前端文件（静态资源，无需重启）
-scp frontend/index.html frontend/app.js frontend/styles.css frontend/shared.js root@115.191.43.254:/opt/tradesense/frontend/
-
-# 后端文件变更后需重启
-scp server.py data_provider.py kline_service.py config.py root@115.191.43.254:/opt/tradesense/
-scp -r backtest/ root@115.191.43.254:/opt/tradesense/
-ssh root@115.191.43.254 systemctl restart tradesense
-```
-
-### 服务管理
-
-```bash
-ssh root@115.191.43.254 systemctl status tradesense   # 查看状态
-ssh root@115.191.43.254 systemctl restart tradesense   # 重启
-ssh root@115.191.43.254 journalctl -u tradesense -f    # 查看日志
-```
+> ⚠️ `README.md` 仅保留通用示例，具体部署细节（IP、密钥、系统服务配置）请查阅内部运营文档。

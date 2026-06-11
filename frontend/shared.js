@@ -49,3 +49,12 @@ function toChartTime(timeStr) {
     }
     return new Date(timeStr).getTime();
 }
+
+/**
+ * HTML 转义：防止 innerHTML 注入。
+ */
+function htmlEscape(s) {
+    return String(s || "").replace(/[&<>"']/g, c => (
+        {"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"}[c]
+    ));
+}

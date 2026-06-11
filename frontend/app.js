@@ -644,14 +644,14 @@ function renderTradeLog() {
     tbody.innerHTML = simAccount.tradeLogs.map(log => {
         const pnlColor = log.netPnl >= 0 ? '#ef5350' : '#26a69a';
         return `<tr>
-            <td>${log.time}</td>
-            <td>${log.symbol}</td>
-            <td>${log.action}</td>
-            <td>${log.price}</td>
-            <td>${log.qty}</td>
-            <td>${log.fee.toFixed(2)}</td>
-            <td style="color:${pnlColor};">${log.netPnl.toFixed(2)}</td>
-            <td>${log.equity.toFixed(2)}</td>
+            <td>${htmlEscape(log.time)}</td>
+            <td>${htmlEscape(log.symbol)}</td>
+            <td>${htmlEscape(log.action)}</td>
+            <td>${htmlEscape(String(log.price))}</td>
+            <td>${htmlEscape(String(log.qty))}</td>
+            <td>${htmlEscape(log.fee.toFixed(2))}</td>
+            <td style="color:${pnlColor};">${htmlEscape(log.netPnl.toFixed(2))}</td>
+            <td>${htmlEscape(log.equity.toFixed(2))}</td>
         </tr>`;
     }).join("");
 }

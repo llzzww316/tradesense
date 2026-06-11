@@ -42,15 +42,15 @@ class BacktestEngine:
     @staticmethod
     def _df_to_bars(df: pd.DataFrame) -> list[Bar]:
         bars = []
-        for _, row in df.iterrows():
-            t = row["bob"]
+        for row in df.itertuples(index=False):
+            t = row.bob
             if hasattr(t, "strftime"):
                 ts = t.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 ts = str(t)
-            bars.append(Bar(time=ts, open=float(row["open"]),
-                            high=float(row["high"]), low=float(row["low"]),
-                            close=float(row["close"]), volume=float(row["volume"])))
+            bars.append(Bar(time=ts, open=float(row.open),
+                            high=float(row.high), low=float(row.low),
+                            close=float(row.close), volume=float(row.volume)))
         return bars
 
     def run(self) -> BacktestResult:
@@ -182,8 +182,8 @@ class BacktestEngine:
             trades=trades,
             initial_capital=self.config.initial_capital,
             final_position="flat" if self.account.position is None else self.account.position.side,
+            bars_per_year=self.config.bars_per_year,
         )
-
         return BacktestResult(
             config=self.config, bars=bars, fills=fills, trades=trades,
             equity_curve=equity_curve, metrics=metrics,

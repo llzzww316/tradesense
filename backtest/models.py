@@ -8,6 +8,16 @@ Side = Literal["long", "short"]
 Action = Literal["open_long", "open_short", "close"]
 InstrumentType = Literal["futures", "stock"]
 
+_PERIOD_MINUTES = {
+    "1m": 1,
+    "5m": 5,
+    "15m": 15,
+    "30m": 30,
+    "60m": 60,
+    "1h": 60,
+    "1d": 1440,
+}
+
 
 @dataclass
 class Bar:
@@ -87,6 +97,15 @@ class BacktestConfig:
     stamp_tax_rate: float = 0.001          # 印花税率（卖出千分之1）
     transfer_fee_rate: float = 0.00001     # 过户费率（万分之0.1）
     lot_size: int = 100                    # 每手股数
+
+    @property
+    def bars_per_year(self) -> int:
+        """根据 period 和品种类型粗估年化 K 线数量（用于 Sharpe/Calmar 年化）。"""
+        minutes = _PERIOD_MINUTES.get(self.period, 5)
+        if minutes >= 1440:
+            return 252
+        session_minutes = 240 if self.instrument_type == "stock" else 360
+        return max(1, int(252 * session_minutes / minutes))
 
 
 @dataclass

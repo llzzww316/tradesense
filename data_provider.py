@@ -20,6 +20,10 @@ from tdxpy.reader.min_bar_reader import TdxMinBarReader
 
 logger = logging.getLogger(__name__)
 
+
+class KlineReadError(OSError):
+    """K 线文件读取/解析失败（与"文件不存在"或"数据为空"区分）。"""
+
 # 通达信安装目录（可通过环境变量 TRADESENSE_TDX_DIR 覆盖；换机器不用改代码）
 TDX_DIR = Path(os.getenv("TRADESENSE_TDX_DIR", "C:/new_tdx"))
 VIPDOC = TDX_DIR / "vipdoc" / "ds"
@@ -191,14 +195,13 @@ def _fetch_kline(source: _KlineSource, period: str, count: int | None) -> pd.Dat
     path = source.get_path(period)
     if not path.exists():
         return pd.DataFrame()
-
     try:
         mtime = path.stat().st_mtime
         df = _cached_read(str(path), mtime, period)
     except Exception:
         logger.exception("读取 K 线失败: prefix=%s period=%s path=%s",
                          source.file_prefix, period, path)
-        return pd.DataFrame()
+        raise KlineReadError(f"K 线文件读取/解析失败: {path}")
 
     if df.empty:
         return df

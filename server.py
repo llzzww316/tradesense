@@ -4,6 +4,8 @@ TradeSense Backend — FastAPI K 线回放服务
 同源交付：REST 在 `/api`，`frontend/` 静态页由本进程提供；`uv run python server.py` 后访问 http://localhost:8765/ 即可。
 """
 import logging
+import os
+from datetime import date, datetime
 from pathlib import Path
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,10 +27,18 @@ app = FastAPI(
 
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 
-# 允许前端访问（本地工具场景：通配源但不带凭据，避开浏览器的 * + credentials 限制）
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("TRADESENSE_CORS_ORIGINS", "*").strip()
+    if raw == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+# 允许前端访问。生产环境可用 TRADESENSE_CORS_ORIGINS 配置逗号分隔白名单。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,6 +52,7 @@ _ERROR_STATUS = {
     svc.NoDataError: 404,
     svc.ContractMismatchError: 400,
     svc.InvalidRequestError: 400,
+    svc.DataReadError: 500,
 }
 
 
@@ -97,15 +108,15 @@ async def get_replay_data(
     ),
     display_period: str = Query("5m", description="显示周期"),
     step_period: str = Query("1m", description="步进周期（回放用）"),
-    count: int = Query(2000, description="K线数量，最大2000"),
-    ma_period: int = Query(20, description="EMA周期"),
-    start_date: str = Query(None, description="开始日期，如2025-10-01"),
-    end_date: str = Query(None, description="结束日期，如2026-04-01"),
-    range_start: str = Query(
+    count: int = Query(2000, description="K线数量，最大2000", ge=1, le=2000),
+    ma_period: int = Query(20, description="EMA周期", ge=1, le=500),
+    start_date: date | None = Query(None, description="开始日期，如2025-10-01"),
+    end_date: date | None = Query(None, description="结束日期，如2026-04-01"),
+    range_start: datetime | None = Query(
         None,
         description="与 range_end 同时传入时按显示 K 线 bob 时间窗截取，格式 2026-03-25 13:35:00",
     ),
-    range_end: str = Query(None, description="显示周期 K 线 bob 上界（含）"),
+    range_end: datetime | None = Query(None, description="显示周期 K 线 bob 上界（含）"),
 ):
     """获取回放数据：显示周期K线 + 步进周期数据"""
     try:
@@ -116,10 +127,10 @@ async def get_replay_data(
             step_period=step_period,
             count=count,
             ma_period=ma_period,
-            start_date=start_date,
-            end_date=end_date,
-            range_start=range_start,
-            range_end=range_end,
+            start_date=start_date.isoformat() if start_date else None,
+            end_date=end_date.isoformat() if end_date else None,
+            range_start=range_start.strftime("%Y-%m-%d %H:%M:%S") if range_start else None,
+            range_end=range_end.strftime("%Y-%m-%d %H:%M:%S") if range_end else None,
         )
     except svc.ServiceError as e:
         _raise_http(e)

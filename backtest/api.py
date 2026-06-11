@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -13,7 +14,7 @@ from backtest.engine import BacktestEngine
 from backtest.models import BacktestConfig
 from backtest.registry import get_strategy, get_strategy_params, list_strategies
 from config import get_symbols_config
-from data_provider import VALID_PERIODS, fetch_kline_by_date, fetch_stock_kline_by_date
+from data_provider import KlineReadError, VALID_PERIODS, fetch_kline_by_date, fetch_stock_kline_by_date
 
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
@@ -23,23 +24,27 @@ class RunBacktestRequest(BaseModel):
     symbol: str
     contract: Optional[str] = None
     period: str = "5m"
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    initial_capital: float = 100_000.0
-    tick_size: Optional[float] = None
-    tick_value: Optional[float] = None
-    margin_rate: Optional[float] = None
-    fee_per_lot: Optional[float] = None
-    slippage_ticks: int = 1
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    initial_capital: float = Field(100_000.0, gt=0)
+    tick_size: Optional[float] = Field(None, gt=0)
+    tick_value: Optional[float] = Field(None, gt=0)
+    margin_rate: Optional[float] = Field(None, gt=0, le=1)
+    fee_per_lot: Optional[float] = Field(None, ge=0)
+    slippage_ticks: int = Field(1, ge=0)
     intraday_only: bool = False
     strategy: str
     strategy_params: dict = Field(default_factory=dict)
 
     # 股票专用参数（前端可传，期货时忽略）
-    commission_rate: Optional[float] = None
-    stamp_tax_rate: Optional[float] = None
-    transfer_fee_rate: Optional[float] = None
-    lot_size: Optional[int] = None
+    commission_rate: Optional[float] = Field(None, ge=0)
+    stamp_tax_rate: Optional[float] = Field(None, ge=0)
+    transfer_fee_rate: Optional[float] = Field(None, ge=0)
+    lot_size: Optional[int] = Field(None, gt=0)
+
+
+def _date_to_str(value: date | None) -> str | None:
+    return value.isoformat() if value else None
 
 
 @router.get("/strategies")
@@ -65,6 +70,11 @@ async def run_backtest(req: RunBacktestRequest) -> dict:
     if req.period not in VALID_PERIODS:
         raise HTTPException(400, detail=f"不支持的周期: {req.period}，可选值: {sorted(VALID_PERIODS)}")
 
+    start_date = _date_to_str(req.start_date)
+    end_date = _date_to_str(req.end_date)
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(400, detail="start_date 不能晚于 end_date")
+
     market_type = sym_info.get("market_type", "futures")
     is_stock = market_type == "stock"
 
@@ -84,18 +94,23 @@ async def run_backtest(req: RunBacktestRequest) -> dict:
         stock_code = code.split(".")[1] if "." in code else code
         exchange = code.split(".")[0].lower() if "." in code else "sh"
 
-        has_date = bool(req.start_date or req.end_date)
-        df = fetch_stock_kline_by_date(
-            exchange=exchange, symbol=stock_code, period=req.period,
-            start_date=req.start_date, end_date=req.end_date,
-            count=None if has_date else 5000,
-        )
+        has_date = bool(start_date or end_date)
+        try:
+            df = fetch_stock_kline_by_date(
+                exchange=exchange, symbol=stock_code, period=req.period,
+                start_date=start_date, end_date=end_date,
+                count=None if has_date else 5000,
+            )
+        except KlineReadError as e:
+            raise HTTPException(
+                500, detail="K 线文件读取/解析失败，请检查本地 VIPDOC 数据文件"
+            ) from e
         if df.empty:
             raise HTTPException(404, detail="回测区间内无 A 股 K 线数据")
 
         cfg = BacktestConfig(
             symbol=req.symbol, contract=code, period=req.period,
-            start_date=req.start_date, end_date=req.end_date,
+            start_date=start_date, end_date=end_date,
             initial_capital=req.initial_capital,
             tick_size=float(tick_size), tick_value=float(tick_value),
             margin_rate=float(margin_rate), fee_per_lot=float(fee_per_lot),
@@ -114,18 +129,23 @@ async def run_backtest(req: RunBacktestRequest) -> dict:
         if market is None or not contract:
             raise HTTPException(400, detail="品种缺少 mootdx_market / mootdx_code 配置")
 
-        has_date = bool(req.start_date or req.end_date)
-        df = fetch_kline_by_date(
-            market=market, symbol=contract, period=req.period,
-            start_date=req.start_date, end_date=req.end_date,
-            count=None if has_date else 5000,
-        )
+        has_date = bool(start_date or end_date)
+        try:
+            df = fetch_kline_by_date(
+                market=market, symbol=contract, period=req.period,
+                start_date=start_date, end_date=end_date,
+                count=None if has_date else 5000,
+            )
+        except KlineReadError as e:
+            raise HTTPException(
+                500, detail="K 线文件读取/解析失败，请检查本地 VIPDOC 数据文件"
+            ) from e
         if df.empty:
             raise HTTPException(404, detail="回测区间内无 K 线数据")
 
         cfg = BacktestConfig(
             symbol=req.symbol, contract=contract, period=req.period,
-            start_date=req.start_date, end_date=req.end_date,
+            start_date=start_date, end_date=end_date,
             initial_capital=req.initial_capital,
             tick_size=float(tick_size), tick_value=float(tick_value),
             margin_rate=float(margin_rate), fee_per_lot=float(fee_per_lot),

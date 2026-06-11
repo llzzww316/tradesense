@@ -17,6 +17,7 @@ import pandas as pd
 from config import get_symbols_config, resolve_symbol
 from data_provider import (
     VALID_PERIODS,
+    KlineReadError,
     contract_has_any_data_file,
     fetch_replay_data,
     futures_prefix_from_mootdx_code,
@@ -51,8 +52,21 @@ class InvalidRequestError(ServiceError):
     pass
 
 
+class DataReadError(ServiceError):
+    pass
+
+
 def _calculate_ema(closes: pd.Series, period: int) -> pd.Series:
     return closes.ewm(span=period, adjust=False).mean()
+
+
+def _validate_timestamp(value: str | None, field_name: str) -> pd.Timestamp | None:
+    if not value:
+        return None
+    try:
+        return pd.Timestamp(value)
+    except Exception as exc:
+        raise InvalidRequestError(f"{field_name} 格式无效: {value}") from exc
 
 
 def list_contracts(symbol: str) -> dict:
@@ -124,22 +138,41 @@ def get_replay_payload(
     """
     market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
 
+    if count < 1:
+        raise InvalidRequestError("count 必须大于 0")
+    if ma_period < 1 or ma_period > 500:
+        raise InvalidRequestError("ma_period 必须在 1 到 500 之间")
     if display_period not in VALID_PERIODS:
         raise InvalidRequestError(f"不支持的显示周期: {display_period}")
     if step_period not in VALID_PERIODS:
         raise InvalidRequestError(f"不支持的步进周期: {step_period}")
+    if (range_start and not range_end) or (range_end and not range_start):
+        raise InvalidRequestError("range_start 与 range_end 必须同时传入")
 
-    result = fetch_replay_data(
-        market=market_id,
-        symbol=effective_code,
-        display_period=display_period,
-        step_period=step_period,
-        count=count,
-        start_date=start_date,
-        end_date=end_date,
-        range_start=range_start,
-        range_end=range_end,
-    )
+    start_ts = _validate_timestamp(start_date, "start_date")
+    end_ts = _validate_timestamp(end_date, "end_date")
+    range_start_ts = _validate_timestamp(range_start, "range_start")
+    range_end_ts = _validate_timestamp(range_end, "range_end")
+
+    if start_ts is not None and end_ts is not None and start_ts > end_ts:
+        raise InvalidRequestError("start_date 不能晚于 end_date")
+    if range_start_ts is not None and range_end_ts is not None and range_start_ts > range_end_ts:
+        raise InvalidRequestError("range_start 不能晚于 range_end")
+
+    try:
+        result = fetch_replay_data(
+            market=market_id,
+            symbol=effective_code,
+            display_period=display_period,
+            step_period=step_period,
+            count=count,
+            start_date=start_date,
+            end_date=end_date,
+            range_start=range_start,
+            range_end=range_end,
+        )
+    except KlineReadError as exc:
+        raise DataReadError("K 线文件读取/解析失败，请检查本地 VIPDOC 数据文件") from exc
 
     if "error" in result:
         # data_provider 的业务错误：空数据 / 区间无数据 / range 顺序错误
@@ -187,7 +220,10 @@ def get_replay_payload(
 def get_latest_price(symbol: str, contract: str | None = None) -> dict:
     """获取品种最新价（轻量，只读 1 根 1m K 线，不跑 EMA/双周期等重操作）。"""
     market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
-    df = fetch_kline(market_id, effective_code, "1m", count=1)
+    try:
+        df = fetch_kline(market_id, effective_code, "1m", count=1)
+    except KlineReadError as exc:
+        raise DataReadError("K 线文件读取/解析失败，请检查本地 VIPDOC 数据文件") from exc
     if df.empty:
         raise NoDataError(f"无最新 K 线数据: {symbol}")
     row = df.iloc[-1]

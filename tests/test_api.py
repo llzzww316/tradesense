@@ -88,3 +88,127 @@ def test_unknown_strategy_returns_400(client):
         "strategy": "not_exist", "strategy_params": {},
     })
     assert r.status_code == 400
+
+
+def test_negative_initial_capital_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "initial_capital": -10000,
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_zero_initial_capital_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "initial_capital": 0,
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_negative_slippage_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "slippage_ticks": -1,
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_negative_margin_rate_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "margin_rate": -0.1,
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_margin_rate_above_one_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "margin_rate": 1.5,
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_invalid_period_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "3m",
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 400
+
+
+def test_negative_lot_size_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "lot_size": -100,
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_invalid_backtest_start_date_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "start_date": "not-a-date",
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 422
+
+
+def test_backtest_start_after_end_rejected(client, stub_strategy):
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "start_date": "2025-10-02",
+        "end_date": "2025-10-01",
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 400
+
+
+def test_backtest_kline_read_error_is_sanitized(client, stub_strategy, monkeypatch):
+    import backtest.api as api
+    from data_provider import KlineReadError
+
+    def boom(*args, **kwargs):
+        raise KlineReadError(r"C:\secret\vipdoc\bad.lc5")
+
+    monkeypatch.setattr(api, "fetch_kline_by_date", boom)
+
+    r = client.post("/api/backtest/run", json={
+        "symbol": "螺纹钢", "period": "5m",
+        "strategy": stub_strategy, "strategy_params": {},
+    })
+    assert r.status_code == 500
+    assert r.json()["detail"] == "K 线文件读取/解析失败，请检查本地 VIPDOC 数据文件"
+    assert "secret" not in r.text
+
+
+def test_replay_count_zero_rejected(client):
+    r = client.get("/api/replay_data", params={
+        "symbol": "螺纹钢",
+        "count": 0,
+    })
+    assert r.status_code == 422
+
+
+def test_replay_invalid_start_date_rejected(client):
+    r = client.get("/api/replay_data", params={
+        "symbol": "螺纹钢",
+        "start_date": "not-a-date",
+    })
+    assert r.status_code == 422
+
+
+def test_replay_start_after_end_rejected(client):
+    r = client.get("/api/replay_data", params={
+        "symbol": "螺纹钢",
+        "start_date": "2025-10-02",
+        "end_date": "2025-10-01",
+    })
+    assert r.status_code == 400
