@@ -60,7 +60,7 @@
 ## 风控与边界
 
 - **方向锁定**：当日一旦入场过某方向，不做反向。趋势日判定含方向信念，当天翻空即判定已错，休息。
-- **静默日过滤**：前一交易日振幅 < `min_prev_range_atr`（默认 1.0）× ATR 折算 → E2 易误触发，跳过全天。参数可关。
+- **静默日过滤**：前一交易日振幅 < `min_prev_range_ratio`（默认 0.7）× 最近 5 个完整交易日的平均日振幅 → 昨日极值离得太近、E2 易误触发，跳过全天。参数可关。策略内部自行滚动维护日振幅历史（不足 5 日时不过滤）。
 - ATR 用 `backtest.indicators.atr`（仅取最近 period+1 根）；EMA 用 `ema_inc` 增量——遵守 CLAUDE.md 性能规则。
 - 交易日切换复用 fiali_mode_a 的 `_is_new_trading_day` 判定逻辑（夜盘 21:00 = 新交易日开始；本策略夜盘不交易但仍需正确归集前一交易日的 OHLC，含夜盘部分）。
 
@@ -78,7 +78,7 @@
 | `ema_exit_bars` | int | 2 | 趋势失效需连续反穿根数 |
 | `max_entries_per_day` | int | 2 | 每日最大入场次数 |
 | `use_quiet_filter` | bool | True | 静默日过滤开关 |
-| `min_prev_range_atr` | float | 1.0 | 静默日阈值（× ATR） |
+| `min_prev_range_ratio` | float | 0.7 | 静默日阈值（× 近 5 日平均日振幅） |
 | `fixed_qty` | int | 1 | 固定手数 |
 | `tick_size` | float | 1.0 | 跳价 |
 
