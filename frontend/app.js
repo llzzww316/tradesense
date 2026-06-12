@@ -55,9 +55,10 @@ function formatChartTime(time) {
 }
 
 // 初始化图表
+// 初始化图表
 function initChart() {
     const container = el.chart;
-
+    const isMobile = window.innerWidth <= 768;
     chart = klinecharts.init(container, {
         styles: {
             grid: {
@@ -88,6 +89,7 @@ function initChart() {
                 tickText: { color: "#333" },
             },
             yAxis: {
+                show: !isMobile,
                 tickText: { color: "#333" },
             },
             crosshair: {
@@ -108,7 +110,6 @@ function initChart() {
             formatDate: (dateTimeFormat, timestamp) => formatChartTime(timestamp / 1000),
         },
     });
-
     // 涨跌颜色：红涨绿跌（中国市场惯例）
     chart.setStyles({
         candle: {
@@ -120,12 +121,9 @@ function initChart() {
             downWickColor: "#26a69a",
         },
     });
-
     // 创建 EMA 指标（叠加到主图K线面板）
     chart.createIndicator("EMA", true);
-
     // KLineChart 内置 ResizeObserver，无需手动监听 resize
-
     // 订阅十字线移动事件，显示 OHLC
     // v9.8 的 onCrosshairChange 回调参数 Crosshair 包含 kLineData 字段
     chart.subscribeAction("onCrosshairChange", (crosshair) => {

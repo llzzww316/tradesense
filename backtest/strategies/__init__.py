@@ -4,3 +4,4 @@ from backtest.strategies import donchian        # noqa: F401
 from backtest.strategies import fiali_mode_a     # noqa: F401
 from backtest.strategies import fiali_mode_c     # noqa: F401
 from backtest.strategies import orb              # noqa: F401
+from backtest.strategies import trend_day         # noqa: F401
