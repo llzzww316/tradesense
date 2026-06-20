@@ -8,45 +8,6 @@ TradeSense 是一个 K 线回放训练系统，支持多周期组合显示（显
 
 数据来源是本机通达信 VIPDOC 离线文件（`tdxpy` 直读），**不联网**；前端 + REST API + MCP 三种接入方式共享同一业务层。
 
-### 价格行为知识库 (`price-action/`)
-
-`price-action/` 目录包含 **30 篇价格行为交易系统手册分析文档** + **策略操作指引**，来源为微信公众号「价格行为学解析」专栏，每篇均交叉引用了 **Qdrant `price-action` 向量库**中的 Al Brooks 原著（四本核心著作）。
-
-**目录结构**：
-- `price-action/html/` — HTML 格式文档 + `styles.css`（浏览器查看）
-- `price-action/md/` — Markdown 格式文档
-
-**文档结构**（按编号 1-17 为主线，辅以概述 + 专题 + 策略指引）：
-
-| 范围 | 主题 |
-|------|------|
-| 手册（1） | 三要素框架 / Always In 判定 / 趋势 vs 区间 |
-| 手册（2） | 交易幻觉 / 判断顺序 / H2-L2 二次入场 |
-| 手册（3） | 楔形 / 三次推动 / 动能衰减 / 75% 规则 |
-| 手册（4） | 双顶双底 / 失败的失败（Failed Failure） |
-| 手册（5） | 突破→通道→区间循环 / 交易者方程 / 磁吸位 |
-| 手册（6） | K 线信号系统：四棒序列（设置→信号→入场→跟随） |
-| 手册（7） | 惊喜 K 线 / 超大 K 线识别与策略 |
-| 手册（8） | 市场周期 / 趋势四步确认 / 五维强度评估 |
-| 手册（9） | 信噪比 / 趋势延续形态（旗形/通道） / 高潮衰竭 |
-| 手册（10） | 三大入场方式（Stop/Limit/Close）+ 高阶入场 |
-| 手册（11） | 窄/宽通道分类与策略 |
-| 手册（12） | 微通道 / 市场四阶段周期模型 |
-| 手册（13） | 交易区间 / 真空区 / 80% 法则 |
-| 手册（14） | 突破与缺口 / 真假突破 / 测量运动 |
-| 手册（15） | 趋势强弱等级 / 重要高/低点 / 止损管理 |
-| 手册（16） | 反转 / TBTL 原则 / 高潮反转 / 收缩楼梯 |
-| 手册（17） | 主要趋势反转三阶段 / 最终旗形 |
-| 概述 | 五层学习框架 / MTR / 三种市场状态 |
-| 市场结构 01-04 | Always-In 精确判标 / 趋势衰退序列 / 回调 vs 反转量化阈值 |
-| Regime + §1.1a x7 | Spike→Channel→TR 全生命周期 / Barb Wire / Buy Vacuum |
-| 策略操作指引 | 收缩楼梯反转策略（html/，基于手册 3/16/17 整合实战回测） |
-
-**Qdrant 查询**（需要时可检索 Al Brooks 原著）：
-```bash
-uv run --project C:/1/projects/claw-projects/doc-vectorizer python scripts/query.py --collection price-action --query "关键词" --top-k 5
-```
-
 ## 启动命令
 
 ### 一页启动（浏览器回放 + 回测）
@@ -77,7 +38,7 @@ MCP 是 **stdio 模式**，直接调用 `kline_service` 读取本机通达信 VI
 uv run pytest                              # 全量
 uv run pytest tests/test_engine.py         # 单文件
 uv run pytest tests/test_engine.py::test_long_open_close_pnl   # 单用例
-uv run pytest -k "false_breakdown"         # 关键字筛选
+uv run pytest -k "test_name"               # 关键字筛选
 ```
 
 测试位于 `tests/`，`conftest.py` 提供合成 K 线 fixtures（`flat_bars` / `up_bars` / `down_bars`）和 `rb_config_kwargs`（螺纹钢标准参数）。
@@ -103,7 +64,7 @@ uv run pytest -k "false_breakdown"         # 关键字筛选
   - `GET /api/contracts?symbol=`（仅期货扫描 vipdoc/ds）
   - `GET /api/search_symbols?q=`
   - `GET /api/replay_data`（可选 `contract`、`range_start/range_end`）；响应中带 **`contract`**
-  - `GET /api/backtest/strategies` — 列出已注册策略 + 自动反射出的可调参数
+  - `GET /api/backtest/strategies` — 列出已注册策略（当前为空，需自行注册策略）
   - `POST /api/backtest/run` — 跑回测，返回 bars / fills / trades / equity_curve / metrics
 
 ### MCP（`mcp_server.py`）
@@ -114,7 +75,7 @@ uv run pytest -k "false_breakdown"         # 关键字筛选
 ### 前端架构 (`frontend/`)
 
 - `index.html` + `app.js` + `styles.css` — K 线回放页
-- `backtest.html` + `backtest.js` — 回测页（策略下拉 → 参数表单 → 资金曲线 + 交易点 + 绩效指标）
+- `backtest.html` + `backtest.js` — 回测页（回测引擎 UI，支持自定义策略接入）
 - `shared.js` — 两个页面共享的工具函数（时间格式化、API 客户端等）
 - **Lightweight Charts**（CDN v4.1.0）绘制 K 线
 - 品种 + **合约**双下拉（合约选项来自 `/api/contracts`）；变更合约且在已回放会话中时自动重新加载数据
@@ -149,30 +110,16 @@ uv run pytest -k "false_breakdown"         # 关键字筛选
 - `backtest/context.py` — `on_bar(bar, ctx)` 的上下文：`ctx.history / ctx.closes / ctx.current_bar / ctx.position_side / ctx.position_qty / ctx.position_avg_price / ctx.buy() / ctx.sell() / ctx.buy_stop(price=) / ctx.sell_stop(price=) / ctx.close() / ctx.state`（注：stop order 目前仅记录 trigger_price，broker 尚未实现条件触发逻辑）
 - `backtest/indicators.py` — **共享技术指标**：`ema()` / `ema_inc()`（O(1) 增量 EMA，必须用它代替 `pd.ewm` 全量重算）/ `atr()` / `is_bull_bar()` / `is_bear_bar()` / `trend_bar_side()` / `confirm_swing_high/low()` / `detect_swings()` / `is_trading_range()`
 - `backtest/registry.py` — `@register_strategy("name")` 全局注册；`get_strategy_params()` 通过 `inspect` 反射 on_bar 的关键字参数，自动暴露给前端
-- `backtest/strategies/` — 内置策略目录（见下）
+- `backtest/strategies/` — 策略目录（需自行注册策略）
 - `backtest/engine.py` — 串联 account+broker+strategy 的事件循环，含日内强平、爆仓处理、股票 T+1（买入当日不可卖）
 - `backtest/metrics.py` — 年化 / 最大回撤 / Sharpe / Calmar / 胜率 / 盈亏比 / 连胜连败 / 平均持仓
 - `backtest/api.py` — `GET /api/backtest/strategies` / `POST /api/backtest/run`，按 `market_type` 自动分流期货 / A 股数据源
 
-### 内置策略
+### 策略注册机制
 
-`backtest/strategies/__init__.py` 导入以下 5 个策略（新增策略在此加一行 `from . import <name>` 即可触发 `@register_strategy` 注册）：
+`@register_strategy("name")` 装饰器注册，参数通过 `inspect.signature` 反射 on_bar 的关键字参数自动暴露给前端——类型注解 `bool` → 复选框，`str` → 文本框，其他 → 数字输入。
 
-| 策略名 | 文件 | 品种 | 周期 | 核心逻辑 |
-|--------|------|------|------|----------|
-| `bull_flag` | `bull_flag.py` | 股票 | 日线 | 上升旗形：检测旗杆（N 日涨幅 ≥ `pole_min_pct`）→ 回调旗面（缩量/ATR 收缩）→ 突破旗面上轨入场，ATR 止损 + 1R/2R 分批止盈 |
-| `donchian` | `donchian.py` | 股票 | 日线 | Donchian 通道突破：entry 日高点突破入场，exit 日低点跌破离场，EMA 趋势过滤 + ATR 移动止损 |
-| `fiali_mode_a` | `fiali_mode_a.py` | 期货 | 5m | 菲阿里 Mode A（双层方向判定）：日线 EMA 定大方向 → 5m 突破关键价位（前日高低/开盘价）顺势入场 |
-| `fiali_mode_c` | `fiali_mode_c.py` | 期货 | 5m | 菲阿里 Mode C（开盘区间突破）：开盘 N 分钟高低区间形成后，突破入场 |
-| `orb` | `orb.py` | 期货 | 5m | ORB v3 开盘区间突破：多时间框架区间确认，突破入场 + ATR 动态止损 |
-
-**策略注册机制**：`@register_strategy("name")` 装饰器注册，参数通过 `inspect.signature` 反射 on_bar 的关键字参数自动暴露给前端——类型注解 `bool` → 复选框，`str` → 文本框，其他 → 数字输入。
-
-### 脚本与批量回测
-
-- **`scripts/run_*.py`** — 单品种回测脚本（`run_rb_backtest.py` → fiali_mode_a, `run_rb_backtest_c.py` → fiali_mode_c, `run_orb_backtest.py` → ORB, `run_bull_flag_backtest.py` → 60 只 A 股旗形扫描）。是学习回测 API 用法的最佳参考。
-- **`batch_donchian.py`** — 30 只沪深主板 Donchian 日线批量回测，直接 `uv run python batch_donchian.py`。
-- 脚本通用模式：`import backtest.strategies`（触发注册）→ `fetch_kline_by_date()` 取数 → `BacktestConfig(...)` 配置 → `BacktestEngine(cfg, df).run()` → 打印 metrics。
+新增策略：在 `backtest/strategies/` 下创建 `.py` 文件，用 `@register_strategy("name")` 装饰 `on_bar` 函数，然后在 `backtest/strategies/__init__.py` 中加一行 `from . import <name>` 即可。
 
 ### backtest 包公共 API
 
@@ -218,11 +165,11 @@ A 股专属：
 ### EMA
 
 - 数据层（`kline_service`）给前端用的 EMA：pandas `ewm(span=period, adjust=False).mean()`，仅打在**显示周期**序列上。
-- 策略内部的 EMA：**必须用 `backtest.indicators.ema_inc`**（增量 O(1)），不要每根 bar 调 `pd.Series.ewm()` 重算全量历史，那是 O(N²)。`atr` 也类似，仅取最近 `period+1` 根计算。
+- 回测策略的 EMA：**必须用 `backtest.indicators.ema_inc`**（增量 O(1)），不要每根 bar 调 `pd.Series.ewm()` 重算全量历史，那是 O(N²)。`atr` 也类似，仅取最近 `period+1` 根计算。
 
 ### 指标计算注意事项
 
-- `compute_metrics()` 的 `bars_per_year` 默认 `252 * 24 * 12`（适合 5 分钟线期货）。日线回测时 Sharpe/Calmar 会失真——批量脚本若需精确年化指标，应传 `bars_per_year=252`。目前 `BacktestEngine.run()` 未暴露该参数，是已知待改进点。
+- `compute_metrics()` 的 `bars_per_year` 默认 `252 * 24 * 12`（适合 5 分钟线期货）。日线回测时 Sharpe/Calmar 会失真——若需精确年化指标，应传 `bars_per_year=252`。目前 `BacktestEngine.run()` 未暴露该参数，是已知待改进点。
 
 ### 时间处理
 

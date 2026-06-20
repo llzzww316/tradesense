@@ -8,8 +8,6 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-import backtest.strategies  # noqa: F401  触发内置策略注册
-
 from backtest.engine import BacktestEngine
 from backtest.models import BacktestConfig
 from backtest.registry import get_strategy, get_strategy_params, list_strategies

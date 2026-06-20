@@ -1031,3 +1031,17 @@ function applyLandscape() {
 }
 applyLandscape();
 landscapeQuery.addEventListener("change", applyLandscape);
+
+// 监听窗口大小变化，动态更新Y轴显示（手机端隐藏价格轴）
+let lastIsMobile = window.innerWidth <= 768;
+window.addEventListener("resize", () => {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile !== lastIsMobile && chart) {
+        lastIsMobile = isMobile;
+        chart.setStyles({
+            yAxis: {
+                show: !isMobile,
+            },
+        });
+    }
+});

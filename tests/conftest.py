@@ -54,6 +54,6 @@ def rb_config_kwargs():
         fee_per_lot=3.0,
         slippage_ticks=1,
         intraday_only=False,
-        strategy="double_ma",
-        strategy_params={"fast": 5, "slow": 20},
+        strategy="placeholder",
+        strategy_params={},
     )

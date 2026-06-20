@@ -5,7 +5,7 @@ from backtest.registry import _STRATEGIES, register_strategy, get_strategy, list
 
 @pytest.fixture(autouse=True)
 def _isolated_registry():
-    """测试完恢复注册表，避免污染 test_api 里依赖 double_ma 的用例。"""
+    """测试完恢复注册表，避免污染其他测试模块的用例。"""
     snapshot = dict(_STRATEGIES)
     _STRATEGIES.clear()
     try:
