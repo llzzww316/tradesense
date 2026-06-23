@@ -52,8 +52,9 @@ class BacktestEngine:
                             high=float(row.high), low=float(row.low),
                             close=float(row.close), volume=float(row.volume)))
         return bars
-
     def run(self) -> BacktestResult:
+        # 将启动资金注入 ctx.state，策略可用 ctx.state["_initial_capital"] 做仓位管理
+        self.ctx.state["_initial_capital"] = self.config.initial_capital
         bars = self._df_to_bars(self.bars_df)
         fills: list[Fill] = []
         trades: list[Trade] = []
