@@ -5,24 +5,39 @@ TradeSense Backend — FastAPI K 线回放服务
 """
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
-from config import get_symbols_config
+from config import get_symbols_config, resolve_symbol
 import kline_service as svc
+import realtime_provider as rp
+from sse_manager import sse_manager
 from backtest.api import router as backtest_router
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """启动 SSE 轮询，退出时断开实时连接。"""
+    await sse_manager.start()
+    yield
+    await sse_manager.stop()
+    rp.disconnect_all()
+
 
 app = FastAPI(
     title="TradeSense",
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
@@ -53,6 +68,7 @@ _ERROR_STATUS = {
     svc.ContractMismatchError: 400,
     svc.InvalidRequestError: 400,
     svc.DataReadError: 500,
+    svc.RealtimeDataError: 503,
 }
 
 
@@ -137,6 +153,80 @@ async def get_replay_data(
     except Exception as e:
         logger.exception("replay_data 处理失败: symbol=%s contract=%s", symbol, contract)
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+# ---- 实时行情端点（非 SSE，单次查询） ----
+
+@api_router.get("/realtime/quote")
+async def realtime_quote(
+    symbol: str = Query(..., description="品种中文名，如：螺纹钢、招商银行"),
+    contract: str | None = Query(None, description="可选；合约代码"),
+):
+    """获取实时行情报价（网络优先，期货 ExHQ 不可用时回退离线）。"""
+    try:
+        return svc.get_realtime_price(symbol, contract=contract)
+    except svc.ServiceError as e:
+        _raise_http(e)
+    except Exception as e:
+        logger.exception("realtime_quote 失败: symbol=%s", symbol)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+@api_router.get("/realtime/bars")
+async def realtime_bars(
+    symbol: str = Query(..., description="品种中文名"),
+    contract: str | None = Query(None, description="可选；合约代码"),
+    period: str = Query("5m", description="K线周期"),
+    count: int = Query(200, description="K线数量", ge=1, le=800),
+    ma_period: int = Query(20, description="EMA周期", ge=1, le=500),
+):
+    """获取实时 K 线 + EMA（网络优先，ExHQ 不可用时回退离线）。"""
+    try:
+        return svc.get_realtime_payload(
+            symbol=symbol, contract=contract, period=period,
+            count=count, ma_period=ma_period,
+        )
+    except svc.ServiceError as e:
+        _raise_http(e)
+    except Exception as e:
+        logger.exception("realtime_bars 失败: symbol=%s", symbol)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+@api_router.get("/realtime/health")
+async def realtime_health():
+    """返回 TDX 行情连接健康状态。"""
+    return rp.health()
+
+
+# ---- SSE 实时报价流 ----
+
+@api_router.get("/sse/quotes")
+async def stream_quotes(symbols: str = Query(..., description="逗号分隔的品种中文名")):
+    """SSE 实时报价流。浏览器用 EventSource 连接即可接收推送。"""
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        raise HTTPException(400, detail="至少指定一个品种")
+
+    # 预校验所有品种
+    for sym in symbol_list:
+        market_id, _, _ = resolve_symbol(sym)
+        if market_id is None:
+            raise HTTPException(404, detail=f"未知品种: {sym}")
+
+    async def event_generator():
+        async for event in sse_manager.subscribe(symbol_list):
+            yield event
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 app.include_router(api_router)

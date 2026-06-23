@@ -96,6 +96,51 @@ async def list_tools() -> list[Tool]:
                 "required": ["symbol"],
             },
         ),
+        Tool(
+            name="get_realtime_quote",
+            description="获取品种实时行情报价（通过通达信网络接口）。期货走扩展行情(7720)，A股走标准行情(7709)。若网络不可用则回退到本地VIPDOC最新数据。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "品种中文名，如：螺纹钢、招商银行"},
+                    "contract": {
+                        "type": "string",
+                        "description": "可选；合约代码（如 RB2610），不传则用 symbols.json 默认",
+                    },
+                },
+                "required": ["symbol"],
+            },
+        ),
+        Tool(
+            name="get_realtime_klines",
+            description="通过通达信网络接口获取实时K线数据（最多800根）。网络不可用时回退到本地VIPDOC。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "品种名称或代码"},
+                    "contract": {
+                        "type": "string",
+                        "description": "可选；合约代码",
+                    },
+                    "period": {
+                        "type": "string",
+                        "description": "K线周期：1m, 5m, 15m, 30m, 60m, 1d",
+                        "default": "5m",
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "K线数量上限，默认200；最大800",
+                        "default": 200,
+                    },
+                    "ma_period": {
+                        "type": "integer",
+                        "description": "EMA周期，默认20",
+                        "default": 20,
+                    },
+                },
+                "required": ["symbol"],
+            },
+        ),
     ]
 
 
@@ -111,6 +156,10 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = _tool_get_klines(arguments)
         elif name == "get_latest_price":
             result = _tool_get_latest_price(arguments)
+        elif name == "get_realtime_quote":
+            result = _tool_get_realtime_quote(arguments)
+        elif name == "get_realtime_klines":
+            result = _tool_get_realtime_klines(arguments)
         else:
             result = {"error": f"Unknown tool: {name}"}
     except svc.ServiceError as e:

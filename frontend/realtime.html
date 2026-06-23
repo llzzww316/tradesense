@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeSense - 实时行情</title>
+    <link rel="stylesheet" href="realtime.css">
+</head>
+<body>
+    <header class="top-bar">
+        <a href="/" class="logo">📊 TradeSense</a>
+        <nav>
+            <a href="/">回放</a>
+            <a href="/backtest.html">回测</a>
+            <a href="/realtime.html" class="active">实时行情</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- 控制区 -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="symbol-input">品种</label>
+                <input type="text" id="symbol-input" placeholder="输入品种名，如：螺纹钢" />
+            </div>
+            <div class="control-group">
+                <button id="btn-add" class="btn btn-primary">+ 添加品种</button>
+            </div>
+            <div class="control-group">
+                <label>状态</label>
+                <span id="conn-status" class="status-badge disconnected">未连接</span>
+            </div>
+        </div>
+
+        <!-- 已订阅品种 -->
+        <div id="subscribed-list" class="subscribed-list"></div>
+
+        <!-- 行情卡片网格 -->
+        <div id="quotes-grid" class="quotes-grid">
+            <div class="empty-state">
+                <p>添加品种开始接收实时行情</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="realtime.js"></script>
+</body>
+</html>

@@ -24,6 +24,7 @@ from data_provider import (
     scan_contract_codes,
     fetch_kline,
 )
+import realtime_provider as rp
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,11 @@ class InvalidRequestError(ServiceError):
 
 
 class DataReadError(ServiceError):
+    pass
+
+
+class RealtimeDataError(ServiceError):
+    """实时数据不可用（网络错误、扩展行情失效等）。"""
     pass
 
 
@@ -254,3 +260,93 @@ def search_symbols(q: str) -> list[dict]:
                 "tick_value": info.get("tick_value", 10),
             })
     return results
+
+
+# ---------------------------------------------------------------------------
+# 实时数据服务
+# ---------------------------------------------------------------------------
+
+
+def get_realtime_price(symbol: str, contract: str | None = None) -> dict:
+    """获取实时报价（走网络）。ExHQ 不可用时回退到离线 VIPDOC 最新数据。"""
+    from config import get_market_type
+
+    market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
+    market_type = get_market_type(symbol)
+
+    # 尝试网络实时报价
+    quote = rp.get_realtime_quote(symbol, contract=effective_code)
+    if not quote.get("error"):
+        quote["symbol_code"] = _get_symbol_code(symbol)
+        return quote
+
+    # 回退到离线
+    if market_type == "futures" and quote.get("error") in ("exhq_unavailable", "exhq_no_data"):
+        logger.info("实时报价不可用，回退离线数据: %s", symbol)
+        return get_latest_price(symbol, contract=effective_code)
+
+    # A 股或未知错误：仍尝试抛出
+    if quote.get("error") == "unknown_symbol":
+        raise UnknownSymbolError(f"未知品种: {symbol}")
+    raise RealtimeDataError(f"实时报价失败: {quote.get('error')}")
+
+
+def get_realtime_payload(
+    symbol: str,
+    contract: str | None = None,
+    period: str = "5m",
+    count: int = 200,
+    ma_period: int = 20,
+) -> dict:
+    """获取实时 K 线 + EMA。ExHQ 不可用时回退到离线 VIPDOC。"""
+    from config import get_market_type
+
+    if period not in VALID_PERIODS:
+        raise InvalidRequestError(f"不支持的周期: {period}")
+    if count < 1:
+        raise InvalidRequestError("count 必须大于 0")
+
+    market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
+    market_type = get_market_type(symbol)
+
+    # 尝试网络实时 K 线
+    bars = rp.get_realtime_bars(symbol, contract=effective_code, period=period, count=count)
+
+    is_error = isinstance(bars, dict) and bars.get("error")
+    if is_error:
+        err = bars["error"]
+        if market_type == "futures" and err == "exhq_unavailable":
+            logger.info("实时 K 线不可用，回退离线数据: %s", symbol)
+            df = fetch_kline(market_id, effective_code, period, count=count)
+        else:
+            raise RealtimeDataError(f"实时 K 线失败: {err}")
+    else:
+        df = bars
+
+    if df.empty:
+        raise NoDataError(f"无实时 K 线数据: {symbol}")
+
+    # 计算 EMA
+    df["ema"] = _calculate_ema(df["close"], ma_period)
+    df["time"] = df["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    bars_out = df[["time", "open", "high", "low", "close", "ema"]].astype(
+        {"open": float, "high": float, "low": float, "close": float, "ema": object}
+    )
+    bars_out = bars_out.where(bars_out.notna(), None)
+    display_data = bars_out.to_dict(orient="records")
+
+    return {
+        "symbol": symbol,
+        "symbol_code": _get_symbol_code(symbol),
+        "contract": effective_code,
+        "display": display_data,
+        "period": period,
+        "maPeriod": ma_period,
+        "source": "realtime" if not is_error else "offline_fallback",
+    }
+
+
+def _get_symbol_code(symbol: str) -> str:
+    symbols_map = get_symbols_config().get("symbols", {})
+    return symbols_map.get(symbol, {}).get("code", symbol)

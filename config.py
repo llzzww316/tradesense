@@ -57,3 +57,23 @@ def resolve_symbol_code(symbol: str) -> str | None:
     if isinstance(symbol, str) and "." in symbol:
         return symbol
     return None
+
+
+def get_market_type(symbol: str) -> str | None:
+    """返回 'futures' 或 'stock'，未知品种返回 None。"""
+    cfg = get_symbols_config().get("symbols", {})
+    info = cfg.get(symbol)
+    return info.get("market_type") if info else None
+
+
+def get_stock_exchange_and_code(symbol: str) -> tuple[str, str] | None:
+    """A 股品种返回 (exchange, code)，如 ('sh', '600519')；非股票或未知返回 None。"""
+    cfg = get_symbols_config().get("symbols", {})
+    info = cfg.get(symbol)
+    if not info or info.get("market_type") != "stock":
+        return None
+    code_str = info.get("code", "")
+    if "." not in code_str:
+        return None
+    exchange, stock_code = code_str.split(".", 1)
+    return exchange.lower(), stock_code
