@@ -114,6 +114,31 @@ def detect_bull_flag(
     if flag_max > pole_high * 1.03:
         return None
 
+    # ---- 旗面上沿水平度检查（线性回归法）----
+    # 牛旗的上沿应该大致水平。
+    # 对旗面高点做线性回归，如果斜率显著为负（R²>0.5），说明高点在趋势性下移，是回调不是旗形。
+    flag_upper_slope_pct = 3.0  # 7根K线内累计下移不超过3%视为水平
+    flag_upper_r2_min = 0.5    # 线性拟合度阈值，超过说明下移是趋势而非噪音
+    n_flag = len(flag_highs)
+    if n_flag >= 5:
+        x_vals = list(range(n_flag))
+        x_mean = sum(x_vals) / n_flag
+        y_mean = sum(flag_highs) / n_flag
+        num = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, flag_highs))
+        den = sum((x - x_mean) ** 2 for x in x_vals)
+        if den > 0:
+            slope = num / den
+            # R²
+            y_pred = [slope * x + (y_mean - slope * x_mean) for x in x_vals]
+            ss_res = sum((y - yp) ** 2 for y, yp in zip(flag_highs, y_pred))
+            ss_tot = sum((y - y_mean) ** 2 for y in flag_highs)
+            r_sq = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+
+            total_trend_pct = slope / y_mean * 100 * (n_flag - 1)
+            if slope < 0 and r_sq > flag_upper_r2_min and total_trend_pct < -flag_upper_slope_pct:
+                # 高点趋势性下移，这是回调不是旗形
+                return None
+
     # 旗面回调幅度 = 旗杆高点 - 旗面最低点
     flag_min_low = min(flag_lows)
     pullback = pole_high - flag_min_low
