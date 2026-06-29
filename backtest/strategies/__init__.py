@@ -9,3 +9,4 @@ from backtest.strategies import bollinger_reversion  # noqa: F401
 from backtest.strategies import donchian_breakout  # noqa: F401
 from backtest.strategies import volume_pa  # noqa: F401
 from backtest.strategies import dual_tf_pa  # noqa: F401
+from backtest.strategies import weixin_formula  # noqa: F401
