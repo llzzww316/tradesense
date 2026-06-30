@@ -274,6 +274,27 @@ def _tool_get_latest_price(args: dict) -> dict:
     return out
 
 
+def _tool_get_realtime_quote(args: dict) -> dict:
+    symbol = args.get("symbol")
+    if not symbol:
+        return {"error": "symbol 必填"}
+    contract = args.get("contract")
+    return svc.get_realtime_price(symbol, contract=contract)
+
+
+def _tool_get_realtime_klines(args: dict) -> dict:
+    symbol = args.get("symbol")
+    if not symbol:
+        return {"error": "symbol 必填"}
+    return svc.get_realtime_payload(
+        symbol=symbol,
+        contract=args.get("contract"),
+        period=args.get("period", "5m"),
+        count=args.get("count", 200),
+        ma_period=args.get("ma_period", 20),
+    )
+
+
 async def main():
     """启动 MCP Server（stdio）"""
     async with stdio_server() as (read_stream, write_stream):

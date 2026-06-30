@@ -50,6 +50,8 @@ def detect_breakout(
 
     # 阻力位：前 lookback 根的最高价（不含最新一根）
     resistance = max(b.high for b in prior[-lookback:])
+    if resistance <= 0:
+        return None
     cur_close = cur.close
 
     # 必须收盘价突破
@@ -64,11 +66,15 @@ def detect_breakout(
     vol_bars = prior[-20:] if len(prior) >= 20 else prior
     avg_vol = sum(b.volume for b in vol_bars) / max(1, len(vol_bars))
     vol_ok = cur.volume > avg_vol * volume_ratio if avg_vol > 0 else False
+    if not vol_ok:
+        return None
 
     # ---- 实体足够大 ----
     cur_atr = _atr_from_bars(bars, period=14)
     body = cur_close - cur.open
     body_ok = body > cur_atr * body_atr_ratio if cur_atr > 0 else False
+    if not body_ok:
+        return None
 
     # ---- 上影线不能太长（假突破信号） ----
     upper_wick = cur.high - cur_close
@@ -88,20 +94,16 @@ def detect_breakout(
         score += 5
 
     # 放量
-    if vol_ok:
-        vol_multiple = cur.volume / avg_vol if avg_vol > 0 else 0
-        if vol_multiple > 2.5:
-            score += 15
-        elif vol_multiple > 2.0:
-            score += 10
-        elif vol_multiple > 1.5:
-            score += 5
-    else:
-        score -= 10  # 没放量扣分
+    vol_multiple = cur.volume / avg_vol if avg_vol > 0 else 0
+    if vol_multiple > 2.5:
+        score += 15
+    elif vol_multiple > 2.0:
+        score += 10
+    elif vol_multiple > 1.5:
+        score += 5
 
     # 大阳线
-    if body_ok:
-        score += 5
+    score += 5
 
     # 上影线扣分
     if upper_wick_pct > 0.2:
@@ -115,7 +117,7 @@ def detect_breakout(
         "pattern": "突破",
         "detail": (f"突破阻力{resistance:.2f}, "
                    f"突破幅度{breakout_pct:.1f}%, "
-                   f"量比{cur.volume / avg_vol:.1f}x" if avg_vol > 0 else f"突破阻力{resistance:.2f}"),
+                   f"量比{cur.volume / avg_vol:.1f}x"),
     }
 
 
@@ -145,87 +147,84 @@ def detect_breakout_pullback(
         return None
 
     # ---- 找突破事件 ----
-    # 在过去 lookback 日内，哪一天发生了突破？
-    # 定义突破：收盘价 > 前20日最高价
-    breakout_day = None
-    breakout_price = None  # 突破位（阻力位 = 现支撑位）
+    # 从最近的候选突破开始验证，避免较早的失效突破挡住后面的有效结构。
+    cur_price = bars[-1].close
+    search_start = max(0, len(bars) - lookback)
 
-    for i in range(len(bars) - lookback, len(bars) - 2):
+    for i in range(len(bars) - 2, search_start - 1, -1):
         # 这一天之前20日的最高价
         prev_bars = bars[max(0, i - 20):i]
         if len(prev_bars) < 10:
             continue
         prev_high = max(b.high for b in prev_bars)
-        if bars[i].close > prev_high and bars[i].close > bars[i].open:
-            breakout_day = i
-            breakout_price = prev_high  # 前阻力位
-            break
+        if prev_high <= 0:
+            continue
+        if bars[i].close <= prev_high or bars[i].close <= bars[i].open:
+            continue
 
-    if breakout_day is None:
-        return None
+        breakout_day = i
+        breakout_price = prev_high  # 前阻力位
 
-    # ---- 突破后的K线 = 回调期 ----
-    pullback_bars = bars[breakout_day + 1:]
-    if len(pullback_bars) < 2:
-        return None  # 还没开始回调
+        # ---- 突破后的K线 = 回调期 ----
+        pullback_bars = bars[breakout_day + 1:]
+        if len(pullback_bars) < 2:
+            continue  # 还没开始回调
 
-    # 突破日的最高价
-    breakout_high = max(b.high for b in bars[breakout_day:breakout_day + 1])
+        # ---- 回调幅度 ----
+        pullback_high = max(b.high for b in pullback_bars)
+        pullback_from_high = (pullback_high - cur_price) / pullback_high * 100 if pullback_high > 0 else 0
 
-    # ---- 回调幅度 ----
-    cur_price = bars[-1].close
-    pullback_high = max(b.high for b in pullback_bars)
-    pullback_from_high = (pullback_high - cur_price) / pullback_high * 100 if pullback_high > 0 else 0
+        if pullback_from_high > max_pullback_pct:
+            continue  # 回调太深
 
-    if pullback_from_high > max_pullback_pct:
-        return None  # 回调太深
+        # ---- 回调到突破位附近 ----
+        dist_to_support = abs(cur_price - breakout_price) / breakout_price * 100
+        if dist_to_support > proximity_pct:
+            continue  # 距离支撑位太远
 
-    # ---- 回调到突破位附近 ----
-    dist_to_support = abs(cur_price - breakout_price) / breakout_price * 100
-    if dist_to_support > proximity_pct:
-        return None  # 距离支撑位太远
+        # ---- 未跌破突破位 ----
+        pullback_low = min(b.low for b in pullback_bars)
+        if pullback_low < breakout_price * 0.98:  # 允许2%假破位
+            continue
 
-    # ---- 未跌破突破位 ----
-    pullback_low = min(b.low for b in pullback_bars)
-    if pullback_low < breakout_price * 0.98:  # 允许2%假破位
-        return None
+        # ---- 回调期间量能萎缩 ----
+        breakout_vol = bars[breakout_day].volume
+        pullback_avg_vol = sum(b.volume for b in pullback_bars) / len(pullback_bars)
+        vol_shrink = pullback_avg_vol < breakout_vol * volume_shrink_ratio if breakout_vol > 0 else False
 
-    # ---- 回调期间量能萎缩 ----
-    breakout_vol = bars[breakout_day].volume
-    pullback_avg_vol = sum(b.volume for b in pullback_bars) / len(pullback_bars)
-    vol_shrink = pullback_avg_vol < breakout_vol * volume_shrink_ratio if breakout_vol > 0 else False
+        # ---- 评分 ----
+        score = 75  # 基础分
 
-    # ---- 评分 ----
-    score = 75  # 基础分
+        # 回调到位加分
+        if 0.5 <= dist_to_support <= 1.5:
+            score += 15  # 最佳回调位置
+        elif dist_to_support < 0.5:
+            score += 10
 
-    # 回调到位加分
-    if 0.5 <= dist_to_support <= 1.5:
-        score += 15  # 最佳回调位置
-    elif dist_to_support < 0.5:
-        score += 10
+        # 缩量加分
+        if vol_shrink:
+            score += 10
 
-    # 缩量加分
-    if vol_shrink:
-        score += 10
+        # 回调幅度
+        if pullback_from_high < 2:
+            score += 5
 
-    # 回调幅度
-    if pullback_from_high < 2:
-        score += 5
+        # 回调过深扣分
+        if pullback_from_high > 4:
+            score -= 15
+        elif pullback_from_high > 3:
+            score -= 10
 
-    # 回调过深扣分
-    if pullback_from_high > 4:
-        score -= 15
-    elif pullback_from_high > 3:
-        score -= 10
+        score = max(0, min(100, score))
 
-    score = max(0, min(100, score))
+        return {
+            "detected": True,
+            "score": score,
+            "pattern": "突破回调",
+            "detail": (f"突破位{breakout_price:.2f}, "
+                       f"回调{pullback_from_high:.1f}%, "
+                       f"距支撑{dist_to_support:.1f}%, "
+                       f"{'缩量' if vol_shrink else '未缩量'}"),
+        }
 
-    return {
-        "detected": True,
-        "score": score,
-        "pattern": "突破回调",
-        "detail": (f"突破位{breakout_price:.2f}, "
-                   f"回调{pullback_from_high:.1f}%, "
-                   f"距支撑{dist_to_support:.1f}%, "
-                   f"{'缩量' if vol_shrink else '未缩量'}"),
-    }
+    return None

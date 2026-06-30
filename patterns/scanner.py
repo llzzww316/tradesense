@@ -15,6 +15,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from typing import Optional
 
 import pandas as pd
@@ -28,6 +29,14 @@ from patterns.geometry import detect_bull_flag, detect_asc_triangle
 from patterns.breakout import detect_breakout, detect_breakout_pullback
 
 logger = logging.getLogger(__name__)
+
+# 注册的看涨形态检测器列表
+BULLISH_DETECTORS = [
+    detect_bull_flag,
+    detect_asc_triangle,
+    detect_breakout,
+    detect_breakout_pullback,
+]
 
 # ---------------------------------------------------------------------------
 # 股票列表解析
@@ -94,7 +103,8 @@ def fetch_daily_bars(
             0,
             count,
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("拉取 %s 日线失败: %s", symbol, exc)
         return None
 
     if not result:
@@ -129,6 +139,7 @@ def fetch_bars_batch(
     results: dict[str, list[Bar]] = {}
     total = len(stocks)
     done = [0]
+    done_lock = Lock()
 
     def _worker(batch: list[dict]) -> list[tuple[str, Optional[list[Bar]]]]:
         api = _create_hq_connection()
@@ -138,10 +149,11 @@ def fetch_bars_batch(
         for s in batch:
             bars = fetch_daily_bars(api, s["market"], s["symbol"], count)
             out.append((s["code"], bars))
-            done[0] += 1
-            if done[0] % 50 == 0 or done[0] == total:
-                pct = done[0] / total * 100
-                print(f"\r  拉取进度: {done[0]}/{total} ({pct:.0f}%)", end="", flush=True)
+            with done_lock:
+                done[0] += 1
+                if done[0] % 50 == 0 or done[0] == total:
+                    pct = done[0] / total * 100
+                    print(f"\r  拉取进度: {done[0]}/{total} ({pct:.0f}%)", end="", flush=True)
         try:
             api.disconnect()
         except Exception:
@@ -174,8 +186,7 @@ def scan_patterns(bars: list[Bar]) -> list[dict]:
     """对单只股票的 K 线列表检测所有看涨形态。"""
     hits = []
 
-    for detector in [detect_bull_flag, detect_asc_triangle,
-                     detect_breakout, detect_breakout_pullback]:
+    for detector in BULLISH_DETECTORS:
         result = detector(bars)
         if result and result.get("detected"):
             hits.append(result)
@@ -199,7 +210,8 @@ def score_hits(hits: list[dict]) -> int:
 
 def write_result(
     results: list[dict],
-    total_scanned: int,
+    total_planned: int,
+    total_fetched: int,
     output_path: str,
     elapsed: float,
 ) -> None:
@@ -208,8 +220,8 @@ def write_result(
     lines = []
     lines.append("# 看涨形态扫描结果\n")
     lines.append(f"**扫描时间**: {now}")
-    lines.append(f"**扫描范围**: 沪深主板 < 30 元（非ST/退市/周期）共 {total_scanned} 只")
-    lines.append(f"**成功拉取K线**: {total_scanned} 只")
+    lines.append(f"**扫描范围**: 沪深主板 < 30 元（非ST/退市/周期）共 {total_planned} 只")
+    lines.append(f"**成功拉取K线**: {total_fetched} 只")
     lines.append(f"**命中数量**: {len(results)} 只")
     lines.append(f"**耗时**: {elapsed:.1f} 秒\n")
 
@@ -303,7 +315,7 @@ def main():
     print(f"扫描完成: {len(scan_results)} 只命中（{scan_time:.1f}s）")
 
     # 4. 输出
-    write_result(scan_results, len(stocks), args.output, fetch_time + scan_time)
+    write_result(scan_results, len(stocks), len(bars_data), args.output, fetch_time + scan_time)
 
 
 if __name__ == "__main__":

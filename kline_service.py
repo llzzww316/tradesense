@@ -269,25 +269,37 @@ def search_symbols(q: str) -> list[dict]:
 
 def get_realtime_price(symbol: str, contract: str | None = None) -> dict:
     """获取实时报价（走网络）。ExHQ 不可用时回退到离线 VIPDOC 最新数据。"""
-    from config import get_market_type
+    from config import get_market_type, resolve_symbol
 
-    market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
     market_type = get_market_type(symbol)
+    if market_type is None:
+        raise UnknownSymbolError(f"未知品种: {symbol}，请使用中文名（如 螺纹钢、PVC）")
 
-    # 尝试网络实时报价
+    # 实时报价不走 resolve_symbol（A 股没有 mootdx_market），
+    # 直接由 realtime_provider 内部处理
+    if market_type == "stock":
+        # A 股：contract 在实时层用于拼接 exchange+code，传 None 也没问题
+        quote = rp.get_realtime_quote(symbol, contract=contract)
+        if not quote.get("error"):
+            quote["symbol_code"] = _get_symbol_code(symbol)
+            return quote
+        # A 股实时不可用：尝试回退离线
+        if quote.get("error") in ("no_data", "invalid_stock_code"):
+            logger.info("A 股实时报价不可用，回退离线数据: %s", symbol)
+            return get_latest_price_from_market(symbol, contract)
+        raise RealtimeDataError(f"实时报价失败: {quote.get('error')}")
+
+    # 期货：走原来的逻辑
+    market_id, default_code, effective_code = _resolve_effective_contract(symbol, contract)
     quote = rp.get_realtime_quote(symbol, contract=effective_code)
     if not quote.get("error"):
         quote["symbol_code"] = _get_symbol_code(symbol)
         return quote
 
-    # 回退到离线
-    if market_type == "futures" and quote.get("error") in ("exhq_unavailable", "exhq_no_data"):
+    if quote.get("error") in ("exhq_unavailable", "exhq_no_data"):
         logger.info("实时报价不可用，回退离线数据: %s", symbol)
         return get_latest_price(symbol, contract=effective_code)
 
-    # A 股或未知错误：仍尝试抛出
-    if quote.get("error") == "unknown_symbol":
-        raise UnknownSymbolError(f"未知品种: {symbol}")
     raise RealtimeDataError(f"实时报价失败: {quote.get('error')}")
 
 
@@ -306,31 +318,40 @@ def get_realtime_payload(
     if count < 1:
         raise InvalidRequestError("count 必须大于 0")
 
-    market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
     market_type = get_market_type(symbol)
+    if market_type is None:
+        raise UnknownSymbolError(f"未知品种: {symbol}")
 
-    # 尝试网络实时 K 线
-    bars = rp.get_realtime_bars(symbol, contract=effective_code, period=period, count=count)
-
-    is_error = isinstance(bars, dict) and bars.get("error")
-    if is_error:
-        err = bars["error"]
-        if market_type == "futures" and err == "exhq_unavailable":
-            logger.info("实时 K 线不可用，回退离线数据: %s", symbol)
-            df = fetch_kline(market_id, effective_code, period, count=count)
-        else:
+    if market_type == "stock":
+        # A 股：直接走实时，不走 resolve_symbol
+        bars = rp.get_realtime_bars(symbol, contract=contract, period=period, count=count)
+        is_error = isinstance(bars, dict) and bars.get("error")
+        if is_error:
+            err = bars["error"]
             raise RealtimeDataError(f"实时 K 线失败: {err}")
     else:
-        df = bars
+        # 期货：走完整合约校验链路
+        market_id, _default_code, effective_code = _resolve_effective_contract(symbol, contract)
+        bars = rp.get_realtime_bars(symbol, contract=effective_code, period=period, count=count)
+        is_error = isinstance(bars, dict) and bars.get("error")
+        if is_error:
+            err = bars["error"]
+            if err == "exhq_unavailable":
+                logger.info("实时 K 线不可用，回退离线数据: %s", symbol)
+                df = fetch_kline(market_id, effective_code, period, count=count)
+                is_error = False
+                bars = df
+            else:
+                raise RealtimeDataError(f"实时 K 线失败: {err}")
 
-    if df.empty:
+    if bars is None or bars.empty:
         raise NoDataError(f"无实时 K 线数据: {symbol}")
 
     # 计算 EMA
-    df["ema"] = _calculate_ema(df["close"], ma_period)
-    df["time"] = df["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    bars["ema"] = _calculate_ema(bars["close"], ma_period)
+    bars["time"] = bars["bob"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-    bars_out = df[["time", "open", "high", "low", "close", "ema"]].astype(
+    bars_out = bars[["time", "open", "high", "low", "close", "ema"]].astype(
         {"open": float, "high": float, "low": float, "close": float, "ema": object}
     )
     bars_out = bars_out.where(bars_out.notna(), None)
@@ -339,7 +360,7 @@ def get_realtime_payload(
     return {
         "symbol": symbol,
         "symbol_code": _get_symbol_code(symbol),
-        "contract": effective_code,
+        "contract": effective_code if market_type == "futures" else contract or symbol,
         "display": display_data,
         "period": period,
         "maPeriod": ma_period,

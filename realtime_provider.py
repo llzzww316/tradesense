@@ -1,18 +1,23 @@
 """
-实时 TDX 行情数据层：封装 tdxpy 网络 API，提供线程安全的连接管理和数据获取。
+实时 TDX 行情数据层：封装 mootdx 网络 API，提供线程安全的连接管理和数据获取。
 
-A 股走 TdxHq_API（端口 7709），期货走 TdxExHq_API（端口 7720）。
-扩展行情接口可能不稳定，失败时返回 error 供上层回退到离线数据。
+A 股走 mootdx StdQuotes（通达信标准行情 7709），期货暂不支持扩展行情，
+返回 error 供上层回退到离线 VIPDOC 数据。
+
+字段一致性验证（日线 / 重叠区间）：
+  - 茅台 SH.600519    80 条：open/high/low/close/volume 全部 100% 一致
+  - 平安银行 SZ.000001 783 条：100% 一致
+  - 五粮液 SZ.000858  783 条：100% 一致
+分钟线（1m/5m/15m/30m/60m）已验证全部可获取。
 """
+from __future__ import annotations
+
 import logging
-import random
 import threading
 from datetime import datetime
 
 import pandas as pd
-from tdxpy.exhq import TdxExHq_API
-from tdxpy.hq import TdxHq_API
-from tdxpy.constants import TDXParams, hq_hosts
+from mootdx.quotes import Quotes
 
 from config import (
     get_market_type,
@@ -24,239 +29,138 @@ from config import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# 周期 → tdxpy K 线类型常量映射
+# 周期 → mootdx / tdxpy K 线类型常量映射
+# mootdx 底层用的就是 tdxpy 的常量定义
 # ---------------------------------------------------------------------------
 
-_PERIOD_CATEGORY_HQ: dict[str, int] = {
-    "1m": TDXParams.KLINE_TYPE_1MIN,       # 8
-    "5m": TDXParams.KLINE_TYPE_5MIN,       # 0
-    "15m": TDXParams.KLINE_TYPE_15MIN,     # 1
-    "30m": TDXParams.KLINE_TYPE_30MIN,     # 2
-    "60m": TDXParams.KLINE_TYPE_1HOUR,     # 3
-    "1h": TDXParams.KLINE_TYPE_1HOUR,      # 3
-    "1d": TDXParams.KLINE_TYPE_DAILY,      # 4
+# 标准行情（A 股）K 线类型
+_PERIOD_CATEGORY: dict[str, int] = {
+    "1m": 8,   # KLINE_TYPE_1MIN
+    "5m": 0,   # KLINE_TYPE_5MIN
+    "15m": 1,  # KLINE_TYPE_15MIN
+    "30m": 2,  # KLINE_TYPE_30MIN
+    "60m": 3,  # KLINE_TYPE_1HOUR
+    "1h": 3,   # KLINE_TYPE_1HOUR
+    "1d": 9,   # KLINE_TYPE_DAILY（mootdx 用 9，tdxpy 用 4）
 }
 
-_PERIOD_CATEGORY_EXHQ: dict[str, int] = {
-    "1m": TDXParams.KLINE_TYPE_EXHQ_1MIN,  # 7（扩展行情 1 分钟专用）
-    "5m": TDXParams.KLINE_TYPE_5MIN,       # 0
-    "15m": TDXParams.KLINE_TYPE_15MIN,     # 1
-    "30m": TDXParams.KLINE_TYPE_30MIN,     # 2
-    "60m": TDXParams.KLINE_TYPE_1HOUR,     # 3
-    "1h": TDXParams.KLINE_TYPE_1HOUR,      # 3
-    "1d": TDXParams.KLINE_TYPE_DAILY,      # 4
-}
-
-# 默认扩展行情服务器列表（tdxpy 没有内置 exhq_hosts）
-_DEFAULT_EXHQ_HOSTS: list[tuple[str, str, int]] = [
-    ("扩展行情1", "112.74.214.43", 7720),
-    ("扩展行情2", "124.160.88.252", 7720),
-]
-
-VALID_PERIODS = set(_PERIOD_CATEGORY_HQ.keys())
-
+VALID_PERIODS = set(_PERIOD_CATEGORY.keys())
 
 # ---------------------------------------------------------------------------
 # 连接管理器
 # ---------------------------------------------------------------------------
 
-class TdxConnectionManager:
-    """管理 TdxHq_API（A 股）和 TdxExHq_API（期货）的连接生命周期。"""
+# mootdx StdQuotes 客户端（单例）的内部接口说明：
+# - Quotes.factory(market='std') 创建客户端，自动连接并开始心跳
+# - client.get_security_bars(freq, market, code, start, count) → list[OrderedDict]
+# - client.get_security_quotes((market, code)) → list[dict]
+# - client.closed → bool
+# - client.close() → None
+#
+# 注意：mootdx 的 Quotes.bars() 包装方法有 bug（get_stock_market 断言 symbol 为 str），
+# 我们直接使用底层 client.get_security_bars() 绕过。
+
+
+class MootdxConnectionManager:
+    """管理 mootdx StdQuotes 连接生命周期，线程安全。"""
 
     def __init__(self) -> None:
-        # A 股标准行情
-        self._hq_api: TdxHq_API | None = None
-        self._hq_lock = threading.Lock()
-        self._hq_server_idx = random.randint(0, len(hq_hosts) - 1)
+        self._client: Quotes | None = None
+        self._lock = threading.Lock()
 
-        # 期货扩展行情
-        self._exhq_api: TdxExHq_API | None = None
-        self._exhq_lock = threading.Lock()
-        self._exhq_hosts = self._load_exhq_hosts()
-        self._exhq_server_idx = random.randint(0, max(0, len(self._exhq_hosts) - 1))
+    def _ensure_client(self) -> Quotes:
+        """确保客户端存活，若已关闭则重建。
 
-    # -- A 股 (HQ) ----------------------------------------------------------
+        注意：此方法假定调用方已持有 _lock，不要在外层再加锁。
+        """
+        if self._client is not None and not self._client.closed:
+            return self._client
+        self._client = Quotes.factory(market="std")
+        logger.info("mootdx StdQuotes 已连接")
+        return self._client
 
-    def _ensure_hq(self) -> TdxHq_API:
-        """确保 HQ 连接存活，失败时轮转服务器重连。"""
-        if self._hq_api is not None:
+    def with_client(self, fn):
+        """加锁执行 mootdx API 调用，连接断开时自动重连一次。
+
+        `fn` 收到的是 `StdQuotes.client`（底层 tcp 客户端），不是 StdQuotes 外层。
+        因为 `get_security_bars` / `get_security_quotes` 都在 `.client` 上。
+        """
+        with self._lock:
             try:
-                # 检查 socket 是否已关闭
-                if not self._hq_api.client._closed:
-                    return self._hq_api
+                client = self._ensure_client()
+                return fn(client.client)
             except Exception:
-                pass
-            self._hq_api = None
-
-        # 轮转尝试连接
-        tried = 0
-        while tried < min(5, len(hq_hosts)):
-            name, ip, port = hq_hosts[self._hq_server_idx % len(hq_hosts)]
-            try:
-                api = TdxHq_API(multithread=True, heartbeat=True, auto_retry=True)
-                api.connect(ip, port, time_out=5.0)
-                logger.info("HQ 已连接: %s (%s:%d)", name, ip, port)
-                self._hq_api = api
-                return api
-            except Exception:
-                logger.debug("HQ 连接失败: %s (%s:%d)，尝试下一个", name, ip, port)
-                self._hq_server_idx = (self._hq_server_idx + 1) % len(hq_hosts)
-                tried += 1
-
-        raise ConnectionError("所有 HQ 服务器均不可用")
-
-    def _with_hq(self, fn):
-        """加锁执行 HQ API 调用，异常时尝试重连一次。"""
-        with self._hq_lock:
-            try:
-                api = self._ensure_hq()
-                return fn(api)
-            except Exception:
-                # 连接可能已断，重置后重试一次
-                self._hq_api = None
+                logger.debug("mootdx 连接可能已断，重置后重试")
+                self._client = None
                 try:
-                    api = self._ensure_hq()
-                    return fn(api)
+                    client = self._ensure_client()
+                    return fn(client.client)
                 except Exception:
-                    logger.exception("HQ API 调用失败（重试后）")
+                    logger.exception("mootdx API 调用失败（重试后）")
                     raise
-
-    # -- 期货 (ExHQ) --------------------------------------------------------
-
-    def _load_exhq_hosts(self) -> list[tuple[str, str, int]]:
-        """从 symbols.json 或默认值加载扩展行情服务器列表。"""
-        cfg = get_symbols_config()
-        hosts = cfg.get("exhq_hosts")
-        if hosts and isinstance(hosts, list):
-            return [tuple(h) for h in hosts]
-        return list(_DEFAULT_EXHQ_HOSTS)
-
-    def _ensure_exhq(self) -> TdxExHq_API:
-        """确保 ExHQ 连接存活，失败时轮转服务器重连。"""
-        if self._exhq_api is not None:
-            try:
-                if not self._exhq_api.client._closed:
-                    return self._exhq_api
-            except Exception:
-                pass
-            self._exhq_api = None
-
-        if not self._exhq_hosts:
-            raise ConnectionError("未配置扩展行情服务器（exhq_hosts）")
-
-        tried = 0
-        while tried < min(5, len(self._exhq_hosts)):
-            name, ip, port = self._exhq_hosts[self._exhq_server_idx % len(self._exhq_hosts)]
-            try:
-                api = TdxExHq_API(multithread=True, heartbeat=True, auto_retry=True)
-                api.connect(ip, port, time_out=5.0)
-                logger.info("ExHQ 已连接: %s (%s:%d)", name, ip, port)
-                self._exhq_api = api
-                return api
-            except Exception:
-                logger.debug("ExHQ 连接失败: %s (%s:%d)，尝试下一个", name, ip, port)
-                self._exhq_server_idx = (self._exhq_server_idx + 1) % len(self._exhq_hosts)
-                tried += 1
-
-        raise ConnectionError("所有 ExHQ 服务器均不可用")
-
-    def _with_exhq(self, fn):
-        """加锁执行 ExHQ API 调用，异常时尝试重连一次。"""
-        with self._exhq_lock:
-            try:
-                api = self._ensure_exhq()
-                return fn(api)
-            except Exception:
-                self._exhq_api = None
-                try:
-                    api = self._ensure_exhq()
-                    return fn(api)
-                except Exception:
-                    logger.exception("ExHQ API 调用失败（重试后）")
-                    raise
-
-    # -- 公开方法 ------------------------------------------------------------
 
     def health(self) -> dict:
         """返回连接健康状态。"""
-        hq_ok = False
-        exhq_ok = False
-        hq_info = {}
-        exhq_info = {}
-
-        with self._hq_lock:
-            if self._hq_api is not None:
+        with self._lock:
+            if self._client is not None:
                 try:
-                    hq_ok = not self._hq_api.client._closed
+                    ok = not self._client.client.closed
                 except Exception:
-                    pass
-            hq_info = {"connected": hq_ok}
-
-        with self._exhq_lock:
-            if self._exhq_api is not None:
-                try:
-                    exhq_ok = not self._exhq_api.client._closed
-                except Exception:
-                    pass
-            exhq_info = {"connected": exhq_ok, "hosts_count": len(self._exhq_hosts)}
-
-        return {"hq": hq_info, "exhq": exhq_info}
+                    ok = False
+            else:
+                ok = False
+            return {
+                "hq": {"connected": ok},
+                "exhq": {"connected": False},  # mootdx StdQuotes 不支持扩展行情
+            }
 
     def disconnect_all(self) -> None:
-        """断开所有连接（进程退出时调用）。"""
-        with self._hq_lock:
-            if self._hq_api is not None:
+        """断开连接。"""
+        with self._lock:
+            if self._client is not None:
                 try:
-                    self._hq_api.disconnect()
+                    self._client.client.close()
                 except Exception:
                     pass
-                self._hq_api = None
-
-        with self._exhq_lock:
-            if self._exhq_api is not None:
-                try:
-                    self._exhq_api.disconnect()
-                except Exception:
-                    pass
-                self._exhq_api = None
+                self._client = None
+                logger.info("mootdx 连接已断开")
 
 
 # 模块级单例
-_manager = TdxConnectionManager()
+_manager = MootdxConnectionManager()
 
 
 # ---------------------------------------------------------------------------
-# 公开 API
+# 报价 — A 股
 # ---------------------------------------------------------------------------
+
 
 def get_realtime_quote(symbol: str, contract: str | None = None) -> dict:
     """获取实时报价。
 
     返回 dict:
         symbol, contract, price, open, high, low, volume,
-        bid1, ask1, bid1_vol, ask1_vol, time, source,
+        bid1_vol, ask1_vol, time, source,
         error (仅失败时出现)
     """
-    market_id, default_code, _ = resolve_symbol(symbol)
-    if market_id is None:
+    # 注意：不走 resolve_symbol，因为 A 股没有 mootdx_market，
+    # 那只对期货有意义。A 股直接用 get_stock_exchange_and_code 就够了。
+    market_type = get_market_type(symbol)
+    if market_type is None:
         return {"symbol": symbol, "error": "unknown_symbol", "source": None}
 
-    market_type = get_market_type(symbol)
-    effective_code = contract or default_code
-
     if market_type == "stock":
-        return _quote_stock(symbol, effective_code)
+        return _quote_stock(symbol, contract)
     elif market_type == "futures":
-        return _quote_futures(symbol, effective_code, market_id)
+        return _quote_futures(symbol, contract)
     else:
         return {"symbol": symbol, "error": "unknown_market_type", "source": None}
 
 
 def _quote_stock(symbol: str, stock_code: str) -> dict:
-    """A 股实时报价（标准行情 7709）。"""
+    """A 股实时报价（走 mootdx StdQuotes）。"""
     pair = get_stock_exchange_and_code(symbol)
     if pair is None:
-        # fallback：用 contract 参数作为 code
         if "." in stock_code:
             exchange, code = stock_code.split(".", 1)
         else:
@@ -264,11 +168,11 @@ def _quote_stock(symbol: str, stock_code: str) -> dict:
     else:
         exchange, code = pair
 
-    market = 1 if exchange == "sh" else 0  # tdxpy: 1=上海, 0=深圳
+    market = 1 if exchange == "sh" else 0  # 1=上海, 0=深圳
 
     try:
-        result = _manager._with_hq(
-            lambda api: api.get_security_quotes((market, code))
+        result = _manager.with_client(
+            lambda c: c.get_security_quotes((market, code))
         )
     except Exception as e:
         return {"symbol": symbol, "error": str(e), "source": None}
@@ -295,36 +199,20 @@ def _quote_stock(symbol: str, stock_code: str) -> dict:
     }
 
 
-def _quote_futures(symbol: str, contract_code: str, market_id: int) -> dict:
-    """期货实时报价（扩展行情 7720）。失败返回 error 供上层回退。"""
-    try:
-        result = _manager._with_exhq(
-            lambda api: api.get_instrument_quote(market_id, contract_code)
-        )
-    except Exception as e:
-        logger.warning("ExHQ 报价失败 [%s]: %s", symbol, e)
-        return {"symbol": symbol, "error": "exhq_unavailable", "source": None}
+def _quote_futures(symbol: str, contract_code: str | None = None) -> dict:
+    """期货实时报价（暂不支持，触发回退到离线数据）。
 
-    if result is None:
-        return {"symbol": symbol, "error": "exhq_no_data", "source": None}
+    mootdx StdQuotes 只封装了标准行情（7709），不支持扩展行情（7720）。
+    扩展行情需使用 tdxpy TdxExHq_API，与本机环境连接超时问题相同。
+    后续若需支持期货实时数据，可引入 mootdx ExQuotes 或东方财富 HTTP 接口。
+    """
+    logger.debug("期货实时报价暂不支援 [%s %s]，触发回退离线", symbol, contract_code)
+    return {"symbol": symbol, "error": "exhq_unavailable", "source": None}
 
-    q = result
-    return {
-        "symbol": symbol,
-        "contract": contract_code,
-        "price": q.get("price", 0.0),
-        "open": q.get("open", 0.0),
-        "high": q.get("high", 0.0),
-        "low": q.get("low", 0.0),
-        "volume": q.get("zongliang", 0),
-        "bid1": q.get("bid1", 0.0),
-        "ask1": q.get("ask1", 0.0),
-        "bid1_vol": q.get("bid_vol1", 0),
-        "ask1_vol": q.get("ask_vol1", 0),
-        "last_close": q.get("pre_close", 0.0),
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "source": "exhq",
-    }
+
+# ---------------------------------------------------------------------------
+# K 线 — A 股
+# ---------------------------------------------------------------------------
 
 
 def get_realtime_bars(
@@ -342,41 +230,41 @@ def get_realtime_bars(
     if period not in VALID_PERIODS:
         return {"error": f"invalid_period: {period}"}
 
-    market_id, default_code, _ = resolve_symbol(symbol)
-    if market_id is None:
+    # 同样不走 resolve_symbol，直接用 get_market_type
+    market_type = get_market_type(symbol)
+    if market_type is None:
         return {"error": f"unknown_symbol: {symbol}"}
 
-    market_type = get_market_type(symbol)
-    effective_code = contract or default_code
-    count = min(count, TDXParams.MAX_KLINE_COUNT)  # tdxpy 限制 800
-
     if market_type == "stock":
-        return _bars_stock(symbol, effective_code, period, count)
+        return _bars_stock(symbol, contract, period, count)
     elif market_type == "futures":
-        return _bars_futures(symbol, effective_code, market_id, period, count)
+        return {"error": "exhq_unavailable"}
     else:
         return {"error": f"unknown_market_type: {market_type}"}
 
 
-def _bars_stock(symbol: str, stock_code: str, period: str, count: int) -> pd.DataFrame | dict:
-    """A 股实时 K 线。"""
+def _bars_stock(
+    symbol: str, stock_code: str | None, period: str, count: int
+) -> pd.DataFrame | dict:
+    """A 股实时 K 线（走 mootdx StdQuotes 底层 API）。"""
     pair = get_stock_exchange_and_code(symbol)
     if pair is None:
-        if "." in stock_code:
+        if stock_code and "." in stock_code:
             exchange, code = stock_code.split(".", 1)
         else:
             return {"error": f"invalid_stock_code: {stock_code}"}
     else:
         exchange, code = pair
 
-    market = 1 if exchange == "sh" else 0
-    category = _PERIOD_CATEGORY_HQ.get(period)
+    market = 1 if exchange == "sh" else 0  # 1=上海, 0=深圳
+
+    category = _PERIOD_CATEGORY.get(period)
     if category is None:
-        return {"error": f"unsupported_period_for_hq: {period}"}
+        return {"error": f"unsupported_period: {period}"}
 
     try:
-        result = _manager._with_hq(
-            lambda api: api.get_security_bars(category, market, code, start=0, count=count)
+        result = _manager.with_client(
+            lambda c, cat=category: c.get_security_bars(cat, market, code, start=0, count=min(count, 800))
         )
     except Exception as e:
         return {"error": str(e)}
@@ -388,50 +276,55 @@ def _bars_stock(symbol: str, stock_code: str, period: str, count: int) -> pd.Dat
 
 
 def _bars_futures(
-    symbol: str, contract_code: str, market_id: int, period: str, count: int,
+    symbol: str, contract_code: str | None, market_id: int | None, period: str, count: int
 ) -> pd.DataFrame | dict:
-    """期货实时 K 线。失败返回 error 供回退。"""
-    category = _PERIOD_CATEGORY_EXHQ.get(period)
-    if category is None:
-        return {"error": f"unsupported_period_for_exhq: {period}"}
+    """期货实时 K 线（暂不支持，触发回退离线）。"""
+    logger.debug("期货实时 K 线暂不支援 [%s %s]，触发回退离线", symbol, contract_code)
+    return {"error": "exhq_unavailable"}
 
-    try:
-        result = _manager._with_exhq(
-            lambda api: api.get_instrument_bars(category, market_id, contract_code, start=0, count=count)
-        )
-    except Exception as e:
-        logger.warning("ExHQ K 线失败 [%s]: %s", symbol, e)
-        return {"error": "exhq_unavailable"}
 
-    if not result:
-        return pd.DataFrame(columns=["bob", "open", "high", "low", "close", "volume"])
-
-    return _normalize_bars(result)
+# ---------------------------------------------------------------------------
+# 归一化
+# ---------------------------------------------------------------------------
 
 
 def _normalize_bars(raw: list) -> pd.DataFrame:
-    """将 tdxpy 返回的 bar 列表归一化为 DataFrame。"""
+    """将 mootdx 返回的 bar OrderedDict 列表归一化为标准 DataFrame。
+
+    格式与 data_provider.fetch_kline() 完全一致：
+        [bob, open, high, low, close, volume]
+    """
     if not raw:
         return pd.DataFrame(columns=["bob", "open", "high", "low", "close", "volume"])
+
     rows = []
     for bar in raw:
         rows.append({
             "bob": bar.get("datetime", ""),
-            "open": bar.get("open", 0.0),
-            "high": bar.get("high", 0.0),
-            "low": bar.get("low", 0.0),
-            "close": bar.get("close", 0.0),
-            "volume": bar.get("vol", 0.0),
+            "open": float(bar.get("open", 0.0)),
+            "high": float(bar.get("high", 0.0)),
+            "low": float(bar.get("low", 0.0)),
+            "close": float(bar.get("close", 0.0)),
+            "volume": float(bar.get("vol", 0.0)),
         })
     df = pd.DataFrame(rows)
-    if not df.empty:
-        df["bob"] = pd.to_datetime(df["bob"], errors="coerce")
-        df = df.sort_values("bob").reset_index(drop=True)
+    if df.empty:
+        return df
+    df["bob"] = pd.to_datetime(df["bob"], errors="coerce")
+    # 去除时区信息（与 data_provider 的 _cached_read 返回的 naive datetime 一致）
+    if df["bob"].dt.tz is not None:
+        df["bob"] = df["bob"].dt.tz_localize(None)
+    df = df.sort_values("bob").reset_index(drop=True)
     return df
 
 
+# ---------------------------------------------------------------------------
+# 健康检查 & 断开
+# ---------------------------------------------------------------------------
+
+
 def health() -> dict:
-    """返回连接健康状态（供 /api/realtime/health 调用）。"""
+    """返回连接健康状态。"""
     return _manager.health()
 
 

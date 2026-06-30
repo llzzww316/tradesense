@@ -44,9 +44,18 @@ def resolve_symbol(symbol: str) -> tuple:
     """返回 (mootdx_market, mootdx_code, display_name)；未知品种返回 (None, None, None)。"""
     cfg = get_symbols_config().get("symbols", {})
     info = cfg.get(symbol)
-    if not info:
-        return None, None, None
-    return info.get("mootdx_market"), info.get("mootdx_code"), symbol
+    if info:
+        return info.get("mootdx_market"), info.get("mootdx_code"), symbol
+
+    # 模糊匹配：按代码（600519 / SH.600519）或按中文名子串
+    for name, info in cfg.items():
+        code = info.get("code", "").lower()
+        sym = symbol.lower()
+        if code == sym or code.replace(".", "") == sym or sym in code or code in sym:
+            return info.get("mootdx_market"), info.get("mootdx_code"), name
+        if symbol in name or name in symbol:
+            return info.get("mootdx_market"), info.get("mootdx_code"), name
+    return None, None, None
 
 
 def resolve_symbol_code(symbol: str) -> str | None:
@@ -54,6 +63,14 @@ def resolve_symbol_code(symbol: str) -> str | None:
     cfg = get_symbols_config().get("symbols", {})
     if symbol in cfg:
         return cfg[symbol]["code"]
+    # 模糊匹配
+    for name, info in cfg.items():
+        code = info.get("code", "").lower()
+        sym = symbol.lower()
+        if code == sym or code.replace(".", "") == sym or sym in code or code in sym:
+            return info["code"]
+        if symbol in name or name in symbol:
+            return info["code"]
     if isinstance(symbol, str) and "." in symbol:
         return symbol
     return None
@@ -63,17 +80,40 @@ def get_market_type(symbol: str) -> str | None:
     """返回 'futures' 或 'stock'，未知品种返回 None。"""
     cfg = get_symbols_config().get("symbols", {})
     info = cfg.get(symbol)
-    return info.get("market_type") if info else None
+    if info:
+        return info.get("market_type")
+    for name, info in cfg.items():
+        code = info.get("code", "").lower()
+        sym = symbol.lower()
+        if code == sym or code.replace(".", "") == sym or sym in code or code in sym:
+            return info.get("market_type")
+        if symbol in name or name in symbol:
+            return info.get("market_type")
+    return None
 
 
 def get_stock_exchange_and_code(symbol: str) -> tuple[str, str] | None:
     """A 股品种返回 (exchange, code)，如 ('sh', '600519')；非股票或未知返回 None。"""
     cfg = get_symbols_config().get("symbols", {})
     info = cfg.get(symbol)
-    if not info or info.get("market_type") != "stock":
-        return None
-    code_str = info.get("code", "")
-    if "." not in code_str:
-        return None
-    exchange, stock_code = code_str.split(".", 1)
-    return exchange.lower(), stock_code
+    if info and info.get("market_type") == "stock":
+        code_str = info.get("code", "")
+        if "." in code_str:
+            exchange, stock_code = code_str.split(".", 1)
+            return exchange.lower(), stock_code
+
+    # 模糊匹配
+    for name, info in cfg.items():
+        if info.get("market_type") != "stock":
+            continue
+        code = info.get("code", "").lower()
+        sym = symbol.lower()
+        if code == sym or code.replace(".", "") == sym or sym in code or code in sym:
+            exchange, stock_code = code.split(".", 1)
+            return exchange.lower(), stock_code
+        if symbol in name or name in symbol:
+            code_str = info.get("code", "")
+            if "." in code_str:
+                exchange, stock_code = code_str.split(".", 1)
+                return exchange.lower(), stock_code
+    return None

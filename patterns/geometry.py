@@ -42,9 +42,9 @@ def _find_local_extremes(bars: list[dict], lookback: int = 3) -> tuple[list[dict
 def detect_bull_flag(
     bars: list[Bar],
     flagpole_gain_pct: float = 15.0,
-    flag_max_pullback_ratio: float = 0.35,
+    flag_max_pullback_ratio: float = 0.4,
     flag_max_bars: int = 25,
-    proximity_pct: float = 3.0,
+    proximity_pct: float = 6.0,
 ) -> Optional[dict]:
     """检测牛旗形态。
 
@@ -69,8 +69,9 @@ def detect_bull_flag(
     best_flagpole = None
 
     # 在过去 60-90 根内寻找旗杆
+    # pole_end 从 len-3 开始（给旗面留至少 3 根）到 search_start 结束
     search_start = max(10, len(bars) - 90)
-    for pole_end in range(len(bars) - 15, search_start, -1):
+    for pole_end in range(len(bars) - 3, search_start, -1):
         # 从 pole_end 往前找旗杆起点（最近的显著低点）
         pole_low_idx = pole_end
         for i in range(pole_end, max(search_start - 1, 0), -1):
@@ -78,7 +79,8 @@ def detect_bull_flag(
                 pole_low_idx = i
 
         pole_low = lows[pole_low_idx]
-        pole_high = max(highs[pole_low_idx:pole_end + 1])
+        pole_high_idx = max(range(pole_low_idx, pole_end + 1), key=lambda idx: highs[idx])
+        pole_high = highs[pole_high_idx]
         if pole_low <= 0:
             continue
         gain_pct = (pole_high - pole_low) / pole_low * 100
@@ -86,7 +88,7 @@ def detect_bull_flag(
             if best_flagpole is None or pole_high > best_flagpole["high"]:
                 best_flagpole = {
                     "start_idx": pole_low_idx,
-                    "end_idx": pole_end,
+                    "end_idx": pole_high_idx,
                     "low": pole_low,
                     "high": pole_high,
                     "gain_pct": gain_pct,
@@ -167,21 +169,19 @@ def detect_bull_flag(
             score += 10  # 明显缩量
 
     # 旗面收窄
-    if squeeze_detection([Bar(time="", open=b["open"], high=b["high"], low=b["low"],
-                              close=b["close"], volume=b["volume"])
-                          for b in _bars_to_dicts(flag_bars)], lookback=min(8, len(flag_bars))):
+    if squeeze_detection(flag_bars, lookback=min(8, len(flag_bars))):
         score += 5
 
     # 旗面过长扣分
     if len(flag_bars) > 20:
         score -= 10
 
-    # 当前价格接近旗面上沿
+    # 当前价格接近旗面上沿（允许略微超出，极端强拉可能微破）
     cur_price = bars[-1].close
     upper_edge = pole_high  # 旗面上沿 ≈ 旗杆高点
     dist_pct = abs(cur_price - upper_edge) / upper_edge * 100
     if dist_pct > proximity_pct:
-        score -= 15  # 距离太远，形态未成熟
+        return None  # 距离太远，形态未成熟
 
     score = max(0, min(100, score))
 
@@ -204,15 +204,18 @@ def detect_asc_triangle(
     bars: list[Bar],
     min_swing_points: int = 3,
     resistance_tolerance_pct: float = 3.0,
+    max_upper_slope_down_pct: float = 1.0,
     proximity_pct: float = 3.0,
+    max_narrowing_ratio: float = 0.9,
 ) -> Optional[dict]:
     """检测上升三角形形态。
 
     逻辑：
     1. 用 detect_swings 找高低点序列
-    2. 高点基本持平（阻力位水平，差异 < 3%）
+    2. 上沿：略微下倾或水平（累计斜率绝对值 < max_upper_slope_down_pct 或向上）
     3. 低点逐步抬高（至少3个低点递增）
-    4. 当前价格接近阻力位
+    4. 波动收窄（后半段振幅 < 前半段）
+    5. 当前价格接近上沿
 
     返回 dict:
         detected: bool
@@ -232,13 +235,28 @@ def detect_asc_triangle(
     if len(highs) < 2 or len(lows) < min_swing_points:
         return None
 
-    # ---- 高点阻力位 ----
-    resistance_prices = [p for _, p in highs[-4:]]  # 最近4个高点
-    avg_resistance = sum(resistance_prices) / len(resistance_prices)
-    max_deviation = max(abs(p - avg_resistance) / avg_resistance * 100
-                        for p in resistance_prices)
-    if max_deviation > resistance_tolerance_pct:
-        return None  # 高点不够平
+    # ---- 上沿判定：允许水平或略下倾 ----
+    recent_highs = [(idx, p) for idx, p in highs[-4:]]
+    n_high = len(recent_highs)
+
+    # 用线性回归算上沿斜率
+    x_h = [i for i in range(n_high)]
+    y_h = [p for _, p in recent_highs]
+    x_h_mean = sum(x_h) / n_high
+    y_h_mean = sum(y_h) / n_high
+    denom_h = sum((x - x_h_mean) ** 2 for x in x_h)
+    if denom_h == 0:
+        return None
+    slope_h = sum((x - x_h_mean) * (y - y_h_mean) for x, y in zip(x_h, y_h)) / denom_h
+    # 累计斜率占第一个高点价格的百分比
+    total_slope_pct = (slope_h * (n_high - 1)) / y_h_mean * 100 if y_h_mean > 0 else 0
+
+    # 上沿向上倾斜太多 → 那是上升通道，不是三角形
+    if total_slope_pct > resistance_tolerance_pct:
+        return None
+    # 上沿下倾太陡 → 不是上升三角形
+    if total_slope_pct < -max_upper_slope_down_pct:
+        return None
 
     # ---- 低点上升趋势 ----
     recent_lows = [p for _, p in lows[-min_swing_points - 1:]]
@@ -267,22 +285,26 @@ def detect_asc_triangle(
     if first_half_range <= 0:
         return None
     narrowing_ratio = second_half_range / first_half_range
+    if narrowing_ratio > max_narrowing_ratio:
+        return None
 
-    # ---- 当前价格接近阻力位 ----
+    # ---- 当前价格接近上沿 ----
     cur_price = bars[-1].close
-    dist_to_resistance = abs(cur_price - avg_resistance) / avg_resistance * 100
+    # 用线性回归预测最新高点位置作为"阻力位"
+    upper_at_end = slope_h * (n_high - 1) + (y_h_mean - slope_h * x_h_mean)
+    dist_to_upper = abs(cur_price - upper_at_end) / upper_at_end * 100
 
-    if dist_to_resistance > proximity_pct:
-        return None  # 距阻力位太远
+    if dist_to_upper > proximity_pct:
+        return None  # 距上沿太远
 
     # ---- 评分 ----
     score = 75  # 基础分
 
-    # 高点越平越好
-    if max_deviation < 1.5:
-        score += 10
-    elif max_deviation < 2.0:
-        score += 5
+    # 上沿越平越好（正斜率也不错，但别扣分）
+    if total_slope_pct < -0.5:
+        score -= 10  # 下倾太多扣分
+    elif total_slope_pct < 0:
+        score -= 5  # 轻微下倾微扣
 
     # 低点递增越明显越好
     if ascending_ratio >= 0.8:
@@ -296,8 +318,8 @@ def detect_asc_triangle(
     elif narrowing_ratio < 0.7:
         score += 5
 
-    # 高点不齐扣分
-    if max_deviation > 2.5:
+    # 上沿斜率太正扣分（通道不是三角形）
+    if total_slope_pct > 2.0:
         score -= 10
 
     score = max(0, min(100, score))
@@ -306,8 +328,8 @@ def detect_asc_triangle(
         "detected": True,
         "score": score,
         "pattern": "上升三角形",
-        "detail": (f"阻力位{avg_resistance:.2f}(偏差{max_deviation:.1f}%), "
+        "detail": (f"上沿斜率{total_slope_pct:.1f}%, "
                    f"低点递增{ascending_ratio:.0%}, "
                    f"收窄比{narrowing_ratio:.2f}, "
-                   f"距阻力{dist_to_resistance:.1f}%"),
+                   f"距上沿{dist_to_upper:.1f}%"),
     }
